@@ -11,6 +11,11 @@ try {
   console.log("ERROR: .secret file not found")
 }
 
+// if deploying for mainnet, require mnemonic
+if (!!process.env.DEPLOY_MAINNET) {
+  mnemonic = fs.readFileSync(".secret-mainnet").toString().trim()
+}
+
 const HDWalletProvider = require("@truffle/hdwallet-provider")
 
 module.exports = {
@@ -60,7 +65,16 @@ module.exports = {
     },
 
     mainnet: {
-      // TODO
+      provider: function () {
+        return new HDWalletProvider(
+          mnemonic,
+          `https://mainnet.infura.io/v3/${process.env.INFURA_API_KEY}`,
+        )
+      },
+      network_id: 1,
+      gas: 8000000,
+      gasPrice: 20000000000, // 20 gwei (this should be changed to match current average gas price whenever we use this provide)
+      // check https://www.ethgasstation.info/
     },
     // Another network with more advanced options...
     // advanced: {

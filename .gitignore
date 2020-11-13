@@ -106,6 +106,7 @@ dist
 dist/
 
 .secret
+.secret-mainnet
 graphql-schema.json
 src/ethers/
 
