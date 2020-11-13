@@ -1,0 +1,109 @@
+specVersion: 0.0.2
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: MarketsRegistry
+    network: {{network}}
+    source:
+      address: "{{marketsRegistryAddress}}"
+      abi: MarketsRegistry
+      startBlock: {{marketsRegistryStartBlock}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.4
+      language: wasm/assemblyscript
+      entities:
+        - OwnershipTransfer
+      abis:
+        - name: MarketsRegistry
+          file: ../build/contracts/MarketsRegistry.json
+      eventHandlers:
+        - event: MarketCreated(string,address,uint256)
+          handler: handleMarketCreated
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleOwnershipTransferred
+        - event: AmmCreated(address)
+          handler: handleAmmCreated
+      file: ./src/mappings/marketsRegistry.ts
+templates:
+  - kind: ethereum/contract
+    name: Market
+    network: {{network}}
+    source:
+      abi: Market
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.4
+      language: wasm/assemblyscript
+      entities:
+        - Market
+        - CollateralClaim
+        - Fee
+        - MarketDestruction
+        - MarketInitialization
+        - OptionClose
+        - OptionExercise
+        - OptionMint
+      abis:
+        - name: Market
+          file: ../build/contracts/Market.json
+        - name: SimpleToken
+          file: ../build/contracts/SimpleToken.json
+      eventHandlers:
+        - event: CollateralClaimed(indexed address,uint256)
+          handler: handleCollateralClaimed
+        - event: FeePaid(indexed uint8,indexed address,uint256)
+          handler: handleFeePaid
+        - event: MarketDestroyed()
+          handler: handleMarketDestroyed
+        - event: MarketInitialized(string,uint8,address,address)
+          handler: handleMarketInitialized
+        - event: OptionClosed(indexed address,uint256)
+          handler: handleOptionClosed
+        - event: OptionExercised(indexed address,uint256)
+          handler: handleOptionExercised
+        - event: OptionMinted(indexed address,uint256)
+          handler: handleOptionMinted
+      file: ./src/mappings/market.ts
+  - kind: ethereum/contract
+    name: SimpleToken
+    network: {{network}}
+    source:
+      abi: SimpleToken
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.4
+      language: wasm/assemblyscript
+      entities:
+        - Transfer
+        - Approval
+      abis:
+        - name: SimpleToken
+          file: ../build/contracts/SimpleToken.json
+      eventHandlers:
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleTransfer
+        - event: Approval(indexed address,indexed address,uint256)
+          handler: handleApproval
+      file: ./src/mappings/simpleToken.ts
+  - kind: ethereum/contract
+    name: Amm
+    network: {{network}}
+    source:
+      abi: MinterAmm
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.4
+      language: wasm/assemblyscript
+      entities:
+        - Amm
+      abis:
+        - name: MinterAmm
+          file: ../build/contracts/MinterAmm.json
+        - name: SimpleToken
+          file: ../build/contracts/SimpleToken.json
+      eventHandlers:
+        - event: AMMInitialized(address,address)
+          handler: handleAMMInitialized
+      file: ./src/mappings/amm.ts

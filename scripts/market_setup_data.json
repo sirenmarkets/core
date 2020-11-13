@@ -1,0 +1,74 @@
+[
+  {
+    "marketName": "USDC.WBTC.20201231.C.7000",
+    "priceRatio": "70000000000000000000",
+    "expirationDate": 1609372800,
+    "marketStyle": 1,
+    "exerciseFeeBasisPoints": 0,
+    "closeFeeBasisPoints": 0,
+    "claimFeeBasisPoints": 0
+  },
+  {
+    "marketName": "USDC.WBTC.20201231.P.16000",
+    "priceRatio": "6250000000000000",
+    "expirationDate": 1609372800,
+    "marketStyle": 1,
+    "exerciseFeeBasisPoints": 0,
+    "closeFeeBasisPoints": 0,
+    "claimFeeBasisPoints": 0
+  },
+  {
+    "marketName": "USDC.WBTC.20201231.P.18000",
+    "priceRatio": "5555555555555560",
+    "expirationDate": 1609372800,
+    "marketStyle": 1,
+    "exerciseFeeBasisPoints": 0,
+    "closeFeeBasisPoints": 0,
+    "claimFeeBasisPoints": 0
+  },
+  {
+    "marketName": "USDC.WBTC.20201231.P.7000",
+    "priceRatio": "14285714285714286",
+    "expirationDate": 1609372800,
+    "marketStyle": 1,
+    "exerciseFeeBasisPoints": 0,
+    "closeFeeBasisPoints": 0,
+    "claimFeeBasisPoints": 0
+  },
+  {
+    "marketName": "USDC.WBTC.20201231.C.17000",
+    "priceRatio": "170000000000000000000",
+    "expirationDate": 1609372800,
+    "marketStyle": 1,
+    "exerciseFeeBasisPoints": 0,
+    "closeFeeBasisPoints": 0,
+    "claimFeeBasisPoints": 0
+  },
+  {
+    "marketName": "USDC.WBTC.20201231.C.16000",
+    "priceRatio": "160000000000000000000",
+    "expirationDate": 1609372800,
+    "marketStyle": 1,
+    "exerciseFeeBasisPoints": 0,
+    "closeFeeBasisPoints": 0,
+    "claimFeeBasisPoints": 0
+  },
+  {
+    "marketName": "USDC.WBTC.20201231.C.18000",
+    "priceRatio": "180000000000000000000",
+    "expirationDate": 1609372800,
+    "marketStyle": 1,
+    "exerciseFeeBasisPoints": 0,
+    "closeFeeBasisPoints": 0,
+    "claimFeeBasisPoints": 0
+  },
+  {
+    "marketName": "USDC.WBTC.20201231.P.10000",
+    "priceRatio": "10000000000000000",
+    "expirationDate": 1609372800,
+    "marketStyle": 1,
+    "exerciseFeeBasisPoints": 0,
+    "closeFeeBasisPoints": 0,
+    "claimFeeBasisPoints": 0
+  }
+]

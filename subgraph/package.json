@@ -1,0 +1,24 @@
+{
+  "name": "@sirenprotocol/subgraph",
+  "version": "1.0.0",
+  "license": "UNLICENSED",
+  "scripts": {
+    "codegen": "npm run prepare && graph codegen",
+    "build": "npm run prepare && graph build",
+    "prepare": "mustache ./config/${NETWORK:-local}.json subgraph.template.yaml > subgraph.yaml",
+    "deploy-remote": "npm run prepare && graph deploy sirenmarkets/${NAME:-null} --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/",
+    "create-local": "npm run prepare && graph create --node http://localhost:8020/ sirenmarkets/protocol",
+    "remove-local": "graph remove --node http://localhost:8020/ sirenmarkets/protocol",
+    "deploy-local": "npm run prepare && graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 sirenmarkets/protocol",
+    "deploy-kovan": "NETWORK=kovan NAME=protocol-kovan-v2 npm run deploy-remote",
+    "deploy-rinkeby": "NETWORK=rinkeby NAME=protocol-rinkeby npm run deploy-remote",
+    "graph-auth": "graph auth https://api.thegraph.com/deploy/ --"
+  },
+  "dependencies": {
+    "@graphprotocol/graph-cli": "^0.19.0",
+    "@graphprotocol/graph-ts": "^0.19.0"
+  },
+  "devDependencies": {
+    "mustache": "^4.0.1"
+  }
+}
