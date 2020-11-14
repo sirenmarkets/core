@@ -1,9 +1,7 @@
 const { request, gql } = require("graphql-request")
 
-const SimpleToken = artifacts.require("SimpleToken")
 const MarketsRegistry = artifacts.require("MarketsRegistry")
 const MinterAmm = artifacts.require("MinterAmm")
-const Market = artifacts.require("Market")
 
 const { getNetworkName } = require("./utils")
 
@@ -21,6 +19,16 @@ async function run() {
       "https://api.thegraph.com/subgraphs/name/sirenmarkets/protocol-rinkeby"
     multisigAddress = "0xCbb845969EcB2f89f2a736c785eB27F0B5B52410"
     marketsRegistryAddress = "0x79E93476cac62E76fEA27A7f7F8f7ea73b4B764d"
+  } else if (network == "mainnet") {
+    subgraphUrl =
+      "https://api.thegraph.com/subgraphs/name/sirenmarkets/protocol-mainnet"
+    multisigAddress = "0xd42dfEB13BDAe6120B99730cB8e5DEa18004A44b"
+    marketsRegistryAddress = "TODO" // update this!
+    if (marketsRegistryAddress === "TODO") {
+      throw new Error(
+        "must first run 'mainnet_create_markets.js script and deploy mainnet subgraph before transferring ownership",
+      )
+    }
   } else {
     throw new Error(`No configuration for network ${network}`)
   }

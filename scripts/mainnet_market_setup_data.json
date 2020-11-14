@@ -1,0 +1,39 @@
+[
+  {
+    "marketName": "USDC.WBTC.20201214.C.17000",
+    "priceRatio": "170000000000000000000",
+    "expirationDate": 1608040800,
+    "marketStyle": 1,
+    "exerciseFeeBasisPoints": 0,
+    "closeFeeBasisPoints": 0,
+    "claimFeeBasisPoints": 0
+  },
+  {
+    "marketName": "USDC.WBTC.20201214.C.16000",
+    "priceRatio": "160000000000000000000",
+    "expirationDate": 1608040800,
+    "marketStyle": 1,
+    "exerciseFeeBasisPoints": 0,
+    "closeFeeBasisPoints": 0,
+    "claimFeeBasisPoints": 0
+  },
+  {
+    "marketName": "USDC.WBTC.20201214.P.16000",
+    "priceRatio": "6250000000000000",
+
+    "expirationDate": 1608040800,
+    "marketStyle": 1,
+    "exerciseFeeBasisPoints": 0,
+    "closeFeeBasisPoints": 0,
+    "claimFeeBasisPoints": 0
+  },
+  {
+    "marketName": "USDC.WBTC.20201214.P.15000",
+    "priceRatio": "6666666666666670",
+    "expirationDate": 1608040800,
+    "marketStyle": 1,
+    "exerciseFeeBasisPoints": 0,
+    "closeFeeBasisPoints": 0,
+    "claimFeeBasisPoints": 0
+  }
+]

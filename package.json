@@ -20,8 +20,10 @@
     "deploy-local": "truffle migrate && truffle exec scripts/create_markets.js --network ${NETWORK:-development}",
     "deploy-kovan": "NETWORK=kovan npm run deploy-local",
     "deploy-rinkeby": "NETWORK=rinkeby npm run deploy-local",
+    "deploy-mainnet": "truffle migrate && truffle exec scripts/mainnet_create_markets.js --network mainnet",
     "transfer-ownership-local": "truffle exec scripts/transfer_ownership.js --network ${NETWORK:-development}",
     "transfer-ownership-rinkeby": "NETWORK=rinkeby npm run transfer-ownership-local",
+    "transfer-ownership-mainnet": "NETWORK=mainnet npm run transfer-ownership-local",
     "clean:dependencies": "rm -rf ./node_modules && rm -rf ./*/**/node_modules",
     "clean:dist": "rm -rf ./*/**/dist && rm -rf ./packages/contracts/build && rm -rf ./packages/contracts/src/ethers",
     "clean": "npm run clean:dependencies && npm run clean:dist"
