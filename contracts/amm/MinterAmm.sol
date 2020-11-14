@@ -499,7 +499,7 @@ contract MinterAmm is InitializeableAmm, OwnableUpgradeSafe, Proxiable {
     }
 
     /**
-     * During liquidity withdrawal we ether sell pro-rata active tokens back to the pool
+     * During liquidity withdrawal we either sell pro-rata active tokens back to the pool
      * or withdraw them to LP
      */
     function _sellOrWithdrawActiveTokens(
@@ -527,8 +527,12 @@ contract MinterAmm is InitializeableAmm, OwnableUpgradeSafe, Proxiable {
                 if (!sellTokens || lpTokenAmount == lpTokenSupply) {
                     // Full LP token withdrawal for the last LP in the pool
                     // or if auto-sale is disabled
-                    optionMarket.bToken().transfer(redeemer, bTokenToSell);
-                    optionMarket.wToken().transfer(redeemer, wTokenToSell);
+                    if (bTokenToSell > 0) {
+                        optionMarket.bToken().transfer(redeemer, bTokenToSell);
+                    }
+                    if (wTokenToSell > 0) {
+                        optionMarket.wToken().transfer(redeemer, wTokenToSell);
+                    }
                 } else {
                     // Regular partial withdrawal
                     uint256 collateralAmountB = bTokenGetCollateralOutInternal(
