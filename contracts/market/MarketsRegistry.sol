@@ -190,6 +190,9 @@ contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
         uint16 _claimFeeBasisPoints,
         address _amm
     ) public override onlyOwner returns (address) {
+        require(_collateralToken != address(0x0), "Invalid _collateralToken");
+        require(_paymentToken != address(0x0), "Invalid _paymentToken");
+
         // Verify a market with this name does not exist
         require(
             markets[_marketName] == address(0x0),
@@ -241,6 +244,10 @@ contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
         uint16 _tradeFeeBasisPoints,
         bool _shouldInvertOraclePrice
     ) public override onlyOwner returns (address) {
+        require(address(_priceOracle) != address(0x0), "Invalid _priceOracle");
+        require(address(_paymentToken) != address(0x0), "Invalid _paymentToken");
+        require(address(_collateralToken) != address(0x0), "Invalid _collateralToken");
+
         // Verify a amm with this name does not exist
         bytes32 assetPair = keccak256(abi.encode(address(_collateralToken), address(_paymentToken)));
 
@@ -301,6 +308,8 @@ contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
         override
         onlyOwner
     {
+        require(destination != address(0x0), "Invalid destination");
+
         // Get the balance
         uint256 balance = token.balanceOf(address(this));
 
