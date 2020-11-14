@@ -1,0 +1,5 @@
+{
+  "network": "mainnet",
+  "marketsRegistryAddress": "TODO",
+  "marketsRegistryStartBlock": 99999999999
+}
