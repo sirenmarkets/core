@@ -528,6 +528,7 @@ contract Market is IMarket, OwnableUpgradeSafe, Proxiable {
         onlyOwner
     {
         require(refundAddress != address(0x0), "Invalid refundAddress");
+
         require(
             state() == MarketState.CLOSED,
             "Markets can't be destroyed until it is closed"
@@ -560,6 +561,8 @@ contract Market is IMarket, OwnableUpgradeSafe, Proxiable {
      * Update the logic address of this Market
      */
     function updateImplementation(address newImplementation) public override {
+        require(newImplementation != address(0x0), "Invalid newImplementation");
+
         _updateCodeAddress(newImplementation);
     }
 
