@@ -15,13 +15,21 @@ export function handleAMMInitialized(event: AMMInitialized): void {
   amm.createdTimestamp = event.block.timestamp
   amm.registry = contract.registry()
   amm.priceOracle = event.params.priceOracle
-  amm.paymentToken = contract.paymentToken().toHexString()
-  amm.collateralToken = contract.collateralToken().toHexString()
   amm.tradeFeeBasisPoints = contract.tradeFeeBasisPoints()
+  amm.assetPair = contract.assetPair()
+
+  // Handle tokens
+  let paymentToken = contract.paymentToken()
+  findOrCreateToken(paymentToken)
+  amm.paymentToken = paymentToken.toHexString()
+
+  let collateralToken = contract.collateralToken()
+  findOrCreateToken(collateralToken)
+  amm.collateralToken = collateralToken.toHexString()
+
   let lpToken = contract.lpToken()
   findOrCreateToken(lpToken)
   amm.lpToken = lpToken.toHexString()
-  amm.assetPair = contract.assetPair()
 
   amm.save()
 }
