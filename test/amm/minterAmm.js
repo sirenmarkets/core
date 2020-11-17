@@ -247,9 +247,9 @@ contract("AMM Verification", (accounts) => {
       "lp tokens should have been minted",
     )
 
-    // Now there are 10k bTokens and 1k wTokens in the AMM...
-    // If another user deposits another 1k collateral, it should increase both
-    // bToken and wTokens by 10% and return remainder of wTokens to the LP
+    // Now there are 10k lpTokens in the AMM...
+    // If another user deposits another 1k collateral, it should increase
+    // the number of lpTokens by 1000
     await collateralToken.mint(aliceAccount, 1000)
     await collateralToken.approve(deployedAmm.address, 1000, {
       from: aliceAccount,
@@ -282,6 +282,99 @@ contract("AMM Verification", (accounts) => {
       paymentRemoved: "0",
       lpTokensBurned: "500",
     })
+  })
+
+  it("Provides and immediately withdraws capital without trading", async () => {
+    // Approve collateral
+    await collateralToken.mint(ownerAccount, 10000)
+    await collateralToken.approve(deployedAmm.address, 10000)
+
+    // Provide capital
+    let ret = await deployedAmm.provideCapital(10000, 0)
+
+    expectEvent(ret, "LpTokensMinted", {
+      minter: ownerAccount,
+      collateralAdded: "10000",
+      lpTokensMinted: "10000",
+    })
+
+    // Collateral should be moved away from Owner
+    assert.equal(
+      await collateralToken.balanceOf.call(ownerAccount),
+      0,
+      "Owner should have paid collateral",
+    )
+
+    // 10k collateral should be in the AMM.
+    assert.equal(
+      await collateralToken.balanceOf.call(deployedAmm.address),
+      10000,
+      "Collateral should have been used to mint",
+    )
+
+    // Total assets value in the AMM should be 10k.
+    assert.equal(
+      await deployedAmm.getTotalPoolValue.call(true),
+      10000,
+      "Total assets value in the AMM should be 10k",
+    )
+
+    const bToken = await SimpleToken.at(await deployedMarket.bToken.call())
+    const wToken = await SimpleToken.at(await deployedMarket.wToken.call())
+    const lpToken = await SimpleToken.at(await deployedAmm.lpToken.call())
+
+    // 0 bTokens should be in the AMM
+    assert.equal(
+      await bToken.balanceOf.call(deployedAmm.address),
+      0,
+      "No bTokens should be in the AMM yet",
+    )
+
+    // 0 of wTokens should be in the AMM
+    assert.equal(
+      await wToken.balanceOf.call(deployedAmm.address),
+      0,
+      "No wTokens should be in the AMM yet",
+    )
+
+    // LP tokens should have been given out
+    assert.equal(
+      await lpToken.balanceOf.call(ownerAccount),
+      10000,
+      "lp tokens should have been minted",
+    )
+
+    // Now let's withdraw all of the owner's lpTokens (owner should have 10000 lp tokens)
+    ret = await deployedAmm.withdrawCapital(10000, true, 10000)
+
+    // Check the math
+    expectEvent(ret, "LpTokensBurned", {
+      redeemer: ownerAccount,
+      collateralRemoved: "10000",
+      paymentRemoved: "0",
+      lpTokensBurned: "10000",
+    })
+
+    // LP tokens should have been given out
+    assert.equal(
+      await lpToken.balanceOf.call(ownerAccount),
+      0,
+      "all lp tokens should have been withdraw",
+    )
+
+    // Collateral should be moved away from AMM
+    assert.equal(
+      await collateralToken.balanceOf.call(deployedAmm.address),
+      0,
+      "AMM should have no collateral",
+    )
+
+    // Collateral should be moved to Owner
+    assert.equal(
+      await collateralToken.balanceOf.call(ownerAccount),
+      10000,
+      "Owner should have the same amount of collateral they had prior to providing capital",
+    )
   })
 
   it("Provides capital with trading", async () => {
