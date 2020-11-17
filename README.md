@@ -1,5 +1,11 @@
 # Project Siren
 
+## Mainnet Contract List
+
+- [MarketsRegistry](https://etherscan.io/address/0xB8623477eA6f39B63598ceac4559728DCa81af63#readProxyContract)
+- [WBTC CALL AMM](https://etherscan.io/address/0x87a3ef113c210ab35afebe820ff9880bf0dd4bfc#readProxyContract)
+- [WBTC PUT AMM](https://etherscan.io/address/0x25bc339170adbff2b7b9ede682072577fa9d96e8#readProxyContract)
+
 ## Build and test
 
 ```
