@@ -222,8 +222,8 @@ contract MinterAmm is InitializeableAmm, OwnableUpgradeSafe, Proxiable {
         // set the conversion factor used when calculating the current collateral price
         // using the price value from the oracle
         paymentAndCollateralConversionFactor = uint256(1e18)
-            .div(uint256(10)**collateralDecimals)
-            .mul(uint256(10)**paymentDecimals);
+            .mul(uint256(10)**paymentDecimals)
+            .div(uint256(10)**collateralDecimals);
 
         shouldInvertOraclePrice = _shouldInvertOraclePrice;
         if (_shouldInvertOraclePrice) {
