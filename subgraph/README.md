@@ -8,7 +8,7 @@ If you want to test `app`'s subgraphs on a local Ganache blockchain, follow thes
 
 Go to https://thegraph.com/docs/quick-start#local-development and follow the instructions
 
-- Instead of step 1, run `npm run setup-local-blockchain` in the project root directory. Make
+- Instead of step 1, run `npm run deploy-local` in the project root directory. Make
   note of the address the MarketsRegistry got deployed to by grepping for
   "Market registry is up and running at address" and add it in `subgraph/config/local.json`
 - Skip step 3, the part about running `graph init` since we already have our subgraph

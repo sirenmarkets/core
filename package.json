@@ -13,6 +13,7 @@
     "build": "npm run compile && npm run generate-types && rollup -c && cp ./src/ethers/*.d.ts ./dist/ethers/",
     "compile": "truffle compile",
     "test": "scripts/test.sh",
+    "coverage": "truffle run coverage --network development",
     "publish:package": "npm publish --access public",
     "remixd": "remixd -s . --remix-ide https://remix.ethereum.org",
     "generate-types": "npm run generate-types:ethers",
@@ -53,6 +54,7 @@
     "rollup": "^2.33.1",
     "rollup-plugin-peer-deps-external": "^2.2.4",
     "rollup-plugin-typescript2": "^0.29.0",
+    "solidity-coverage": "^0.7.12",
     "truffle": "5.1.49",
     "typechain": "4.0.0",
     "typescript": "^4.0.2",
@@ -60,7 +62,8 @@
   },
   "husky": {
     "hooks": {
-      "pre-commit": "pretty-quick 'src/**/*.{ts,tsx,js,jsx,md}' --staged"
+      "pre-commit": "pretty-quick 'src/**/*.{ts,tsx,js,jsx,md}' --staged",
+      "pre-push": "npm test && npm run coverage"
     }
   }
 }
