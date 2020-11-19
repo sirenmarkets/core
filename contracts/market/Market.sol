@@ -560,7 +560,7 @@ contract Market is IMarket, OwnableUpgradeSafe, Proxiable {
     /**
      * Update the logic address of this Market
      */
-    function updateImplementation(address newImplementation) public override {
+    function updateImplementation(address newImplementation) public override onlyOwner {
         require(newImplementation != address(0x0), "Invalid newImplementation");
 
         _updateCodeAddress(newImplementation);
