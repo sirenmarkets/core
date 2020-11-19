@@ -2,7 +2,6 @@ const { time, BN } = require("@openzeppelin/test-helpers")
 const { MarketStyle } = require("../util")
 const MarketsRegistry = artifacts.require("MarketsRegistry")
 const MinterAmm = artifacts.require("MinterAmm")
-const LPToken = artifacts.require("LPToken")
 const Market = artifacts.require("Market")
 const SimpleToken = artifacts.require("SimpleToken")
 

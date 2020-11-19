@@ -110,4 +110,7 @@ dist/
 graphql-schema.json
 src/ethers/
 
+# solidity-coverage report
+coverage.json
+
 build
