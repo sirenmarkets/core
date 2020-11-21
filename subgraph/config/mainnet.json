@@ -1,5 +1,5 @@
 {
   "network": "mainnet",
-  "marketsRegistryAddress": "TODO",
-  "marketsRegistryStartBlock": 99999999999
+  "marketsRegistryAddress": "0xB8623477eA6f39B63598ceac4559728DCa81af63",
+  "marketsRegistryStartBlock": 11272343
 }
