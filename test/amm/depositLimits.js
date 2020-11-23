@@ -23,7 +23,7 @@ const SHOULD_INVERT_ORACLE_PRICE = false
 const ERROR_MESSAGES = {
   UNAUTHORIZED: "Ownable: caller is not the owner.",
   INVALID_ARRAY: "Invalid arrays",
-  LP_OVER_LIMIT: "LP over limit",
+  LP_OVER_LIMIT: "Pool over deposit limit",
 }
 
 /**
@@ -135,23 +135,6 @@ contract("Deposit Limits", (accounts) => {
       globalLimit: "200",
     })
 
-    // Ensure a random account can't set limits
-    await expectRevert(
-      deployedAmm.setCapitalDepositLimit([aliceAccount], [true], {
-        from: aliceAccount,
-      }),
-      ERROR_MESSAGES.UNAUTHORIZED,
-    )
-
-    // Ensure non-matching array lengths error out
-    await expectRevert(
-      deployedAmm.setCapitalDepositLimit([aliceAccount], [true, true]),
-      ERROR_MESSAGES.INVALID_ARRAY,
-    )
-
-    // Set some amounts
-    deployedAmm.setCapitalDepositLimit([aliceAccount, bobAccount], [true, true])
-
     // Verify carol can't deposit any since she isn't authorized
     await collateralToken.mint(carolAccount, 10000)
     await collateralToken.approve(deployedAmm.address, 10000, {
@@ -180,18 +163,22 @@ contract("Deposit Limits", (accounts) => {
       ERROR_MESSAGES.LP_OVER_LIMIT,
     )
 
-    // Verify Bob can deposit twice to his limit
+    // Mint and approve for bob to deposit
     await collateralToken.mint(bobAccount, 10000)
     await collateralToken.approve(deployedAmm.address, 10000, {
       from: bobAccount,
     })
-    // Works twice up to 200
-    await deployedAmm.provideCapital(100, 0, { from: bobAccount })
-    await deployedAmm.provideCapital(100, 0, { from: bobAccount })
-    // Fails after he hits the limit
+
+    // Verify bob cannot deposit since the limit has already been reached
     await expectRevert(
       deployedAmm.provideCapital(100, 0, { from: bobAccount }),
       ERROR_MESSAGES.LP_OVER_LIMIT,
     )
+
+    // Let alice pull out 100
+    await deployedAmm.withdrawCapital(100, true, 100, { from: aliceAccount })
+
+    // Now bob should be able to deposit
+    await deployedAmm.provideCapital(100, 0, { from: bobAccount })
   })
 })

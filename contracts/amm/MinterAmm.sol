@@ -108,6 +108,10 @@ contract MinterAmm is InitializeableAmm, OwnableUpgradeSafe, Proxiable {
     }
 
     /**
+     * DISABLED: This variable is no longer being used, but is left it to support backwards compatibility of
+     * updating older contracts if needed.  This variable can be removed once all historical contracts are updated.
+     * If this variable is removed and an existing contract is graded, it will corrupt the memory layout.
+     * 
      * Mapping to track deposit limits.
      * This is intended to be a temporary feature and will only count amounts deposited by an LP.
      * If they withdraw collateral, it will not be subtracted from their current deposit limit to
@@ -271,11 +275,22 @@ contract MinterAmm is InitializeableAmm, OwnableUpgradeSafe, Proxiable {
         );
     }
 
-    /** The owner can update limits on any addresses */
+    /** 
+    * DISABLED: This feature has been disabled but left in for backwards compatibility.
+    * Instead of allowing individual caps, there will be a global cap for deposited liquidity.
+    *
+    * The owner can update limits on any addresses 
+    */
     function setCapitalDepositLimit(
         address[] memory lpAddresses,
         bool[] memory allowedToDeposit
     ) public onlyOwner {
+        // Feature is disabled
+        require(
+            false,
+            "Feature not supported"
+        );
+
         require(
             lpAddresses.length == allowedToDeposit.length,
             "Invalid arrays"
@@ -320,16 +335,10 @@ contract MinterAmm is InitializeableAmm, OwnableUpgradeSafe, Proxiable {
     {
         // If deposit limits are enabled, track and limit
         if (enforceDepositLimits) {
-            // Verify the deposit amount is under the limit - see notes above on collateralDepositLimits variable
-            collateralDepositLimits[msg.sender]
-                .currentDeposit = collateralDepositLimits[msg.sender]
-                .currentDeposit
-                .add(collateralAmount);
+            // Do not allow open markets over the TVL
             require(
-                collateralDepositLimits[msg.sender].allowedToDeposit &&
-                    (collateralDepositLimits[msg.sender].currentDeposit <=
-                        globalDepositLimit),
-                "LP over limit"
+                getTotalPoolValue(false).add(collateralAmount) <= globalDepositLimit,
+                "Pool over deposit limit"
             );
         }
 
