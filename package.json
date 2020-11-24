@@ -63,7 +63,7 @@
   "husky": {
     "hooks": {
       "pre-commit": "pretty-quick 'src/**/*.{ts,tsx,js,jsx,md}' --staged",
-      "pre-push": "npm test && npm run coverage"
+      "pre-push": "npm run coverage"
     }
   }
 }

@@ -1,5 +1,5 @@
 /** Contains shared logic to be used across tests */
-const {BN} = require("@openzeppelin/test-helpers")
+const { BN } = require("@openzeppelin/test-helpers")
 
 module.exports = {
   MarketStyle: {
@@ -72,5 +72,10 @@ module.exports = {
       lpBalance,
       `${accountName} should have correct lpToken balance`,
     )
+  },
+
+  checkBNsWithinTolerance: (expectedBN, actualBN, tolerance, errMsg) => {
+    assert(expectedBN.lte(actualBN.add(tolerance)), errMsg)
+    assert(expectedBN.gte(actualBN.sub(tolerance)), errMsg)
   },
 }
