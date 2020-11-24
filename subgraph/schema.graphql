@@ -124,6 +124,26 @@ type Amm @entity {
   tradeFeeBasisPoints: Int!
   lpToken: Token!
   assetPair: Bytes!
+  stakingRewards: StakingReward
+  vestingVault: VestingVault
+}
+
+## StakingRewards
+
+type StakingReward @entity {
+  id: ID!
+  createdBlock: BigInt!
+  createdTimestamp: BigInt!
+  createdTransaction: Bytes!
+}
+
+## VestingVault
+
+type VestingVault @entity {
+  id: ID!
+  createdBlock: BigInt!
+  createdTimestamp: BigInt!
+  createdTransaction: Bytes!
 }
 
 ## SimpleToken

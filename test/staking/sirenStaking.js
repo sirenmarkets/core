@@ -7,6 +7,7 @@ const StakingRewards = artifacts.require("StakingRewards")
 const VestingVault = artifacts.require("VestingVault")
 
 const { checkBNsWithinTolerance } = require("../util")
+const TestHelpers = require("../testHelpers")
 
 /**
  * Testing the flows for LPP Staking
@@ -17,6 +18,11 @@ contract("Staking Verification", (accounts) => {
   let rewardsDist
   let stakingRewards
   let vestingVault
+
+  // used when creating a StakingRewards, this doesn't actually
+  // get used by the contract, only emitted in the constructor
+  // event so that the subgraph mapping has access to it
+  const fauxAmmAddress = TestHelpers.ADDRESS_ZERO
 
   // this user can update parameters of the RewardsDistribution and and call
   // StakingRewards.setRewardsDuration
@@ -73,6 +79,7 @@ contract("Staking Verification", (accounts) => {
       stakingRewards = await StakingRewards.new(
         owner,
         rewardsDist.address,
+        fauxAmmAddress,
         sirenToken.address,
         lpToken.address,
         vestingVault.address,
@@ -208,6 +215,7 @@ contract("Staking Verification", (accounts) => {
       stakingRewards = await StakingRewards.new(
         owner,
         rewardsDist.address,
+        fauxAmmAddress,
         sirenToken.address,
         lpToken.address,
         vestingVault.address,

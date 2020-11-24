@@ -39,6 +39,7 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
         address _owner,
         address _rewardsDistribution,
         address _rewardsToken,
+        address _amm,
         address _stakingToken,
         address _vestingVault
     ) public Owned(_owner) {
@@ -49,6 +50,8 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
 
         // sets the reentrancy guard mutex to allow function calls on StakingRewards
         super.__ReentrancyGuard_init();
+
+        emit StakingRewardsConstructed(_rewardsDistribution, _rewardsToken, _amm, _stakingToken, _vestingVault);
     }
 
     /* ========== VIEWS ========== */
@@ -182,4 +185,5 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
     event RewardPaid(address indexed user, uint256 reward);
     event RewardsDurationUpdated(uint256 newDuration);
     event Recovered(address token, uint256 amount);
+    event StakingRewardsConstructed(address rewardsDistribution, address rewardsToken, address amm, address stakingToken, address vestingVault);
 }
