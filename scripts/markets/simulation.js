@@ -7,7 +7,7 @@ const MinterAmm = artifacts.require("MinterAmm")
 const MarketsRegistry = artifacts.require("MarketsRegistry")
 const MockPriceOracle = artifacts.require("MockPriceOracle")
 
-const { MarketStyle, getPriceRatio } = require("../test/util")
+const { MarketStyle, getPriceRatio } = require("../../test/util")
 
 // Inputs
 const FEE_BP = 0 // 200 basis points = 2%

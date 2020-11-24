@@ -6,7 +6,7 @@ const AggregatorV3Interface = artifacts.require("AggregatorV3Interface")
 const MockPriceOracle = artifacts.require("MockPriceOracle")
 const MinterAmm = artifacts.require("MinterAmm")
 
-const { delay, getNetworkName } = require("./utils")
+const { delay, getNetworkName } = require("../utils")
 const marketSetupData = require("./market_setup_data.json")
 
 const Ethers = require("ethers")
@@ -107,6 +107,8 @@ async function run() {
   )
   let ammAddress = ret.logs[2].args["0"]
   ammWBTCUSDC = await MinterAmm.at(ammAddress)
+  console.log(`deployed WBTC AMM at address ${ammAddress}`)
+  console.log(`WBTC AMM uses lpToken: ${await ammWBTCUSDC.lpToken.call()}`)
 
   ret = await deployedMarketsRegistry.createAmm(
     priceOracle.address,
@@ -118,19 +120,14 @@ async function run() {
 
   ammAddress = ret.logs[2].args["0"]
   ammUSDCWBTC = await MinterAmm.at(ammAddress)
+  console.log(`deployed USDC AMM at address ${ammAddress}`)
+  console.log(`USDC AMM uses lpToken: ${await ammUSDCWBTC.lpToken.call()}`)
+
   console.log("completed AMM deploy")
 
   // set deposit limits and whitelist LPs
   await ammWBTCUSDC.setEnforceDepositLimits(true, "70000000") // 0.7 BTC ~ $10K
   await ammUSDCWBTC.setEnforceDepositLimits(true, "10000000000") // $10K
-  await ammWBTCUSDC.setCapitalDepositLimit(
-    lpAccounts,
-    lpAccounts.map((a) => true),
-  )
-  await ammUSDCWBTC.setCapitalDepositLimit(
-    lpAccounts,
-    lpAccounts.map((a) => true),
-  )
 
   // call createMarket several times to setup example markets
   for (let marketData of marketSetupData) {

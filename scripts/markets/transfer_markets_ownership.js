@@ -3,7 +3,7 @@ const { request, gql } = require("graphql-request")
 const MarketsRegistry = artifacts.require("MarketsRegistry")
 const MinterAmm = artifacts.require("MinterAmm")
 
-const { getNetworkName } = require("./utils")
+const { getNetworkName } = require("../utils")
 
 /**
  * Transfer ownership of MarketsRegistry and AMMs to admin multisig
@@ -23,12 +23,7 @@ async function run() {
     subgraphUrl =
       "https://api.thegraph.com/subgraphs/name/sirenmarkets/protocol-mainnet"
     multisigAddress = "0xd42dfEB13BDAe6120B99730cB8e5DEa18004A44b"
-    marketsRegistryAddress = "TODO" // update this!
-    if (marketsRegistryAddress === "TODO") {
-      throw new Error(
-        "must first run 'mainnet_create_markets.js script and deploy mainnet subgraph before transferring ownership",
-      )
-    }
+    marketsRegistryAddress = "0xB8623477eA6f39B63598ceac4559728DCa81af63"
   } else {
     throw new Error(`No configuration for network ${network}`)
   }

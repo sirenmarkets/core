@@ -5,7 +5,7 @@ const Proxy = artifacts.require("Proxy")
 const AggregatorV3Interface = artifacts.require("AggregatorV3Interface")
 const MinterAmm = artifacts.require("MinterAmm")
 
-const { delay, getNetworkName } = require("./utils")
+const { delay, getNetworkName } = require("../utils")
 const marketSetupData = require("./mainnet_market_setup_data.json")
 
 /**

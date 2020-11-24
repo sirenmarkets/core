@@ -67,13 +67,8 @@ contract("Staking Verification", (accounts) => {
     it("should distribute SI token correctly with all stakers joining prior to reward distribution", async () => {
       // first setup the vesting and staking contracts
 
-      const durationOfLPP = Number(await time.latest()) + (TWO_WEEKS - ONE_DAY)
-      vestingVault = await VestingVault.new(
-        sirenToken.address,
-        durationOfLPP,
-        1,
-        0,
-      )
+      const startTime = Number(await time.latest()) + (TWO_WEEKS - ONE_DAY)
+      vestingVault = await VestingVault.new(sirenToken.address, startTime, 1, 0)
 
       stakingRewards = await StakingRewards.new(
         owner,
@@ -207,13 +202,8 @@ contract("Staking Verification", (accounts) => {
     it("should distribute SI token correctly with 1 staker joining after reward distribution", async () => {
       // first setup the vesting and staking contracts
 
-      const durationOfLPP = Number(await time.latest()) + (TWO_WEEKS - ONE_DAY)
-      vestingVault = await VestingVault.new(
-        sirenToken.address,
-        durationOfLPP,
-        1,
-        0,
-      )
+      const startTime = Number(await time.latest()) + (TWO_WEEKS - ONE_DAY)
+      vestingVault = await VestingVault.new(sirenToken.address, startTime, 1, 0)
 
       stakingRewards = await StakingRewards.new(
         owner,
