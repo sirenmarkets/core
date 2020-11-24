@@ -326,6 +326,20 @@ contract MinterAmm is InitializeableAmm, OwnableUpgradeSafe, Proxiable {
     }
 
     /**
+     * Ensure the value in the AMM is not over the limit.  Revert if so.
+     */
+    function enforceDepositLimit() internal view {
+        // If deposit limits are enabled, track and limit
+        if (enforceDepositLimits) {
+            // Do not allow open markets over the TVL
+            require(
+                getTotalPoolValue(false) <= globalDepositLimit,
+                "Pool over deposit limit"
+            );
+        }
+    }
+
+    /**
      * LP allows collateral to be used to mint new options
      * bTokens and wTokens will be held in this contract and can be traded back and forth.
      * The amount of lpTokens is calculated based on total pool value
@@ -333,15 +347,6 @@ contract MinterAmm is InitializeableAmm, OwnableUpgradeSafe, Proxiable {
     function provideCapital(uint256 collateralAmount, uint256 lpTokenMinimum)
         public
     {
-        // If deposit limits are enabled, track and limit
-        if (enforceDepositLimits) {
-            // Do not allow open markets over the TVL
-            require(
-                getTotalPoolValue(false).add(collateralAmount) <= globalDepositLimit,
-                "Pool over deposit limit"
-            );
-        }
-
         // Move collateral into this contract
         collateralToken.safeTransferFrom(
             msg.sender,
@@ -351,6 +356,10 @@ contract MinterAmm is InitializeableAmm, OwnableUpgradeSafe, Proxiable {
 
         // If first LP, mint options, mint LP tokens, and send back any redemption amount
         if (lpToken.totalSupply() == 0) {
+            
+            // Ensure deposit limit is enforced
+            enforceDepositLimit();
+            
             // Mint lp tokens to the user
             lpToken.mint(msg.sender, collateralAmount);
 
@@ -373,6 +382,9 @@ contract MinterAmm is InitializeableAmm, OwnableUpgradeSafe, Proxiable {
         // 4. Add value of collateral
 
         claimAllExpiredTokens();
+
+        // Ensure deposit limit is enforced
+        enforceDepositLimit();
 
         // Mint LP tokens - the percentage added to bTokens should be same as lp tokens added
         uint256 lpTokenExistingSupply = lpToken.totalSupply();
