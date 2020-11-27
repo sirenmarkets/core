@@ -6,10 +6,10 @@ contract GovernorAlpha {
     string public constant name = "Siren Governor Alpha";
 
     /// @notice The number of votes in support of a proposal required in order for a quorum to be reached and for a vote to succeed
-    function quorumVotes() public pure returns (uint) { return 400000e18; } // 400,000 = 4% of SRN
+    function quorumVotes() public pure returns (uint) { return 4_000_000e18; } // 4,000,000 = 4% of SRN
 
     /// @notice The number of votes required in order for a voter to become a proposer
-    function proposalThreshold() public pure returns (uint) { return 100000e18; } // 100,000 = 1% of SRN
+    function proposalThreshold() public pure returns (uint) { return 1_000_000e18; } // 1,000,000 = 1% of SRN
 
     /// @notice The maximum number of actions that can be included in a proposal
     function proposalMaxOperations() public pure returns (uint) { return 10; } // 10 actions

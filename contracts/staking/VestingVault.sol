@@ -45,7 +45,8 @@ contract VestingVault {
         address _recipient,
         uint256 _amount
     )
-        external
+        public
+        virtual
     {
         uint256 amountVestedPerDay = _amount.div(vestingDurationInDays);
         require(amountVestedPerDay > 0, "amountVestedPerDay > 0");
