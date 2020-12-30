@@ -1,0 +1,6 @@
+build/
+node_modules/
+src/types/
+.DS_STORE
+.idea/
+subgraph.yaml

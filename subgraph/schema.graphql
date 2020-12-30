@@ -1,0 +1,306 @@
+## Market
+
+type Market @entity {
+  id: ID!
+  createdBlock: BigInt!
+  createdTimestamp: BigInt!
+  createdTransaction: Bytes!
+  marketName: String!
+  marketIndex: BigInt!
+  collateralToken: Token
+  paymentToken: Token
+  marketStyle: MarketStyle
+  amm: Amm!
+  priceRatio: BigInt
+  expirationDate: BigInt
+  exerciseFeeBasisPoints: Int
+  closeFeeBasisPoints: Int
+  claimFeeBasisPoints: Int
+  wToken: Token
+  bToken: Token
+  destroyed: Boolean
+  events: [OptionEvent!]! @derivedFrom(field: "market")
+}
+
+enum FeeType {
+  EXERCISE_FEE
+  CLOSE_FEE
+  CLAIM_FEE
+}
+
+enum MarketStyle {
+  EUROPEAN_STYLE
+  AMERICAN_STYLE
+}
+
+type Fee @entity {
+  id: ID!
+  market: Market!
+  feeType: FeeType
+  token: Token!
+  value: BigInt!
+}
+
+type MarketDestruction @entity {
+  id: ID!
+  market: Market!
+}
+
+type MarketInitialization @entity {
+  id: ID!
+  market: Market!
+  wToken: Bytes!
+  bToken: Bytes!
+}
+
+enum OptionEventType {
+  Close
+  Exercise
+  Mint
+  CollateralClaim
+}
+
+interface OptionEvent {
+  id: ID!
+  market: Market!
+  eventType: OptionEventType!
+  block: BigInt!
+  timestamp: BigInt!
+  value: BigInt!
+}
+
+type OptionClose implements OptionEvent @entity {
+  id: ID!
+  market: Market!
+  eventType: OptionEventType!
+  block: BigInt!
+  timestamp: BigInt!
+  value: BigInt!
+  redeemer: Bytes!
+}
+
+type OptionExercise implements OptionEvent @entity {
+  id: ID!
+  market: Market!
+  eventType: OptionEventType!
+  block: BigInt!
+  timestamp: BigInt!
+  value: BigInt!
+  redeemer: Bytes!
+}
+
+type OptionMint implements OptionEvent @entity {
+  id: ID!
+  market: Market!
+  eventType: OptionEventType!
+  block: BigInt!
+  timestamp: BigInt!
+  value: BigInt!
+  minter: Bytes!
+}
+
+type OptionCollateralClaim implements OptionEvent @entity {
+  id: ID!
+  market: Market!
+  eventType: OptionEventType!
+  block: BigInt!
+  timestamp: BigInt!
+  value: BigInt!
+  redeemer: Bytes!
+}
+
+## AMM
+
+type Amm @entity {
+  id: ID!
+  createdBlock: BigInt!
+  createdTimestamp: BigInt!
+  createdTransaction: Bytes!
+  markets: [Market]! @derivedFrom(field: "amm")
+  registry: Bytes!
+  priceOracle: Bytes!
+  paymentToken: Token!
+  collateralToken: Token!
+  tradeFeeBasisPoints: Int!
+  lpToken: Token!
+  assetPair: Bytes!
+}
+
+## SimpleToken
+
+enum TokenType {
+  B_TOKEN
+  W_TOKEN
+  LP_TOKEN
+}
+
+type Token @entity {
+  id: ID!
+
+  market: Market
+
+  type: TokenType
+
+  " Number of decimals the token uses "
+  decimals: Int!
+
+  " Human-readable name of the token "
+  name: String!
+
+  " Symbol of the token "
+  symbol: String!
+
+  " Total token supply "
+  totalSupply: BigInt!
+
+  " Total token burned "
+  totalBurned: BigInt
+
+  " Total token minted "
+  totalMinted: BigInt
+
+  " Total token transferred "
+  totalTransferred: BigInt
+
+  " List of token events "
+  events: [TokenEvent!]! @derivedFrom(field: "token")
+
+  " List of account balances "
+  accountBalances: [AccountBalance!]! @derivedFrom(field: "token")
+}
+
+enum TokenEventType {
+  Transfer
+  Approval
+  Mint
+  Burn
+}
+
+interface TokenEvent {
+  id: ID!
+  token: Token!
+  amount: BigInt!
+  sender: Bytes!
+  eventType: TokenEventType!
+  block: BigInt!
+  timestamp: BigInt!
+}
+
+type TokenTransfer implements TokenEvent @entity {
+  id: ID!
+  token: Token!
+  amount: BigInt!
+  sender: Bytes!
+  eventType: TokenEventType!
+  block: BigInt!
+  timestamp: BigInt!
+  from: Bytes!
+  to: Bytes!
+}
+
+type TokenApproval implements TokenEvent @entity {
+  id: ID!
+  token: Token!
+  amount: BigInt!
+  sender: Bytes!
+  eventType: TokenEventType!
+  block: BigInt!
+  timestamp: BigInt!
+  owner: Bytes!
+  spender: Bytes!
+}
+
+type TokenMint implements TokenEvent @entity {
+  id: ID!
+  token: Token!
+  amount: BigInt!
+  sender: Bytes!
+  eventType: TokenEventType!
+  block: BigInt!
+  timestamp: BigInt!
+  minter: Bytes!
+  destination: Bytes!
+}
+
+type TokenBurn implements TokenEvent @entity {
+  id: ID!
+  token: Token!
+  amount: BigInt!
+  sender: Bytes!
+  eventType: TokenEventType!
+  block: BigInt!
+  timestamp: BigInt!
+  burner: Bytes!
+}
+
+# Account
+
+#
+# Provides information about an Ethereum account
+#
+type Account @entity {
+  " Equals to: <accountAddress>"
+  id: ID!
+
+  " Account address "
+  address: Bytes!
+
+  " Token balances that this account holds "
+  balances: [AccountBalance!]! @derivedFrom(field: "account")
+}
+
+#
+# Current token balance of a particular Ethereum account
+#
+type AccountBalance @entity {
+  " Equals to: <accountAddress>-<tokenAddress>"
+  id: ID!
+
+  " Account address "
+  account: Account!
+
+  " Token address "
+  token: Token!
+
+  " Current account balance "
+  amount: BigInt!
+
+  " Block number in which the balance was last modified "
+  block: BigInt
+
+  " Last modified timestamp in seconds "
+  modified: BigInt
+
+  " Hash of the last transaction that modified the balance "
+  transaction: Bytes
+}
+
+#
+# Token balance of a particular Ethereum account in a certain timestamp. This entity is used to
+# provide information about evolution of account balances
+#
+type AccountBalanceSnapshot @entity {
+  " Equals to: <accountAddress>-<tokenAddress>-<timestamp>"
+  id: ID!
+
+  " Account address "
+  account: Account!
+
+  " Token addess "
+  token: Token!
+
+  " Account balance "
+  amount: BigInt!
+
+  # TODO: Add description and check if could be non-optional
+  event: TokenEvent
+
+  " Block number "
+  block: BigInt!
+
+  " Timestamp in seconds "
+  timestamp: BigInt!
+
+  " Transaction hash "
+  transaction: Bytes!
+}
