@@ -295,35 +295,6 @@ contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
     {
         require(refundAddress != address(0x0), "Invalid refundAddress");
 
-        // Get the market pair list that needs to be updated
-        bytes32 assetPair = keccak256(abi.encode(address(market.collateralToken()), address(market.paymentToken())));
-        require(marketsByAssets[assetPair].length > 0, "Unknown market pair");
-
-        // Remove the market from the list
-        bool found = false;
-        for(uint i = 0 ; i < marketsByAssets[assetPair].length - 1; i++) {
-            // Check to see if the item was found at an index
-            if(marketsByAssets[assetPair][i] == address(market)) {
-                found = true;
-            }
-            
-            // If the item was already found, then shift elements
-            if(found) {
-                marketsByAssets[assetPair][i] = marketsByAssets[assetPair][i + 1];
-            }
-        }
-
-        // If the item was not found, it should be the last item in the list
-        if(!found) {
-            require(marketsByAssets[assetPair][marketsByAssets[assetPair].length -1] == address(market), "Market not found");            
-        }
-
-        // Always remove the last element from the list
-        marketsByAssets[assetPair].pop();
-
-        // Remove it from the markets mapping via name lookup
-        markets[market.marketName()] = address(0);
-
         // Destroy the market
         market.selfDestructMarket(refundAddress);
 
