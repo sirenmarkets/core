@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: MIT
 
 pragma solidity 0.6.12;
 
@@ -65,8 +65,8 @@ contract MinterAmm is InitializeableAmm, OwnableUpgradeSafe, Proxiable {
     /** @dev The oracle used to fetch the most recent on-chain price of the collateralToken */
     AggregatorV3Interface internal priceOracle;
 
-    /** @dev a factor used in price oracle calculation that takes into account the decimals of
-     * the payment and collateral token
+    /** @dev deprecated: this parameter does not work with large decimal collateralToken, and
+     * so we inlined the logic
      */
     uint256 internal paymentAndCollateralConversionFactor;
 
@@ -233,20 +233,7 @@ contract MinterAmm is InitializeableAmm, OwnableUpgradeSafe, Proxiable {
         collateralDecimals = erc20CollateralToken.decimals();
         paymentDecimals = erc20PaymentToken.decimals();
 
-        // set the conversion factor used when calculating the current collateral price
-        // using the price value from the oracle
-        paymentAndCollateralConversionFactor = uint256(1e18)
-            .mul(uint256(10)**paymentDecimals)
-            .div(uint256(10)**collateralDecimals);
-
         shouldInvertOraclePrice = _shouldInvertOraclePrice;
-        if (_shouldInvertOraclePrice) {
-            paymentAndCollateralConversionFactor = paymentAndCollateralConversionFactor
-                .mul(uint256(10)**priceOracle.decimals());
-        } else {
-            paymentAndCollateralConversionFactor = paymentAndCollateralConversionFactor
-                .div(uint256(10)**priceOracle.decimals());
-        }
 
         // Create the lpToken and initialize it
         Proxy lpTokenProxy = new Proxy(_tokenImplementation);
@@ -885,10 +872,18 @@ contract MinterAmm is InitializeableAmm, OwnableUpgradeSafe, Proxiable {
 
         if (shouldInvertOraclePrice) {
             return
-                paymentAndCollateralConversionFactor.div(uint256(latestAnswer));
+                uint256(1e18)
+                .mul(uint256(10)**paymentDecimals)
+                .mul(uint256(10)**priceOracle.decimals())
+                .div(uint256(10)**collateralDecimals)
+                .div(uint256(latestAnswer));
         } else {
             return
-                uint256(latestAnswer).mul(paymentAndCollateralConversionFactor);
+                uint256(1e18)
+                .mul(uint256(10)**paymentDecimals)
+                .mul(uint256(latestAnswer))
+                .div(uint256(10)**collateralDecimals)
+                .div(uint256(10)**priceOracle.decimals());
         }
     }
 
