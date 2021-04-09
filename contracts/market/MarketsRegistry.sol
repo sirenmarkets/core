@@ -10,6 +10,7 @@ import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
 import "../proxy/Proxy.sol";
 import "../proxy/Proxiable.sol";
 import "../amm/InitializeableAmm.sol";
+import "../amm/IAddMarketToAmm.sol";
 
 /**
  * The Markets Registry is responsible for creating and tracking markets
@@ -229,11 +230,23 @@ contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
         bytes32 assetPair = keccak256(abi.encode(address(_collateralToken), address(_paymentToken)));
         marketsByAssets[assetPair].push(address(newMarket));
 
+        //Add the market to the AMM handling the asset pair
+        addMarketToAmm(_amm, address(newMarket));
+
         // Emit the event
         emit MarketCreated(_marketName, address(newMarket), marketsByAssets[assetPair].length - 1);
 
         // Return the address of the market that was created
         return address(newMarket);
+    }
+
+    /**
+     * Add market to the amm handling the asset pair after creating it.
+     * @dev Refactored from createMarket as number of local variables exceeded 16.
+     */
+    function addMarketToAmm(address ammAddress,address newMarketAddress) internal{
+        IAddMarketToAmm amm = IAddMarketToAmm(ammAddress);
+        amm.addMarket(newMarketAddress);
     }
 
     /**

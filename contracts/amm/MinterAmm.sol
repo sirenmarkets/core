@@ -13,6 +13,7 @@ import "../proxy/Proxiable.sol";
 import "../proxy/Proxy.sol";
 import "../libraries/Math.sol";
 import "./InitializeableAmm.sol";
+import "./IAddMarketToAmm.sol";
 
 /**
 This is an implementation of a minting/redeeming AMM that trades a list of markets with the same
@@ -43,7 +44,7 @@ All expired unclaimed wTokens are automatically claimed on each deposit or withd
 All conversions between bToken and wToken in the AMM will generate fees that will be send to the protocol fees pool
 (disabled in this version)
  */
-contract MinterAmm is InitializeableAmm, OwnableUpgradeSafe, Proxiable {
+contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Proxiable {
     /** Use safe ERC20 functions for any token transfers since people don't follow the ERC20 standard */
     using SafeERC20 for IERC20;
     using SafeERC20 for ISimpleToken;
@@ -88,6 +89,9 @@ contract MinterAmm is InitializeableAmm, OwnableUpgradeSafe, Proxiable {
 
     /** Volatility factor used in the black scholes approximation - can be updated by the owner */
     uint256 public volatilityFactor;
+
+    /** Array of addresses of open markets with respect to the assetpair*/
+    address [] public openMarkets;
 
     /** @dev Flag to ensure initialization can only happen once */
     bool initialized = false;
@@ -676,13 +680,19 @@ contract MinterAmm is InitializeableAmm, OwnableUpgradeSafe, Proxiable {
     }
 
     /**
-     * Get unclaimed collateral and payment tokens locked in expired wTokens
+     * Get unclaimed collateral and payment tokens locked in expired wTokens.
+     * and remove the expired markets from open markets.
+     * @dev Since dynamic arrays are unavailable in memory, we store 10 indices
+     * at a time for removal and remove from the openMarkets storage array. 
      */
-    function getUnclaimedBalances() public view returns (uint256, uint256) {
+    function getUnclaimedBalances() public returns (uint256, uint256) {
         address[] memory markets = getMarkets();
 
         uint256 unclaimedCollateral = 0;
         uint256 unclaimedPayment = 0;
+        uint256 span = 10;
+        uint256[] memory expiredIndices = new uint256[](span);
+        uint256 j = 0;
 
         for (uint256 i = 0; i < markets.length; i++) {
             IMarket optionMarket = IMarket(markets[i]);
@@ -707,7 +717,21 @@ contract MinterAmm is InitializeableAmm, OwnableUpgradeSafe, Proxiable {
                     .balanceOf(address(optionMarket))
                     .mul(wTokenBalance)
                     .div(wTokenSupply));
+
+                //add the expired indices
+                if (j<span){
+                  expiredIndices[j] = i;
+                  j++;
+                }
+                    
             }
+        }
+
+        //Swap the last element to the index and delete the last element
+        for (uint256 i = 0;i<expiredIndices.length;i++){
+            uint256 index = expiredIndices[i];
+            openMarkets[index] = openMarkets[openMarkets.length-1];
+            openMarkets.pop();
         }
 
         return (unclaimedCollateral, unclaimedPayment);
@@ -716,7 +740,7 @@ contract MinterAmm is InitializeableAmm, OwnableUpgradeSafe, Proxiable {
     /**
      * Calculate sale value of pro-rata LP b/wTokens
      */
-    function getTokensSaleValue(uint256 lpTokenAmount) public view returns (uint256) {
+    function getTokensSaleValue(uint256 lpTokenAmount) public returns (uint256) {
         if (lpTokenAmount == 0) return 0;
 
         uint256 lpTokenSupply = lpToken.totalSupply();
@@ -770,7 +794,7 @@ contract MinterAmm is InitializeableAmm, OwnableUpgradeSafe, Proxiable {
      * List of market addresses that this AMM trades
      */
     function getMarkets() public view returns (address[] memory) {
-        return registry.getMarketsByAssetPair(assetPair);
+        return openMarkets;
     }
 
     /**
@@ -1148,5 +1172,13 @@ contract MinterAmm is InitializeableAmm, OwnableUpgradeSafe, Proxiable {
             .div(2);
 
         return collateralAmount;
+    }
+
+     /**
+     * @dev Adds the address of market to the amm
+     * This method is called by Market Registry when it is creating a new market
+     */
+    function addMarket(address newMarketAddress) external onlyOwner override{
+        openMarkets.push(newMarketAddress);
     }
 }
