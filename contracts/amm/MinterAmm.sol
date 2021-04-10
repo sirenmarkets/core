@@ -682,20 +682,16 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
     /**
      * Get unclaimed collateral and payment tokens locked in expired wTokens.
      * and remove the expired markets from open markets.
-     * @dev Since dynamic arrays are unavailable in memory, we store 10 indices
-     * at a time for removal and remove from the openMarkets storage array. 
+     * @dev : Removing expired markets use an approach to store the last element's value to expired index 
+     * and pop the last element. At times this might not clear all the expired markets
      */
     function getUnclaimedBalances() public returns (uint256, uint256) {
-        address[] memory markets = getMarkets();
-
+       
         uint256 unclaimedCollateral = 0;
         uint256 unclaimedPayment = 0;
-        uint256 span = 10;
-        uint256[] memory expiredIndices = new uint256[](span);
-        uint256 j = 0;
 
-        for (uint256 i = 0; i < markets.length; i++) {
-            IMarket optionMarket = IMarket(markets[i]);
+        for (uint256 i = 0; i < openMarkets.length; i++) {
+            IMarket optionMarket = IMarket(openMarkets[i]);
             if (optionMarket.state() == IMarket.MarketState.EXPIRED) {
                 // Get pool wTokenBalance
                 uint256 wTokenBalance = optionMarket.wToken().balanceOf(
@@ -718,22 +714,12 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
                     .mul(wTokenBalance)
                     .div(wTokenSupply));
 
-                //add the expired indices
-                if (j<span){
-                  expiredIndices[j] = i;
-                  j++;
-                }
+            //Store the element at last index to expired index and pop the last element.
+            openMarkets[i] = openMarkets[openMarkets.length-1];
+            openMarkets.pop();    
                     
             }
         }
-
-        //Swap the last element to the index and delete the last element
-        for (uint256 i = 0;i<expiredIndices.length;i++){
-            uint256 index = expiredIndices[i];
-            openMarkets[index] = openMarkets[openMarkets.length-1];
-            openMarkets.pop();
-        }
-
         return (unclaimedCollateral, unclaimedPayment);
     }
 
