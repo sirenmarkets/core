@@ -15,6 +15,7 @@ import "../libraries/Math.sol";
 import "./InitializeableAmm.sol";
 import "./IAddMarketToAmm.sol";
 
+
 /**
 This is an implementation of a minting/redeeming AMM that trades a list of markets with the same
 collateral and payment assets. For example, a single AMM contract can trade all strikes of WBTC/USDC calls
@@ -177,6 +178,13 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
         address seller,
         uint256 wTokensSold,
         uint256 collateralPaid
+    );
+
+    /** Emitted when an expired market has been removed*/
+    event MarketEvicted(
+        address ammAddress,
+        address marketAddress,
+        uint256 index
     );
 
     /** Emitted when the owner updates volatilityFactor */
@@ -438,6 +446,8 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
         // Burn the lp tokens
         lpToken.burn(msg.sender, lpTokenAmount);
 
+       
+
         // Claim all expired wTokens
         claimAllExpiredTokens();
 
@@ -471,6 +481,7 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
             ammCollateralBalance
         );
 
+
         // Send all accumulated collateralTokens
         collateralToken.transfer(
             msg.sender,
@@ -497,22 +508,41 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
 
     /**
      * Takes any wTokens from expired Markets the AMM may have and converts
-     * them into collateral token which gets added to its liquidity pool
+     * them into collateral token which gets added to its liquidity pool &
+     * removes the expired markets
      */
     function claimAllExpiredTokens() public {
-        address[] memory markets = getMarkets();
-        for (uint256 i = 0; i < markets.length; i++) {
-            IMarket optionMarket = IMarket(markets[i]);
-            if (optionMarket.state() == IMarket.MarketState.EXPIRED) {
+        
+        for (uint256 i = 0; i < openMarkets.length; i++) {
+            IMarket optionMarket = IMarket(openMarkets[i]);
+            while (optionMarket.state() == IMarket.MarketState.EXPIRED){
+                // ... claim the expired market's wTokens, which means it can now be safely removed
                 uint256 wTokenBalance = optionMarket.wToken().balanceOf(
-                    address(this)
+                address(this)
                 );
+
                 if (wTokenBalance > 0) {
                     claimExpiredTokens(optionMarket, wTokenBalance);
                 }
+                //Remove the expired market to free storage and reduce gas fee 
+                address evictedMarketAddress =  address(openMarkets[i]);
+                openMarkets[i] = openMarkets[openMarkets.length-1];
+                openMarkets.pop();
+                
+                emit MarketEvicted(address(this),evictedMarketAddress,i);
+
+                //Handle edge cases: Since i is at the same position while removing and length is 
+                //decreasing i might be bigger than length and cause index out of bounds
+                if(i<openMarkets.length){
+                    optionMarket = IMarket(openMarkets[i]);
+                }else{
+                    break;
+                }
+
             }
         }
     }
+
 
     /**
      * Claims the wToken on a single expired Market. wTokenBalance should be equal to
@@ -681,17 +711,17 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
 
     /**
      * Get unclaimed collateral and payment tokens locked in expired wTokens.
-     * and remove the expired markets from open markets.
-     * @dev : Removing expired markets use an approach to store the last element's value to expired index 
-     * and pop the last element. At times this might not clear all the expired markets
+
      */
-    function getUnclaimedBalances() public returns (uint256, uint256) {
+    function getUnclaimedBalances() public view returns (uint256, uint256) {
        
+        address[] memory markets = getMarkets();
+
         uint256 unclaimedCollateral = 0;
         uint256 unclaimedPayment = 0;
 
-        for (uint256 i = 0; i < openMarkets.length; i++) {
-            IMarket optionMarket = IMarket(openMarkets[i]);
+        for (uint256 i = 0; i < markets.length; i++) {
+            IMarket optionMarket = IMarket(markets[i]);
             if (optionMarket.state() == IMarket.MarketState.EXPIRED) {
                 // Get pool wTokenBalance
                 uint256 wTokenBalance = optionMarket.wToken().balanceOf(
@@ -713,20 +743,16 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
                     .balanceOf(address(optionMarket))
                     .mul(wTokenBalance)
                     .div(wTokenSupply));
-
-            //Store the element at last index to expired index and pop the last element.
-            openMarkets[i] = openMarkets[openMarkets.length-1];
-            openMarkets.pop();    
-                    
             }
         }
+
         return (unclaimedCollateral, unclaimedPayment);
     }
 
     /**
      * Calculate sale value of pro-rata LP b/wTokens
      */
-    function getTokensSaleValue(uint256 lpTokenAmount) public returns (uint256) {
+    function getTokensSaleValue(uint256 lpTokenAmount) public view returns (uint256) {
         if (lpTokenAmount == 0) return 0;
 
         uint256 lpTokenSupply = lpToken.totalSupply();
@@ -1164,7 +1190,8 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
      * @dev Adds the address of market to the amm
      * This method is called by Market Registry when it is creating a new market
      */
-    function addMarket(address newMarketAddress) external onlyOwner override{
+    function addMarket(address newMarketAddress,address sender) external override{
+        //require(owner() == sender,'Only owner can call the method');
         openMarkets.push(newMarketAddress);
     }
 }
