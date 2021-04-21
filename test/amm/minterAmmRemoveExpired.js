@@ -1,4 +1,9 @@
-const { time, expectEvent, BN } = require("@openzeppelin/test-helpers")
+const {
+  expectRevert,
+  time,
+  expectEvent,
+  BN,
+} = require("@openzeppelin/test-helpers")
 const Market = artifacts.require("Market")
 const Proxy = artifacts.require("Proxy")
 const SimpleToken = artifacts.require("SimpleToken")
@@ -80,6 +85,48 @@ contract("Minter AMM Remove expired markets", (accounts) => {
       0,
       false,
     )
+  })
+
+  it("Add markets to amm", async () => {
+    //set the expiration
+    const NAME_1 = "WBTC.USDC.20300101.5000"
+    const expiration = Number(await time.latest()) + THIRTY_DAYS // 30 days from now;
+    const STRIKE_RATIO_1 = 5000
+
+    // Non-owner shouldn't add market to the amm
+    await expectRevert.unspecified(
+      deployedMarketsRegistry.createMarket(
+        NAME_1,
+        collateralToken.address,
+        paymentToken.address,
+        MarketStyle.EUROPEAN_STYLE,
+        STRIKE_RATIO_1,
+        expiration,
+        0,
+        0,
+        0,
+        deployedAmm.address,
+        { from: bobAccount },
+      ),
+    )
+
+    //Add market to the amm
+    await deployedMarketsRegistry.createMarket(
+      NAME_1,
+      collateralToken.address,
+      paymentToken.address,
+      MarketStyle.EUROPEAN_STYLE,
+      STRIKE_RATIO_1,
+      expiration,
+      0,
+      0,
+      0,
+      deployedAmm.address,
+    )
+    const marketAddress1 = await deployedMarketsRegistry.markets.call(NAME_1)
+    let markets = await deployedAmm.getMarkets()
+    is_markets_added = markets.includes(marketAddress1)
+    assert.equal(is_markets_added, true, "Markets are not added to MinterAmm")
   })
 
   it("All markets expired", async () => {
