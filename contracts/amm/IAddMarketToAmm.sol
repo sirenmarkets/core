@@ -3,5 +3,5 @@
 pragma solidity 0.6.12;
 
 interface IAddMarketToAmm {
-    function addMarket(address newMarketAddress) external;
+    function addMarket(address newMarketAddress,address sender) external;
 }

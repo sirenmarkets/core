@@ -231,8 +231,10 @@ contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
         marketsByAssets[assetPair].push(address(newMarket));
 
         //Add the market to the AMM handling the asset pair
-        addMarketToAmm(_amm, address(newMarket));
-
+        if (address(_amm) != address(0)){
+            addMarketToAmm(_amm, address(newMarket));
+        }
+        
         // Emit the event
         emit MarketCreated(_marketName, address(newMarket), marketsByAssets[assetPair].length - 1);
 
@@ -246,7 +248,7 @@ contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
      */
     function addMarketToAmm(address ammAddress,address newMarketAddress) internal{
         IAddMarketToAmm amm = IAddMarketToAmm(ammAddress);
-        amm.addMarket(newMarketAddress);
+        amm.addMarket(newMarketAddress,tx.origin);
     }
 
     /**
