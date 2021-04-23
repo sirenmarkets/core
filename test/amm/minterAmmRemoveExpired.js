@@ -1,4 +1,9 @@
-const { time, expectEvent, BN } = require("@openzeppelin/test-helpers")
+const {
+  expectRevert,
+  time,
+  expectEvent,
+  BN,
+} = require("@openzeppelin/test-helpers")
 const Market = artifacts.require("Market")
 const Proxy = artifacts.require("Proxy")
 const SimpleToken = artifacts.require("SimpleToken")
@@ -82,6 +87,48 @@ contract("Minter AMM Remove expired markets", (accounts) => {
     )
   })
 
+  it("Add markets to amm", async () => {
+    //set the expiration
+    const NAME_1 = "WBTC.USDC.20300101.5000"
+    const expiration = Number(await time.latest()) + THIRTY_DAYS // 30 days from now;
+    const STRIKE_RATIO_1 = 5000
+
+    // Non-owner shouldn't add market to the amm
+    await expectRevert.unspecified(
+      deployedMarketsRegistry.createMarket(
+        NAME_1,
+        collateralToken.address,
+        paymentToken.address,
+        MarketStyle.EUROPEAN_STYLE,
+        STRIKE_RATIO_1,
+        expiration,
+        0,
+        0,
+        0,
+        deployedAmm.address,
+        { from: bobAccount },
+      ),
+    )
+
+    //Add market to the amm
+    await deployedMarketsRegistry.createMarket(
+      NAME_1,
+      collateralToken.address,
+      paymentToken.address,
+      MarketStyle.EUROPEAN_STYLE,
+      STRIKE_RATIO_1,
+      expiration,
+      0,
+      0,
+      0,
+      deployedAmm.address,
+    )
+    const marketAddress1 = await deployedMarketsRegistry.markets.call(NAME_1)
+    let markets = await deployedAmm.getMarkets()
+    is_markets_added = markets.includes(marketAddress1)
+    assert.equal(is_markets_added, true, "Markets are not added to MinterAmm")
+  })
+
   it("All markets expired", async () => {
     //set the expiration
     const expiration = Number(await time.latest()) + THIRTY_DAYS // 30 days from now;
@@ -140,6 +187,7 @@ contract("Minter AMM Remove expired markets", (accounts) => {
       true,
       "Expired markets were not removed from MinterAmm",
     )
+    assert.equal(0, markets.length, "The state of openmarkets is not correct")
   })
 
   it("3 open markets 2 expired markets", async () => {
@@ -268,6 +316,15 @@ contract("Minter AMM Remove expired markets", (accounts) => {
       true,
       "Expired markets were not removed from MinterAmm",
     )
+
+    assert.equal(
+      true,
+      markets.length == 3 &&
+        marketAddress1 == markets[0] &&
+        marketAddress2 == markets[1] &&
+        marketAddress4 == markets[2],
+      "The state of openmarkets is not correct",
+    )
   })
   // This is the edge case where i>openMarkets.length
   it("1 open & 1 market expired(last one added to the open markets)", async () => {
@@ -332,6 +389,12 @@ contract("Minter AMM Remove expired markets", (accounts) => {
       is_markets_removed,
       true,
       "Expired markets were not removed from MinterAmm",
+    )
+
+    assert.equal(
+      true,
+      markets.length == 1 && marketAddress1 == markets[0],
+      "The state of openmarkets is not correct",
     )
   })
 })
