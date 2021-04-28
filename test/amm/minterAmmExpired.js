@@ -90,10 +90,26 @@ contract("Minter AMM Expired", (accounts) => {
       ammLogic.address,
     )
 
+    deployedMockPriceOracle = await MockPriceOracle.new(
+      await collateralToken.decimals.call(),
+    )
+    await deployedMockPriceOracle.setLatestAnswer(BTC_ORACLE_PRICE)
+
     const ammProxy = await Proxy.new(ammLogic.address)
     deployedAmm = await MinterAmm.at(ammProxy.address)
 
     const expiration = Number(await time.latest()) + THIRTY_DAYS // 30 days from now;
+
+    // Initialize the AMM
+    let ret = await deployedAmm.initialize(
+      deployedMarketsRegistry.address,
+      deployedMockPriceOracle.address,
+      paymentToken.address,
+      collateralToken.address,
+      lpTokenLogic.address,
+      0,
+      false,
+    )
 
     await deployedMarketsRegistry.createMarket(
       NAME,
@@ -112,25 +128,9 @@ contract("Minter AMM Expired", (accounts) => {
       NAME,
     )
     deployedMarket = await Market.at(deployedMarketAddress)
-
-    deployedMockPriceOracle = await MockPriceOracle.new(
-      await collateralToken.decimals.call(),
-    )
-    await deployedMockPriceOracle.setLatestAnswer(BTC_ORACLE_PRICE)
   })
 
   it("Expired OTM with constant price", async () => {
-    // Initialize the AMM
-    let ret = await deployedAmm.initialize(
-      deployedMarketsRegistry.address,
-      deployedMockPriceOracle.address,
-      paymentToken.address,
-      collateralToken.address,
-      lpTokenLogic.address,
-      0,
-      false,
-    )
-
     const bToken = await SimpleToken.at(await deployedMarket.bToken.call())
     const wToken = await SimpleToken.at(await deployedMarket.wToken.call())
     const lpToken = await SimpleToken.at(await deployedAmm.lpToken.call())
@@ -321,17 +321,6 @@ contract("Minter AMM Expired", (accounts) => {
   })
 
   it("Expired ITM with exercise", async () => {
-    // Initialize the AMM
-    let ret = await deployedAmm.initialize(
-      deployedMarketsRegistry.address,
-      deployedMockPriceOracle.address,
-      paymentToken.address,
-      collateralToken.address,
-      lpTokenLogic.address,
-      0,
-      false,
-    )
-
     const bToken = await SimpleToken.at(await deployedMarket.bToken.call())
     const wToken = await SimpleToken.at(await deployedMarket.wToken.call())
     const lpToken = await SimpleToken.at(await deployedAmm.lpToken.call())
@@ -619,17 +608,6 @@ contract("Minter AMM Expired", (accounts) => {
   })
 
   it("should claimExpiredTokens succeed", async () => {
-    // Initialize the AMM
-    let ret = await deployedAmm.initialize(
-      deployedMarketsRegistry.address,
-      deployedMockPriceOracle.address,
-      paymentToken.address,
-      collateralToken.address,
-      lpTokenLogic.address,
-      0,
-      false,
-    )
-
     expiration = Number(await time.latest()) + THIRTY_DAYS // 30 days from now;
 
     // create another market so we can call claimExpiredTokens on multiple markets
@@ -760,17 +738,6 @@ contract("Minter AMM Expired", (accounts) => {
   })
 
   it("claimAllExpiredTokens should succeed", async () => {
-    // Initialize the AMM
-    let ret = await deployedAmm.initialize(
-      deployedMarketsRegistry.address,
-      deployedMockPriceOracle.address,
-      paymentToken.address,
-      collateralToken.address,
-      lpTokenLogic.address,
-      0,
-      false,
-    )
-
     expiration = Number(await time.latest()) + THIRTY_DAYS // 30 days from now;
 
     // create another market so we can call claimExpiredTokens on multiple markets

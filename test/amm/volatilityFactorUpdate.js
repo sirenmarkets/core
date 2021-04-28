@@ -78,10 +78,26 @@ contract("Volatility Factor", (accounts) => {
       ammLogic.address,
     )
 
+    deployedMockPriceOracle = await MockPriceOracle.new(
+      await collateralToken.decimals.call(),
+    )
+    await deployedMockPriceOracle.setLatestAnswer(BTC_ORACLE_PRICE)
+
     const ammProxy = await Proxy.new(ammLogic.address)
     deployedAmm = await MinterAmm.at(ammProxy.address)
 
     expiration = Number(await time.latest()) + 30 * 86400 // 30 days from now;
+
+    // Initialize the AMM
+    let ret = await deployedAmm.initialize(
+      deployedMarketsRegistry.address,
+      deployedMockPriceOracle.address,
+      paymentToken.address,
+      collateralToken.address,
+      lpTokenLogic.address,
+      0,
+      SHOULD_INVERT_ORACLE_PRICE,
+    )
 
     await deployedMarketsRegistry.createMarket(
       NAME,
@@ -100,25 +116,9 @@ contract("Volatility Factor", (accounts) => {
       NAME,
     )
     deployedMarket = await Market.at(deployedMarketAddress)
-
-    deployedMockPriceOracle = await MockPriceOracle.new(
-      await collateralToken.decimals.call(),
-    )
-    await deployedMockPriceOracle.setLatestAnswer(BTC_ORACLE_PRICE)
   })
 
   it("Enforces Limits", async () => {
-    // Initialize the AMM
-    let ret = await deployedAmm.initialize(
-      deployedMarketsRegistry.address,
-      deployedMockPriceOracle.address,
-      paymentToken.address,
-      collateralToken.address,
-      lpTokenLogic.address,
-      0,
-      SHOULD_INVERT_ORACLE_PRICE,
-    )
-
     // Ensure an non-owner can't edit the vol factor
     await expectRevert(
       deployedAmm.setVolatilityFactor("10000001", { from: bobAccount }),
