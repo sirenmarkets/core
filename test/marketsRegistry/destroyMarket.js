@@ -8,6 +8,7 @@ const {
 const { MarketStyle } = require("../util")
 const MarketsRegistry = artifacts.require("MarketsRegistry")
 const Market = artifacts.require("Market")
+const MockPriceOracle = artifacts.require("MockPriceOracle")
 const SimpleToken = artifacts.require("SimpleToken")
 const Proxy = artifacts.require("Proxy")
 const MinterAmm = artifacts.require("MinterAmm")
@@ -17,6 +18,9 @@ const TestHelpers = require("../testHelpers")
 const NAME = "WBTC.USDC.20300101.50000"
 
 const STRIKE_RATIO = 50000
+
+const BTC_ORACLE_PRICE = 14_000 * 10 ** 8 // BTC oracle answer has 8 decimals places, same as BTC
+const SHOULD_INVERT_ORACLE_PRICE = false
 
 /**
  * Testing the flows for the Market Contract
@@ -31,6 +35,7 @@ contract("Destroy Markets", (accounts) => {
   let marketsRegistryLogic
   let deployedMarketsRegistry
   let ammLogic
+  let lpTokenLogic
 
   let collateralToken
   let paymentToken
@@ -41,6 +46,7 @@ contract("Destroy Markets", (accounts) => {
     marketLogic = await Market.deployed()
     marketsRegistryLogic = await MarketsRegistry.deployed()
     ammLogic = await MinterAmm.deployed()
+    lpTokenLogic = await SimpleToken.deployed()
 
     // Create a collateral token
     collateralToken = await SimpleToken.new()
@@ -73,7 +79,7 @@ contract("Destroy Markets", (accounts) => {
     const expiration = parseInt(currentTime) + twoDays
 
     // Create the market
-    ret = await deployedMarketsRegistry.createMarket(
+    await deployedMarketsRegistry.createMarket(
       NAME,
       collateralToken.address,
       paymentToken.address,
@@ -157,6 +163,25 @@ contract("Destroy Markets", (accounts) => {
     // Set the expiration to 2 days from now
     const expiration = parseInt(currentTime) + twoDays
 
+    let deployedMockPriceOracle = await MockPriceOracle.new(
+      await collateralToken.decimals.call(),
+    )
+    await deployedMockPriceOracle.setLatestAnswer(BTC_ORACLE_PRICE)
+
+    const ammProxy = await Proxy.new(ammLogic.address)
+    deployedAmm = await MinterAmm.at(ammProxy.address)
+
+    // Initialize the AMM
+    await deployedAmm.initialize(
+      deployedMarketsRegistry.address,
+      deployedMockPriceOracle.address,
+      paymentToken.address,
+      collateralToken.address,
+      lpTokenLogic.address,
+      0,
+      SHOULD_INVERT_ORACLE_PRICE,
+    )
+
     // Create the market
     ret = await deployedMarketsRegistry.createMarket(
       NAME,
@@ -168,7 +193,7 @@ contract("Destroy Markets", (accounts) => {
       0,
       0,
       0,
-      ammLogic.address,
+      deployedAmm.address,
     )
 
     // Get the market adress

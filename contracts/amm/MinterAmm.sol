@@ -1191,7 +1191,7 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
      * This method is called by Market Registry when it is creating a new market
      */
     function addMarket(address newMarketAddress,address sender) external override{
-        //require(owner() == sender,'Only owner can call the method');
+        require(owner() == sender,'Only owner can call the method');
         openMarkets.push(newMarketAddress);
     }
 }

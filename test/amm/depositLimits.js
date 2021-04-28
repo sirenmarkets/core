@@ -84,6 +84,23 @@ contract("Deposit Limits", (accounts) => {
 
     expiration = Number(await time.latest()) + 30 * 86400 // 30 days from now;
 
+    deployedMockPriceOracle = await MockPriceOracle.new(
+      await collateralToken.decimals.call(),
+    )
+    await deployedMockPriceOracle.setLatestAnswer(BTC_ORACLE_PRICE)
+
+    // Initialize the AMM
+    let ret = await deployedAmm.initialize(
+      deployedMarketsRegistry.address,
+      deployedMockPriceOracle.address,
+      paymentToken.address,
+      collateralToken.address,
+      lpTokenLogic.address,
+      0,
+      SHOULD_INVERT_ORACLE_PRICE,
+      { from: ownerAccount },
+    )
+
     await deployedMarketsRegistry.createMarket(
       NAME,
       collateralToken.address,
@@ -101,25 +118,9 @@ contract("Deposit Limits", (accounts) => {
       NAME,
     )
     deployedMarket = await Market.at(deployedMarketAddress)
-
-    deployedMockPriceOracle = await MockPriceOracle.new(
-      await collateralToken.decimals.call(),
-    )
-    await deployedMockPriceOracle.setLatestAnswer(BTC_ORACLE_PRICE)
   })
 
   it("Enforces Limits", async () => {
-    // Initialize the AMM
-    let ret = await deployedAmm.initialize(
-      deployedMarketsRegistry.address,
-      deployedMockPriceOracle.address,
-      paymentToken.address,
-      collateralToken.address,
-      lpTokenLogic.address,
-      0,
-      SHOULD_INVERT_ORACLE_PRICE,
-    )
-
     // Ensure a non-owner can't edit the flag for enabling deposit limits
     await expectRevert(
       deployedAmm.setEnforceDepositLimits(true, "100", { from: bobAccount }),

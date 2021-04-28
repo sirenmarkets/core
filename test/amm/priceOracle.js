@@ -53,7 +53,15 @@ contract("AMM Verification: Oracle", (accounts) => {
   beforeEach(async () => {})
 
   it("should calculate correctly when USDC is the collateral token", async () => {
-    await setupBeforeEach(false)
+    let strikeRatio
+    let expiration
+    await setupBeforeEach(false, function callback(
+      strikeRatioValue,
+      expirationValue,
+    ) {
+      strikeRatio = strikeRatioValue
+      expiration = expirationValue
+    })
 
     // Initialize the AMM
     let ret = await deployedAmm.initialize(
@@ -65,6 +73,24 @@ contract("AMM Verification: Oracle", (accounts) => {
       0,
       SHOULD_INVERT_ORACLE_PRICE,
     )
+
+    await deployedMarketsRegistry.createMarket(
+      NAME,
+      collateralToken.address,
+      paymentToken.address,
+      MarketStyle.EUROPEAN_STYLE,
+      strikeRatio,
+      expiration,
+      0,
+      0,
+      0,
+      deployedAmm.address,
+    )
+
+    const deployedMarketAddress = await deployedMarketsRegistry.markets.call(
+      NAME,
+    )
+    deployedMarket = await Market.at(deployedMarketAddress)
 
     // Approve collateral
     await collateralToken.mint(ownerAccount, 10000)
@@ -156,7 +182,15 @@ contract("AMM Verification: Oracle", (accounts) => {
   })
 
   it("should calculate correctly when WBTC is the collateral token", async () => {
-    await setupBeforeEach(true)
+    let strikeRatio
+    let expiration
+    await setupBeforeEach(true, function callback(
+      strikeRatioValue,
+      expirationValue,
+    ) {
+      strikeRatio = strikeRatioValue
+      expiration = expirationValue
+    })
 
     // Initialize the AMM
     let ret = await deployedAmm.initialize(
@@ -168,6 +202,24 @@ contract("AMM Verification: Oracle", (accounts) => {
       0,
       false,
     )
+
+    await deployedMarketsRegistry.createMarket(
+      NAME,
+      collateralToken.address,
+      paymentToken.address,
+      MarketStyle.EUROPEAN_STYLE,
+      strikeRatio,
+      expiration,
+      0,
+      0,
+      0,
+      deployedAmm.address,
+    )
+
+    const deployedMarketAddress = await deployedMarketsRegistry.markets.call(
+      NAME,
+    )
+    deployedMarket = await Market.at(deployedMarketAddress)
 
     // Approve collateral
     await collateralToken.mint(ownerAccount, 10000)
@@ -258,7 +310,7 @@ contract("AMM Verification: Oracle", (accounts) => {
     )
   })
 
-  const setupBeforeEach = async (wbtcIsCollateralToken) => {
+  const setupBeforeEach = async (wbtcIsCollateralToken, callback) => {
     // We create payment and collateral tokens before each test
     // in order to prevent balances from one test leaking into another
     collateralToken = await SimpleToken.new()
@@ -290,6 +342,9 @@ contract("AMM Verification: Oracle", (accounts) => {
     const ammProxy = await Proxy.new(ammLogic.address)
     deployedAmm = await MinterAmm.at(ammProxy.address)
 
+    deployedMockPriceOracle = await MockPriceOracle.new(8)
+    await deployedMockPriceOracle.setLatestAnswer(BTC_ORACLE_PRICE)
+
     const strikeRatio = getPriceRatio(
       15000, // 15000 USD per BTC
       await collateralToken.decimals.call(),
@@ -299,25 +354,6 @@ contract("AMM Verification: Oracle", (accounts) => {
 
     const expiration = Number(await time.latest()) + 30 * 86400 // 30 days from now;
 
-    await deployedMarketsRegistry.createMarket(
-      NAME,
-      collateralToken.address,
-      paymentToken.address,
-      MarketStyle.EUROPEAN_STYLE,
-      strikeRatio,
-      expiration,
-      0,
-      0,
-      0,
-      deployedAmm.address,
-    )
-
-    const deployedMarketAddress = await deployedMarketsRegistry.markets.call(
-      NAME,
-    )
-    deployedMarket = await Market.at(deployedMarketAddress)
-
-    deployedMockPriceOracle = await MockPriceOracle.new(8)
-    await deployedMockPriceOracle.setLatestAnswer(BTC_ORACLE_PRICE)
+    callback(strikeRatio, expiration)
   }
 })
