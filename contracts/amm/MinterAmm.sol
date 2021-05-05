@@ -649,8 +649,8 @@ contract MinterAmm is InitializeableAmm, OwnableUpgradeSafe, Proxiable {
                 uint256 unclaimedPayment = paymentToken
                     .balanceOf(address(optionMarket))
                     .mul(wTokenBalance)
-                    .div(wTokenSupply)
                     .mul(1e18)
+                    .div(wTokenSupply)
                     .div(collateralPrice);
 
                 unclaimedTokensValue = unclaimedTokensValue
