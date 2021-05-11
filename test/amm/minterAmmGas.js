@@ -197,13 +197,18 @@ contract("Minter AMM Gas Measurement", (accounts) => {
       from: aliceAccount,
     })
 
+    const openMarkets = await deployedAmm.getMarkets()
+
     for (let i = 0; i < numMarkets; i++) {
       const deployedMarket = markets[i]
       const bToken = await SimpleToken.at(await deployedMarket.bToken.call())
       const wToken = await SimpleToken.at(await deployedMarket.wToken.call())
 
       // Buy bTokens
-      ret = await deployedAmm.bTokenBuy(i, 3000, 3000, { from: aliceAccount })
+      const marketAddress = openMarkets[i]
+      ret = await deployedAmm.bTokenBuy(marketAddress, 3000, 3000, {
+        from: aliceAccount,
+      })
       printGasLog("bTokenBuy 1", ret.receipt.gasUsed)
       assert.isBelow(
         ret.receipt.gasUsed,
@@ -212,7 +217,9 @@ contract("Minter AMM Gas Measurement", (accounts) => {
       )
 
       // Buy more bTokens
-      ret = await deployedAmm.bTokenBuy(i, 3000, 3000, { from: aliceAccount })
+      ret = await deployedAmm.bTokenBuy(openMarkets[i], 3000, 3000, {
+        from: aliceAccount,
+      })
       printGasLog("bTokenBuy 2", ret.receipt.gasUsed)
       assert.isBelow(
         ret.receipt.gasUsed,
@@ -224,7 +231,9 @@ contract("Minter AMM Gas Measurement", (accounts) => {
       await bToken.approve(deployedAmm.address, 2000, {
         from: aliceAccount,
       })
-      ret = await deployedAmm.bTokenSell(i, 1000, 0, { from: aliceAccount })
+      ret = await deployedAmm.bTokenSell(openMarkets[i], 1000, 0, {
+        from: aliceAccount,
+      })
       printGasLog("bTokenSell 1", ret.receipt.gasUsed)
       assert.isBelow(
         ret.receipt.gasUsed,
@@ -233,7 +242,9 @@ contract("Minter AMM Gas Measurement", (accounts) => {
       )
 
       // Sell more bTokens
-      ret = await deployedAmm.bTokenSell(i, 1000, 0, { from: aliceAccount })
+      ret = await deployedAmm.bTokenSell(openMarkets[i], 1000, 0, {
+        from: aliceAccount,
+      })
       printGasLog("bTokenSell 2", ret.receipt.gasUsed)
       assert.isBelow(
         ret.receipt.gasUsed,
