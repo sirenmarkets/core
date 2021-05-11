@@ -28,8 +28,6 @@ let CLAIM_EXPIRED_TOKENS_ENDING_BALANCE
 const STATE_OPEN = 0
 const STATE_EXPIRED = 1
 
-const FIRST_MARKET_IDX = 0
-
 const ERROR_MESSAGES = {
   WITHDRAW_OPEN_EXPIRED: "withdrawCapitalOpen must be open",
   BTOKEN_BUY_NOT_OPEN: "bTokenBuy must be open",
@@ -60,6 +58,8 @@ contract("Minter AMM Expired", (accounts) => {
   let paymentToken
 
   let expiration
+
+  let firstMarketAddress
 
   before(async () => {
     // These logic contracts are what the proxy contracts will point to
@@ -128,6 +128,9 @@ contract("Minter AMM Expired", (accounts) => {
       NAME,
     )
     deployedMarket = await Market.at(deployedMarketAddress)
+
+    const openMarkets = await deployedAmm.getMarkets()
+    firstMarketAddress = openMarkets[0]
   })
 
   it("Expired OTM with constant price", async () => {
@@ -164,7 +167,7 @@ contract("Minter AMM Expired", (accounts) => {
     )
 
     // Buy bTokens
-    ret = await deployedAmm.bTokenBuy(FIRST_MARKET_IDX, 3000, 3000, {
+    ret = await deployedAmm.bTokenBuy(firstMarketAddress, 3000, 3000, {
       from: aliceAccount,
     })
 
@@ -354,7 +357,7 @@ contract("Minter AMM Expired", (accounts) => {
     )
 
     // Buy bTokens
-    ret = await deployedAmm.bTokenBuy(FIRST_MARKET_IDX, 3000, 3000, {
+    ret = await deployedAmm.bTokenBuy(firstMarketAddress, 3000, 3000, {
       from: aliceAccount,
     })
 
@@ -628,7 +631,8 @@ contract("Minter AMM Expired", (accounts) => {
       `${NAME}2`,
     )
     const otherDeployedMarket = await Market.at(deployedMarketAddress)
-    const secondMarketIdx = 1
+    const openMarkets = await deployedAmm.getMarkets()
+    const secondMarketAddress = openMarkets[1]
 
     const initialCapital = 10000
     // Approve collateral
@@ -649,16 +653,21 @@ contract("Minter AMM Expired", (accounts) => {
 
     // Buy bTokens from first market
     ret = await deployedAmm.bTokenBuy(
-      FIRST_MARKET_IDX,
+      firstMarketAddress,
       BUY_AMOUNT,
       BUY_AMOUNT,
       { from: aliceAccount },
     )
 
     // Buy bTokens from second market
-    ret = await deployedAmm.bTokenBuy(secondMarketIdx, BUY_AMOUNT, BUY_AMOUNT, {
-      from: aliceAccount,
-    })
+    ret = await deployedAmm.bTokenBuy(
+      secondMarketAddress,
+      BUY_AMOUNT,
+      BUY_AMOUNT,
+      {
+        from: aliceAccount,
+      },
+    )
 
     // now there should be wTokens in the AMM
     const wToken = await SimpleToken.at(await deployedMarket.wToken.call())
@@ -758,7 +767,8 @@ contract("Minter AMM Expired", (accounts) => {
       `${NAME}2`,
     )
     const otherDeployedMarket = await Market.at(deployedMarketAddress)
-    const secondMarketIdx = 1
+    const openMarkets = await deployedAmm.getMarkets()
+    const secondMarketAddress = openMarkets[1]
 
     const initialCapital = 10000
     // Approve collateral
@@ -779,16 +789,21 @@ contract("Minter AMM Expired", (accounts) => {
 
     // Buy bTokens from first market
     ret = await deployedAmm.bTokenBuy(
-      FIRST_MARKET_IDX,
+      firstMarketAddress,
       BUY_AMOUNT,
       BUY_AMOUNT,
       { from: aliceAccount },
     )
 
     // Buy bTokens from second market
-    ret = await deployedAmm.bTokenBuy(secondMarketIdx, BUY_AMOUNT, BUY_AMOUNT, {
-      from: aliceAccount,
-    })
+    ret = await deployedAmm.bTokenBuy(
+      secondMarketAddress,
+      BUY_AMOUNT,
+      BUY_AMOUNT,
+      {
+        from: aliceAccount,
+      },
+    )
 
     // now there should be wTokens in the AMM
     const wToken = await SimpleToken.at(await deployedMarket.wToken.call())
