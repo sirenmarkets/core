@@ -7,6 +7,7 @@ import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/ERC20.sol
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
 import "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/utils/EnumerableSet.sol";
 import "../market/IMarket.sol";
 import "../market/IMarketsRegistry.sol";
 import "../proxy/Proxiable.sol";
@@ -52,6 +53,8 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
     /** Use safe math for uint256 */
     using SafeMath for uint256;
 
+    using EnumerableSet for EnumerableSet.AddressSet;
+
     /** @dev The token contract that will track lp ownership of the AMM */
     ISimpleToken public lpToken;
 
@@ -92,7 +95,7 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
     uint256 public volatilityFactor;
 
     /** Array of addresses of open markets with respect to the assetpair*/
-    address [] public openMarkets;
+    EnumerableSet.AddressSet private openMarkets;
 
     /** @dev Flag to ensure initialization can only happen once */
     bool initialized = false;
@@ -183,8 +186,7 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
     /** Emitted when an expired market has been removed*/
     event MarketEvicted(
         address ammAddress,
-        address marketAddress,
-        uint256 index
+        address marketAddress
     );
 
     /** Emitted when the owner updates volatilityFactor */
@@ -511,10 +513,10 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
      * them into collateral token which gets added to its liquidity pool &
      * removes the expired markets
      */
-    function claimAllExpiredTokens() public {
-        
-        for (uint256 i = 0; i < openMarkets.length; i++) {
-            IMarket optionMarket = IMarket(openMarkets[i]);
+        function claimAllExpiredTokens() public {
+
+        for (uint256 i = 0; i < openMarkets.length(); i++) {
+            IMarket optionMarket = IMarket(openMarkets.at(i));
             while (optionMarket.state() == IMarket.MarketState.EXPIRED){
                 // ... claim the expired market's wTokens, which means it can now be safely removed
                 uint256 wTokenBalance = optionMarket.wToken().balanceOf(
@@ -525,16 +527,16 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
                     claimExpiredTokens(optionMarket, wTokenBalance);
                 }
                 //Remove the expired market to free storage and reduce gas fee 
-                address evictedMarketAddress =  address(openMarkets[i]);
-                openMarkets[i] = openMarkets[openMarkets.length-1];
-                openMarkets.pop();
+                address evictedMarketAddress =  address(openMarkets.at(i));
+                openMarkets.remove(evictedMarketAddress);
                 
-                emit MarketEvicted(address(this),evictedMarketAddress,i);
+                //emit the event
+                emit MarketEvicted(address(this),evictedMarketAddress);
 
                 //Handle edge cases: Since i is at the same position while removing and length is 
                 //decreasing i might be bigger than length and cause index out of bounds
-                if(i<openMarkets.length){
-                    optionMarket = IMarket(openMarkets[i]);
+                if(i<openMarkets.length()){
+                    optionMarket = IMarket(openMarkets.at(i));
                 }else{
                     break;
                 }
@@ -806,14 +808,18 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
      * List of market addresses that this AMM trades
      */
     function getMarkets() public view returns (address[] memory) {
-        return openMarkets;
+        address[] memory markets = new address[](openMarkets.length());
+        for (uint i = 0;i<openMarkets.length();i++){
+            markets[i] = address(openMarkets.at(i));
+        }
+        return markets;
     }
-
-    /**
-     * Get market address by index
+   /**
+     * Get market address by address
      */
-    function getMarket(uint256 marketIndex) public view returns (IMarket) {
-        return IMarket(getMarkets()[marketIndex]);
+    function getMarket(address marketAdress) public view returns (IMarket) {
+        require(openMarkets.contains(marketAdress),'Market does not exist');
+        return IMarket(marketAdress);
     }
 
     struct LocalVars {
@@ -976,11 +982,11 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
      * collateralMaximum is used for slippage protection
      */
     function bTokenBuy(
-        uint256 marketIndex,
+        address marketAddress,
         uint256 bTokenAmount,
         uint256 collateralMaximum
     ) public minTradeSize(bTokenAmount) returns (uint256) {
-        IMarket optionMarket = getMarket(marketIndex);
+        IMarket optionMarket = getMarket(marketAddress);
         require(
             optionMarket.state() == IMarket.MarketState.OPEN,
             "bTokenBuy must be open"
@@ -1027,11 +1033,11 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
      * collateralMaximum is used for slippage protection
      */
     function bTokenSell(
-        uint256 marketIndex,
+        address marketAddress,
         uint256 bTokenAmount,
         uint256 collateralMinimum
     ) public minTradeSize(bTokenAmount) returns (uint256) {
-        IMarket optionMarket = getMarket(marketIndex);
+         IMarket optionMarket = getMarket(marketAddress);
         require(
             optionMarket.state() == IMarket.MarketState.OPEN,
             "bTokenSell must be open"
@@ -1192,6 +1198,6 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
      */
     function addMarket(address newMarketAddress,address sender) external override{
         require(owner() == sender,'Only owner can call the method');
-        openMarkets.push(newMarketAddress);
+        openMarkets.add(newMarketAddress);
     }
 }
