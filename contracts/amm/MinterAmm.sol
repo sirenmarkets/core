@@ -97,7 +97,7 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
     /** Array of addresses of open markets with respect to the assetpair*/
     /**@dev If we ever re-deploy MinterAmm we need to check that the EnumerableSet implementation hasn’t changed, 
     because we rely on undocumented implementation details (see Note in MinterAmm.claimAllExpiredTokens on 
-    removing markets )
+    removing markets)
     */
     EnumerableSet.AddressSet private openMarkets;
 
@@ -516,8 +516,7 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
      * them into collateral token which gets added to its liquidity pool &
      * removes the expired markets
      */
-        function claimAllExpiredTokens() public {
-
+    function claimAllExpiredTokens() public {
         for (uint256 i = 0; i < openMarkets.length(); i++) {
             IMarket optionMarket = IMarket(openMarkets.at(i));
             while (optionMarket.state() == IMarket.MarketState.EXPIRED){
