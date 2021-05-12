@@ -95,6 +95,10 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
     uint256 public volatilityFactor;
 
     /** Array of addresses of open markets with respect to the assetpair*/
+    /**@dev If we ever re-deploy MinterAmm we need to check that the EnumerableSet implementation hasn’t changed, 
+    because we rely on undocumented implementation details (see Note in MinterAmm.claimAllExpiredTokens on 
+    removing markets )
+    */
     EnumerableSet.AddressSet private openMarkets;
 
     /** @dev Flag to ensure initialization can only happen once */
@@ -185,7 +189,6 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
 
     /** Emitted when an expired market has been removed*/
     event MarketEvicted(
-        address ammAddress,
         address marketAddress
     );
 
@@ -527,11 +530,15 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
                     claimExpiredTokens(optionMarket, wTokenBalance);
                 }
                 //Remove the expired market to free storage and reduce gas fee 
-                address evictedMarketAddress =  address(openMarkets.at(i));
+                //NOTE: OpenMarkets.remove will remove the market from the i’th position in the EnumerableSet by
+                //swapping it with the last element in EnumerableSet and then calling .pop on the internal array.
+                //We are relying on this undocumented behavior of EnumerableSet, which is acceptable because once
+                //deployed we will never change the EnumerableSet logic.
+                address evictedMarketAddress = address(optionMarket);
                 openMarkets.remove(evictedMarketAddress);
                 
                 //emit the event
-                emit MarketEvicted(address(this),evictedMarketAddress);
+                emit MarketEvicted(evictedMarketAddress);
 
                 //Handle edge cases: Since i is at the same position while removing and length is 
                 //decreasing i might be bigger than length and cause index out of bounds
@@ -1037,7 +1044,7 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
         uint256 bTokenAmount,
         uint256 collateralMinimum
     ) public minTradeSize(bTokenAmount) returns (uint256) {
-         IMarket optionMarket = getMarket(marketAddress);
+        IMarket optionMarket = getMarket(marketAddress);
         require(
             optionMarket.state() == IMarket.MarketState.OPEN,
             "bTokenSell must be open"
