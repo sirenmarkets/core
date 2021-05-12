@@ -248,7 +248,7 @@ contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
      */
     function addMarketToAmm(address ammAddress,address newMarketAddress) internal{
         IAddMarketToAmm amm = IAddMarketToAmm(ammAddress);
-        amm.addMarket(newMarketAddress,tx.origin);
+        amm.addMarket(newMarketAddress);
     }
 
     /**
