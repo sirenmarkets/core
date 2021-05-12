@@ -93,7 +93,7 @@ contract("Minter AMM Remove expired markets", (accounts) => {
     const expiration = Number(await time.latest()) + THIRTY_DAYS // 30 days from now;
     const STRIKE_RATIO_1 = 5000
 
-    // Non-owner shouldn't add market to the amm
+    // Non-owner shouldn't be able to create a market
     await expectRevert.unspecified(
       deployedMarketsRegistry.createMarket(
         NAME_1,
@@ -110,7 +110,7 @@ contract("Minter AMM Remove expired markets", (accounts) => {
       ),
     )
 
-    //Add market to the amm
+    // Add market to the amm
     await deployedMarketsRegistry.createMarket(
       NAME_1,
       collateralToken.address,
@@ -127,10 +127,20 @@ contract("Minter AMM Remove expired markets", (accounts) => {
     let markets = await deployedAmm.getMarkets()
     is_markets_added = markets.includes(marketAddress1)
     assert.equal(is_markets_added, true, "Markets are not added to MinterAmm")
+
+    // Non-registry shouldn't be able to add a market to the AMM
+    await expectRevert(
+      deployedAmm.addMarket(marketAddress1),
+      "Only registry can call addMarket",
+    )
+    await expectRevert(
+      deployedAmm.addMarket(marketAddress1, { from: bobAccount }),
+      "Only registry can call addMarket",
+    )
   })
 
   it("All markets expired", async () => {
-    //set the expiration
+    // set the expiration
     const expiration = Number(await time.latest()) + THIRTY_DAYS // 30 days from now;
 
     const STRIKE_RATIO_1 = 5000

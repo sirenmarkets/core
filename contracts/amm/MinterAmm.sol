@@ -1190,8 +1190,8 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
      * @dev Adds the address of market to the amm
      * This method is called by Market Registry when it is creating a new market
      */
-    function addMarket(address newMarketAddress,address sender) external override{
-        require(owner() == sender,'Only owner can call the method');
+    function addMarket(address newMarketAddress) external override {
+        require(msg.sender == address(registry), "Only registry can call addMarket");
         openMarkets.push(newMarketAddress);
     }
 }

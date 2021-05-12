@@ -123,14 +123,6 @@ async function run() {
   // set deposit limits and whitelist LPs
   await ammWBTCUSDC.setEnforceDepositLimits(true, "70000000") // 0.7 BTC ~ $10K
   await ammUSDCWBTC.setEnforceDepositLimits(true, "10000000000") // $10K
-  await ammWBTCUSDC.setCapitalDepositLimit(
-    lpAccounts,
-    lpAccounts.map((a) => true),
-  )
-  await ammUSDCWBTC.setCapitalDepositLimit(
-    lpAccounts,
-    lpAccounts.map((a) => true),
-  )
 
   // call createMarket several times to setup example markets
   for (let marketData of marketSetupData) {
