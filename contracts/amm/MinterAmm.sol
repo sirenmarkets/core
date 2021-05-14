@@ -1205,6 +1205,5 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
     function addMarket(address newMarketAddress) external override {
         require(msg.sender == address(registry), "Only registry can call addMarket");
         openMarkets.add(newMarketAddress);
-
     }
 }
