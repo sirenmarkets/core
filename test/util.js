@@ -75,13 +75,7 @@ module.exports = {
   },
 
   checkBNsWithinTolerance: (expectedBN, actualBN, tolerance, errMsg) => {
-    assert(
-      expectedBN.lte(actualBN.add(tolerance)),
-      `${errMsg}: expected: ${expectedBN.toString()} actual: ${actualBN.toString()}`,
-    )
-    assert(
-      expectedBN.gte(actualBN.sub(tolerance)),
-      `${errMsg}: expected: ${expectedBN.toString()} actual: ${actualBN.toString()}`,
-    )
+    assert(expectedBN.lte(actualBN.add(tolerance)), errMsg)
+    assert(expectedBN.gte(actualBN.sub(tolerance)), errMsg)
   },
 }

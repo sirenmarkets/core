@@ -312,7 +312,7 @@ contract("Staking Verification", (accounts) => {
 
       // now fast forward to the end of the staking period
 
-      await time.increase(TWO_WEEKS / 2)
+      await time.increase(TWO_WEEKS / 2 + 1)
 
       // alice put in 1000 at the beginning, bob put in 0, and they were the only stakers.
       // When bob joins in 1/2-way through the distribution period, since alice was the only
