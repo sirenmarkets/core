@@ -1,4 +1,4 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-npx pretty-quick 'src/**/*.{ts,tsx,js,jsx,md}' --staged
+npx pretty-quick './**/*.{ts,tsx,js,sol,jsx,md}' --staged
