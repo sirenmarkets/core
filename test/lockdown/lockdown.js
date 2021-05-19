@@ -38,6 +38,8 @@ contract("Lockdown", (accounts) => {
 
   let expiration
 
+  let marketAddress
+
   before(async () => {
     // These logic contracts are what the proxy contracts will point to
     marketLogic = await Market.new()
@@ -107,6 +109,8 @@ contract("Lockdown", (accounts) => {
       NAME,
     )
     deployedMarket = await Market.at(deployedMarketAddress)
+    const openMarkets = await deployedAmm.getMarkets()
+    marketAddress = openMarkets[0]
   })
 
   it("should lockdown the MinterAmm, and then allow it work function normally", async () => {
@@ -120,8 +124,14 @@ contract("Lockdown", (accounts) => {
 
     // calls to the AMM should fail, because those functions no longer exist on the new logic contract
     await expectRevert(deployedAmm.withdrawCapital(10000, true, 0), "revert")
-    await expectRevert(deployedAmm.bTokenBuy(0, 3000, 3000), "revert")
-    await expectRevert(deployedAmm.bTokenSell(0, 499e8, 0), "revert")
+    await expectRevert(
+      deployedAmm.bTokenBuy(marketAddress, 3000, 3000),
+      "revert",
+    )
+    await expectRevert(
+      deployedAmm.bTokenSell(marketAddress, 499e8, 0),
+      "revert",
+    )
 
     // now update the logic address to the original, and make sure we can call all the functions
 
@@ -140,11 +150,11 @@ contract("Lockdown", (accounts) => {
       "withdrawCapital: collateralMinimum must be set",
     )
     await expectRevert(
-      deployedAmm.bTokenBuy(0, 3000, 3000),
+      deployedAmm.bTokenBuy(marketAddress, 3000, 3000),
       "SafeERC20: low-level call failed",
     )
     await expectRevert(
-      deployedAmm.bTokenSell(0, 499e8, 0),
+      deployedAmm.bTokenSell(marketAddress, 499e8, 0),
       "SafeERC20: low-level call failed",
     )
   })

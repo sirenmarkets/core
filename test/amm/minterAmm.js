@@ -58,6 +58,8 @@ contract("AMM Verification", (accounts) => {
 
   let expiration
 
+  let marketAddress
+
   before(async () => {
     // These logic contracts are what the proxy contracts will point to
     marketLogic = await Market.deployed()
@@ -134,6 +136,8 @@ contract("AMM Verification", (accounts) => {
       NAME,
     )
     deployedMarket = await Market.at(deployedMarketAddress)
+    const openMarkets = await deployedAmm.getMarkets()
+    marketAddress = openMarkets[0]
   })
 
   it("Initializes", async () => {
@@ -430,7 +434,9 @@ contract("AMM Verification", (accounts) => {
     )
 
     // Buy bTokens
-    ret = await deployedAmm.bTokenBuy(0, 3000, 3000, { from: aliceAccount })
+    ret = await deployedAmm.bTokenBuy(marketAddress, 3000, 3000, {
+      from: aliceAccount,
+    })
     assert.equal(
       await bToken.balanceOf.call(aliceAccount),
       3000,
@@ -605,12 +611,14 @@ contract("AMM Verification", (accounts) => {
 
     // Verify it fails if the amount of collateral maximum is exceeded
     await expectRevert(
-      deployedAmm.bTokenBuy(0, 10e8, 5e7, { from: aliceAccount }),
+      deployedAmm.bTokenBuy(marketAddress, 10e8, 5e7, { from: aliceAccount }),
       ERROR_MESSAGES.B_TOKEN_BUY_SLIPPAGE,
     )
 
     // Buys success
-    ret = await deployedAmm.bTokenBuy(0, 10e8, 7e7, { from: aliceAccount })
+    ret = await deployedAmm.bTokenBuy(marketAddress, 10e8, 7e7, {
+      from: aliceAccount,
+    })
 
     // Formula: 1/2 * (sqrt((Rr + Rc - Δr)^2 + 4 * Δr * Rc) + Δr - Rr - Rc) - fee
     expectEvent(ret, "BTokensBought", {
@@ -643,12 +651,14 @@ contract("AMM Verification", (accounts) => {
 
     // Verify it fails if the amount of collateral minimum is not met
     await expectRevert(
-      deployedAmm.bTokenSell(0, bTokensToSell, 5e7, { from: aliceAccount }),
+      deployedAmm.bTokenSell(marketAddress, bTokensToSell, 5e7, {
+        from: aliceAccount,
+      }),
       ERROR_MESSAGES.B_TOKEN_SELL_SLIPPAGE,
     )
 
     // Sell success
-    ret = await deployedAmm.bTokenSell(0, bTokensToSell, 3e7, {
+    ret = await deployedAmm.bTokenSell(marketAddress, bTokensToSell, 3e7, {
       from: aliceAccount,
     })
 
@@ -672,7 +682,7 @@ contract("AMM Verification", (accounts) => {
     await bToken.approve(deployedAmm.address, bTokensToSell, {
       from: aliceAccount,
     })
-    ret = await deployedAmm.bTokenSell(0, bTokensToSell, 3e7, {
+    ret = await deployedAmm.bTokenSell(marketAddress, bTokensToSell, 3e7, {
       from: aliceAccount,
     })
 
@@ -709,7 +719,9 @@ contract("AMM Verification", (accounts) => {
     })
 
     // Buy bTokens
-    ret = await deployedAmm.bTokenBuy(0, 500e8, 500e8, { from: aliceAccount })
+    ret = await deployedAmm.bTokenBuy(marketAddress, 500e8, 500e8, {
+      from: aliceAccount,
+    })
     const wToken = await SimpleToken.at(await deployedMarket.wToken.call())
     assert.equal(
       await wToken.balanceOf.call(deployedAmm.address),
@@ -782,7 +794,7 @@ contract("AMM Verification", (accounts) => {
     })
 
     // Buy bTokens (51e8 collateral cost)
-    ret = await deployedAmm.bTokenBuy(0, 500e8, 5189053654, {
+    ret = await deployedAmm.bTokenBuy(marketAddress, 500e8, 5189053654, {
       from: aliceAccount,
     })
 
@@ -828,9 +840,13 @@ contract("AMM Verification", (accounts) => {
       from: aliceAccount,
     })
     // First sell almost all bTokens
-    ret = await deployedAmm.bTokenSell(0, 499e8, 0, { from: aliceAccount })
+    ret = await deployedAmm.bTokenSell(marketAddress, 499e8, 0, {
+      from: aliceAccount,
+    })
     // Then sell the rest
-    ret = await deployedAmm.bTokenSell(0, 1e8, 0, { from: aliceAccount })
+    ret = await deployedAmm.bTokenSell(marketAddress, 1e8, 0, {
+      from: aliceAccount,
+    })
     assert.equal(
       await bToken.balanceOf.call(deployedAmm.address),
       "49950000000", // 499e8
@@ -847,11 +863,15 @@ contract("AMM Verification", (accounts) => {
     // Verify it fails if min trade size is not met
     const minTradeSize = 1000
     await expectRevert(
-      deployedAmm.bTokenBuy(0, minTradeSize - 1, 1, { from: aliceAccount }),
+      deployedAmm.bTokenBuy(marketAddress, minTradeSize - 1, 1, {
+        from: aliceAccount,
+      }),
       ERROR_MESSAGES.MIN_TRADE_SIZE,
     )
     await expectRevert(
-      deployedAmm.bTokenSell(0, minTradeSize - 1, 1, { from: aliceAccount }),
+      deployedAmm.bTokenSell(marketAddress, minTradeSize - 1, 1, {
+        from: aliceAccount,
+      }),
       ERROR_MESSAGES.MIN_TRADE_SIZE,
     )
   })

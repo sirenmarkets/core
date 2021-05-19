@@ -91,6 +91,8 @@ contract("AMM Verification: Oracle", (accounts) => {
       NAME,
     )
     deployedMarket = await Market.at(deployedMarketAddress)
+    const openMarkets = await deployedAmm.getMarkets()
+    const marketAddress = openMarkets[0]
 
     // Approve collateral
     await collateralToken.mint(ownerAccount, 10000)
@@ -147,7 +149,9 @@ contract("AMM Verification: Oracle", (accounts) => {
     })
 
     // Buy bTokens
-    ret = await deployedAmm.bTokenBuy(0, 3000, 3000, { from: aliceAccount })
+    ret = await deployedAmm.bTokenBuy(marketAddress, 3000, 3000, {
+      from: aliceAccount,
+    })
     assert.equal(
       await collateralToken.balanceOf.call(aliceAccount),
       483, // paid 517 for 3000 tokens at ~0.17
@@ -166,7 +170,9 @@ contract("AMM Verification: Oracle", (accounts) => {
     await bToken.approve(deployedAmm.address, 3000, {
       from: aliceAccount,
     })
-    ret = await deployedAmm.bTokenSell(0, 3000, 0, { from: aliceAccount })
+    ret = await deployedAmm.bTokenSell(marketAddress, 3000, 0, {
+      from: aliceAccount,
+    })
     assert.equal(
       await collateralToken.balanceOf.call(aliceAccount),
       794, // received 311 for 3000 tokens at ~0.1
@@ -220,6 +226,8 @@ contract("AMM Verification: Oracle", (accounts) => {
       NAME,
     )
     deployedMarket = await Market.at(deployedMarketAddress)
+    const openMarkets = await deployedAmm.getMarkets()
+    const marketAddress = openMarkets[0]
 
     // Approve collateral
     await collateralToken.mint(ownerAccount, 10000)
@@ -276,7 +284,9 @@ contract("AMM Verification: Oracle", (accounts) => {
     })
 
     // Buy bTokens
-    ret = await deployedAmm.bTokenBuy(0, 3000, 3000, { from: aliceAccount })
+    ret = await deployedAmm.bTokenBuy(marketAddress, 3000, 3000, {
+      from: aliceAccount,
+    })
     assert.equal(
       await collateralToken.balanceOf.call(aliceAccount),
       757, // paid 243 for 3000 tokens at ~0.08
@@ -295,7 +305,9 @@ contract("AMM Verification: Oracle", (accounts) => {
     await bToken.approve(deployedAmm.address, 3000, {
       from: aliceAccount,
     })
-    ret = await deployedAmm.bTokenSell(0, 3000, 0, { from: aliceAccount })
+    ret = await deployedAmm.bTokenSell(marketAddress, 3000, 0, {
+      from: aliceAccount,
+    })
     assert.equal(
       await collateralToken.balanceOf.call(aliceAccount),
       888, // received 131 for 3000 tokens at ~0.04
