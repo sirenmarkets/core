@@ -16,7 +16,6 @@ import "../libraries/Math.sol";
 import "./InitializeableAmm.sol";
 import "./IAddMarketToAmm.sol";
 
-
 /**
 This is an implementation of a minting/redeeming AMM that trades a list of markets with the same
 collateral and payment assets. For example, a single AMM contract can trade all strikes of WBTC/USDC calls
@@ -46,7 +45,12 @@ All expired unclaimed wTokens are automatically claimed on each deposit or withd
 All conversions between bToken and wToken in the AMM will generate fees that will be send to the protocol fees pool
 (disabled in this version)
  */
-contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Proxiable {
+contract MinterAmm is
+    InitializeableAmm,
+    IAddMarketToAmm,
+    OwnableUpgradeSafe,
+    Proxiable
+{
     /** Use safe ERC20 functions for any token transfers since people don't follow the ERC20 standard */
     using SafeERC20 for IERC20;
     using SafeERC20 for ISimpleToken;
@@ -187,11 +191,6 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
         uint256 collateralPaid
     );
 
-    /** Emitted when an expired market has been removed*/
-    event MarketEvicted(
-        address marketAddress
-    );
-
     /** Emitted when the owner updates volatilityFactor */
     event VolatilityFactorUpdated(uint256 newVolatilityFactor);
 
@@ -201,7 +200,10 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
         _;
     }
 
-    function transferOwnership(address newOwner) public override(InitializeableAmm, OwnableUpgradeSafe) {
+    function transferOwnership(address newOwner)
+        public
+        override(InitializeableAmm, OwnableUpgradeSafe)
+    {
         super.transferOwnership(newOwner);
     }
 
@@ -217,10 +219,22 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
     ) public override {
         require(address(_registry) != address(0x0), "Invalid _registry");
         require(address(_priceOracle) != address(0x0), "Invalid _priceOracle");
-        require(address(_paymentToken) != address(0x0), "Invalid _paymentToken");
-        require(address(_collateralToken) != address(0x0), "Invalid _collateralToken");
-        require(address(_collateralToken) != address(_paymentToken), "_collateralToken cannot equal _paymentToken");
-        require(_tokenImplementation != address(0x0), "Invalid _tokenImplementation");
+        require(
+            address(_paymentToken) != address(0x0),
+            "Invalid _paymentToken"
+        );
+        require(
+            address(_collateralToken) != address(0x0),
+            "Invalid _collateralToken"
+        );
+        require(
+            address(_collateralToken) != address(_paymentToken),
+            "_collateralToken cannot equal _paymentToken"
+        );
+        require(
+            _tokenImplementation != address(0x0),
+            "Invalid _tokenImplementation"
+        );
 
         // Enforce initialization can only happen once
         require(!initialized, "Contract can only be initialized once.");
@@ -239,14 +253,14 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
         // Save off market tokens
         collateralToken = _collateralToken;
         paymentToken = _paymentToken;
-        assetPair = keccak256(abi.encode(address(collateralToken), address(paymentToken)));
+        assetPair = keccak256(
+            abi.encode(address(collateralToken), address(paymentToken))
+        );
 
-        ERC20UpgradeSafe erc20CollateralToken = ERC20UpgradeSafe(
-            address(collateralToken)
-        );
-        ERC20UpgradeSafe erc20PaymentToken = ERC20UpgradeSafe(
-            address(paymentToken)
-        );
+        ERC20UpgradeSafe erc20CollateralToken =
+            ERC20UpgradeSafe(address(collateralToken));
+        ERC20UpgradeSafe erc20PaymentToken =
+            ERC20UpgradeSafe(address(paymentToken));
         collateralDecimals = erc20CollateralToken.decimals();
         paymentDecimals = erc20PaymentToken.decimals();
 
@@ -257,13 +271,14 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
         lpToken = ISimpleToken(address(lpTokenProxy));
 
         // AMM name will be <collateralToken>-<paymentToken>, e.g. WBTC-USDC
-        string memory ammName = string(
-            abi.encodePacked(
-                erc20CollateralToken.symbol(),
-                "-",
-                erc20PaymentToken.symbol()
-            )
-        );
+        string memory ammName =
+            string(
+                abi.encodePacked(
+                    erc20CollateralToken.symbol(),
+                    "-",
+                    erc20PaymentToken.symbol()
+                )
+            );
         string memory lpTokenName = string(abi.encodePacked("LP-", ammName));
         lpToken.initialize(lpTokenName, lpTokenName, collateralDecimals);
 
@@ -290,20 +305,17 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
     }
 
     /**
-    * DISABLED: This feature has been disabled but left in for backwards compatibility.
-    * Instead of allowing individual caps, there will be a global cap for deposited liquidity.
-    *
-    * The owner can update limits on any addresses
-    */
+     * DISABLED: This feature has been disabled but left in for backwards compatibility.
+     * Instead of allowing individual caps, there will be a global cap for deposited liquidity.
+     *
+     * The owner can update limits on any addresses
+     */
     function setCapitalDepositLimit(
         address[] memory lpAddresses,
         bool[] memory allowedToDeposit
     ) public onlyOwner {
         // Feature is disabled
-        require(
-            false,
-            "Feature not supported"
-        );
+        require(false, "Feature not supported");
 
         require(
             lpAddresses.length == allowedToDeposit.length,
@@ -333,7 +345,10 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
         public
         onlyOwner
     {
-        require(newAmmImplementation != address(0x0), "Invalid newAmmImplementation");
+        require(
+            newAmmImplementation != address(0x0),
+            "Invalid newAmmImplementation"
+        );
 
         // Call the proxiable update
         _updateCodeAddress(newAmmImplementation);
@@ -346,10 +361,7 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
         // If deposit limits are enabled, track and limit
         if (enforceDepositLimits) {
             // Do not allow open markets over the TVL
-            require(
-                poolValue <= globalDepositLimit,
-                "Pool over deposit limit"
-            );
+            require(poolValue <= globalDepositLimit, "Pool over deposit limit");
         }
     }
 
@@ -370,7 +382,6 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
 
         // If first LP, mint options, mint LP tokens, and send back any redemption amount
         if (lpToken.totalSupply() == 0) {
-
             // Ensure deposit limit is enforced
             enforceDepositLimit(collateralAmount);
 
@@ -405,9 +416,10 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
         // Mint LP tokens - the percentage added to bTokens should be same as lp tokens added
         uint256 lpTokenExistingSupply = lpToken.totalSupply();
 
-        uint256 lpTokensNewSupply = (poolValue).mul(lpTokenExistingSupply).div(
-            poolValue.sub(collateralAmount)
-        );
+        uint256 lpTokensNewSupply =
+            (poolValue).mul(lpTokenExistingSupply).div(
+                poolValue.sub(collateralAmount)
+            );
         uint256 lpTokensToMint = lpTokensNewSupply.sub(lpTokenExistingSupply);
         require(
             lpTokensToMint >= lpTokenMinimum,
@@ -416,11 +428,7 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
         lpToken.mint(msg.sender, lpTokensToMint);
 
         // Emit event
-        emit LpTokensMinted(
-            msg.sender,
-            collateralAmount,
-            lpTokensToMint
-        );
+        emit LpTokensMinted(msg.sender, collateralAmount, lpTokensToMint);
     }
 
     /**
@@ -440,9 +448,8 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
             "withdrawCapital: collateralMinimum must be set"
         );
         // First get starting numbers
-        uint256 redeemerCollateralBalance = collateralToken.balanceOf(
-            msg.sender
-        );
+        uint256 redeemerCollateralBalance =
+            collateralToken.balanceOf(msg.sender);
         uint256 redeemerPaymentBalance = paymentToken.balanceOf(msg.sender);
 
         // Get the lpToken supply
@@ -450,8 +457,6 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
 
         // Burn the lp tokens
         lpToken.burn(msg.sender, lpTokenAmount);
-
-       
 
         // Claim all expired wTokens
         claimAllExpiredTokens();
@@ -465,17 +470,17 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
             );
         }
 
-        uint256 collateralTokenBalance = collateralToken.balanceOf(
-            address(this)
-        );
+        uint256 collateralTokenBalance =
+            collateralToken.balanceOf(address(this));
 
         // Withdraw pro-rata collateral and payment tokens
         // We withdraw this collateral here instead of at the end,
         // because when we sell the residual tokens to the pool we want
         // to exclude the withdrawn collateral
-        uint256 ammCollateralBalance = collateralTokenBalance.sub(
-            collateralTokenBalance.mul(lpTokenAmount).div(lpTokenSupply)
-        );
+        uint256 ammCollateralBalance =
+            collateralTokenBalance.sub(
+                collateralTokenBalance.mul(lpTokenAmount).div(lpTokenSupply)
+            );
 
         // Sell pro-rata active tokens or withdraw if no collateral left
         ammCollateralBalance = _sellOrWithdrawActiveTokens(
@@ -486,16 +491,16 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
             ammCollateralBalance
         );
 
-
         // Send all accumulated collateralTokens
         collateralToken.transfer(
             msg.sender,
             collateralTokenBalance.sub(ammCollateralBalance)
         );
 
-        uint256 collateralTokenSent = collateralToken.balanceOf(msg.sender).sub(
-            redeemerCollateralBalance
-        );
+        uint256 collateralTokenSent =
+            collateralToken.balanceOf(msg.sender).sub(
+                redeemerCollateralBalance
+            );
 
         require(
             !sellTokens || collateralTokenSent >= collateralMinimum,
@@ -519,38 +524,32 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
     function claimAllExpiredTokens() public {
         for (uint256 i = 0; i < openMarkets.length(); i++) {
             IMarket optionMarket = IMarket(openMarkets.at(i));
-            while (optionMarket.state() == IMarket.MarketState.EXPIRED){
+            while (optionMarket.state() == IMarket.MarketState.EXPIRED) {
                 // ... claim the expired market's wTokens, which means it can now be safely removed
-                uint256 wTokenBalance = optionMarket.wToken().balanceOf(
-                address(this)
-                );
+                uint256 wTokenBalance =
+                    optionMarket.wToken().balanceOf(address(this));
 
                 if (wTokenBalance > 0) {
                     claimExpiredTokens(optionMarket, wTokenBalance);
                 }
-                //Remove the expired market to free storage and reduce gas fee 
+                //Remove the expired market to free storage and reduce gas fee
                 //NOTE: OpenMarkets.remove will remove the market from the i’th position in the EnumerableSet by
                 //swapping it with the last element in EnumerableSet and then calling .pop on the internal array.
                 //We are relying on this undocumented behavior of EnumerableSet, which is acceptable because once
                 //deployed we will never change the EnumerableSet logic.
                 address evictedMarketAddress = address(optionMarket);
                 openMarkets.remove(evictedMarketAddress);
-                
-                //emit the event
-                emit MarketEvicted(evictedMarketAddress);
 
-                //Handle edge cases: Since i is at the same position while removing and length is 
+                //Handle edge cases: Since i is at the same position while removing and length is
                 //decreasing i might be bigger than length and cause index out of bounds
-                if(i<openMarkets.length()){
+                if (i < openMarkets.length()) {
                     optionMarket = IMarket(openMarkets.at(i));
-                }else{
+                } else {
                     break;
                 }
-
             }
         }
     }
-
 
     /**
      * Claims the wToken on a single expired Market. wTokenBalance should be equal to
@@ -578,16 +577,18 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
         for (uint256 i = 0; i < markets.length; i++) {
             IMarket optionMarket = IMarket(markets[i]);
             if (optionMarket.state() == IMarket.MarketState.OPEN) {
-                uint256 bTokenToSell = optionMarket
-                    .bToken()
-                    .balanceOf(address(this))
-                    .mul(lpTokenAmount)
-                    .div(lpTokenSupply);
-                uint256 wTokenToSell = optionMarket
-                    .wToken()
-                    .balanceOf(address(this))
-                    .mul(lpTokenAmount)
-                    .div(lpTokenSupply);
+                uint256 bTokenToSell =
+                    optionMarket
+                        .bToken()
+                        .balanceOf(address(this))
+                        .mul(lpTokenAmount)
+                        .div(lpTokenSupply);
+                uint256 wTokenToSell =
+                    optionMarket
+                        .wToken()
+                        .balanceOf(address(this))
+                        .mul(lpTokenAmount)
+                        .div(lpTokenSupply);
                 if (!sellTokens || lpTokenAmount == lpTokenSupply) {
                     // Full LP token withdrawal for the last LP in the pool
                     // or if auto-sale is disabled
@@ -603,11 +604,12 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
                     // AMM's collateral balance will be after executing this
                     // transaction (see MinterAmm.withdrawCapital to see where
                     // _sellOrWithdrawActiveTokens gets called)
-                    uint256 collateralAmountB = bTokenGetCollateralOutInternal(
-                        optionMarket,
-                        bTokenToSell,
-                        collateralLeft
-                    );
+                    uint256 collateralAmountB =
+                        bTokenGetCollateralOutInternal(
+                            optionMarket,
+                            bTokenToSell,
+                            collateralLeft
+                        );
 
                     // Note! It's possible that either of the two `.sub` calls
                     // below will underflow and return an error. This will only
@@ -616,11 +618,12 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
                     // happens, this transaction will revert with a
                     // "SafeMath: subtraction overflow" error
                     collateralLeft = collateralLeft.sub(collateralAmountB);
-                    uint256 collateralAmountW = wTokenGetCollateralOutInternal(
-                        optionMarket,
-                        wTokenToSell,
-                        collateralLeft
-                    );
+                    uint256 collateralAmountW =
+                        wTokenGetCollateralOutInternal(
+                            optionMarket,
+                            wTokenToSell,
+                            collateralLeft
+                        );
                     collateralLeft = collateralLeft.sub(collateralAmountW);
                 }
             }
@@ -654,15 +657,14 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
             IMarket optionMarket = IMarket(markets[i]);
             if (optionMarket.state() == IMarket.MarketState.OPEN) {
                 // value all active bTokens and wTokens at current prices
-                uint256 bPrice = getPriceForMarketInternal(optionMarket, collateralPrice);
+                uint256 bPrice =
+                    getPriceForMarketInternal(optionMarket, collateralPrice);
                 // wPrice = 1 - bPrice
                 uint256 wPrice = uint256(1e18).sub(bPrice);
-                uint256 bTokenBalance = optionMarket.bToken().balanceOf(
-                    address(this)
-                );
-                uint256 wTokenBalance = optionMarket.wToken().balanceOf(
-                    address(this)
-                );
+                uint256 bTokenBalance =
+                    optionMarket.bToken().balanceOf(address(this));
+                uint256 wTokenBalance =
+                    optionMarket.wToken().balanceOf(address(this));
 
                 activeTokensValue = activeTokensValue.add(
                     bTokenBalance
@@ -675,25 +677,26 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
                 optionMarket.state() == IMarket.MarketState.EXPIRED
             ) {
                 // Get pool wTokenBalance
-                uint256 wTokenBalance = optionMarket.wToken().balanceOf(
-                    address(this)
-                );
+                uint256 wTokenBalance =
+                    optionMarket.wToken().balanceOf(address(this));
                 uint256 wTokenSupply = optionMarket.wToken().totalSupply();
                 if (wTokenBalance == 0 || wTokenSupply == 0) continue;
 
                 // Get collateral token locked in the market
-                uint256 unclaimedCollateral = collateralToken
-                    .balanceOf(address(optionMarket))
-                    .mul(wTokenBalance)
-                    .div(wTokenSupply);
+                uint256 unclaimedCollateral =
+                    collateralToken
+                        .balanceOf(address(optionMarket))
+                        .mul(wTokenBalance)
+                        .div(wTokenSupply);
 
                 // Get value of payment token locked in the market
-                uint256 unclaimedPayment = paymentToken
-                    .balanceOf(address(optionMarket))
-                    .mul(wTokenBalance)
-                    .mul(1e18)
-                    .div(wTokenSupply)
-                    .div(collateralPrice);
+                uint256 unclaimedPayment =
+                    paymentToken
+                        .balanceOf(address(optionMarket))
+                        .mul(wTokenBalance)
+                        .mul(1e18)
+                        .div(wTokenSupply)
+                        .div(collateralPrice);
 
                 unclaimedTokensValue = unclaimedTokensValue
                     .add(unclaimedCollateral)
@@ -702,10 +705,10 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
         }
 
         // value any payment token
-        uint256 paymentTokenValue = paymentToken
-            .balanceOf(address(this))
-            .mul(1e18)
-            .div(collateralPrice);
+        uint256 paymentTokenValue =
+            paymentToken.balanceOf(address(this)).mul(1e18).div(
+                collateralPrice
+            );
 
         // Add collateral value
         uint256 collateralBalance = collateralToken.balanceOf(address(this));
@@ -722,7 +725,6 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
 
      */
     function getUnclaimedBalances() public view returns (uint256, uint256) {
-       
         address[] memory markets = getMarkets();
 
         uint256 unclaimedCollateral = 0;
@@ -732,25 +734,26 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
             IMarket optionMarket = IMarket(markets[i]);
             if (optionMarket.state() == IMarket.MarketState.EXPIRED) {
                 // Get pool wTokenBalance
-                uint256 wTokenBalance = optionMarket.wToken().balanceOf(
-                    address(this)
-                );
+                uint256 wTokenBalance =
+                    optionMarket.wToken().balanceOf(address(this));
                 uint256 wTokenSupply = optionMarket.wToken().totalSupply();
                 if (wTokenBalance == 0 || wTokenSupply == 0) continue;
 
                 // Get collateral token locked in the market
                 unclaimedCollateral = unclaimedCollateral.add(
                     collateralToken
-                    .balanceOf(address(optionMarket))
-                    .mul(wTokenBalance)
-                    .div(wTokenSupply));
+                        .balanceOf(address(optionMarket))
+                        .mul(wTokenBalance)
+                        .div(wTokenSupply)
+                );
 
                 // Get payment token locked in the market
                 unclaimedPayment = unclaimedPayment.add(
                     paymentToken
-                    .balanceOf(address(optionMarket))
-                    .mul(wTokenBalance)
-                    .div(wTokenSupply));
+                        .balanceOf(address(optionMarket))
+                        .mul(wTokenBalance)
+                        .div(wTokenSupply)
+                );
             }
         }
 
@@ -760,7 +763,11 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
     /**
      * Calculate sale value of pro-rata LP b/wTokens
      */
-    function getTokensSaleValue(uint256 lpTokenAmount) public view returns (uint256) {
+    function getTokensSaleValue(uint256 lpTokenAmount)
+        public
+        view
+        returns (uint256)
+    {
         if (lpTokenAmount == 0) return 0;
 
         uint256 lpTokenSupply = lpToken.totalSupply();
@@ -770,39 +777,46 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
 
         (uint256 unclaimedCollateral, ) = getUnclaimedBalances();
         // Calculate amount of collateral left in the pool to sell tokens to
-        uint256 totalCollateral = unclaimedCollateral.add(collateralToken.balanceOf(address(this)));
+        uint256 totalCollateral =
+            unclaimedCollateral.add(collateralToken.balanceOf(address(this)));
 
         // Subtract pro-rata collateral amount to be withdrawn
-        totalCollateral = totalCollateral.mul(lpTokenSupply.sub(lpTokenAmount)).div(lpTokenSupply);
+        totalCollateral = totalCollateral
+            .mul(lpTokenSupply.sub(lpTokenAmount))
+            .div(lpTokenSupply);
 
         // Given remaining collateral calculate how much all tokens can be sold for
         uint256 collateralLeft = totalCollateral;
         for (uint256 i = 0; i < markets.length; i++) {
             IMarket optionMarket = IMarket(markets[i]);
             if (optionMarket.state() == IMarket.MarketState.OPEN) {
-                uint256 bTokenToSell = optionMarket
-                    .bToken()
-                    .balanceOf(address(this))
-                    .mul(lpTokenAmount)
-                    .div(lpTokenSupply);
-                uint256 wTokenToSell = optionMarket
-                    .wToken()
-                    .balanceOf(address(this))
-                    .mul(lpTokenAmount)
-                    .div(lpTokenSupply);
+                uint256 bTokenToSell =
+                    optionMarket
+                        .bToken()
+                        .balanceOf(address(this))
+                        .mul(lpTokenAmount)
+                        .div(lpTokenSupply);
+                uint256 wTokenToSell =
+                    optionMarket
+                        .wToken()
+                        .balanceOf(address(this))
+                        .mul(lpTokenAmount)
+                        .div(lpTokenSupply);
 
-                uint256 collateralAmountB = bTokenGetCollateralOutInternal(
-                    optionMarket,
-                    bTokenToSell,
-                    collateralLeft
-                );
+                uint256 collateralAmountB =
+                    bTokenGetCollateralOutInternal(
+                        optionMarket,
+                        bTokenToSell,
+                        collateralLeft
+                    );
 
                 collateralLeft = collateralLeft.sub(collateralAmountB);
-                uint256 collateralAmountW = wTokenGetCollateralOutInternal(
-                    optionMarket,
-                    wTokenToSell,
-                    collateralLeft
-                );
+                uint256 collateralAmountW =
+                    wTokenGetCollateralOutInternal(
+                        optionMarket,
+                        wTokenToSell,
+                        collateralLeft
+                    );
                 collateralLeft = collateralLeft.sub(collateralAmountW);
             }
         }
@@ -815,16 +829,17 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
      */
     function getMarkets() public view returns (address[] memory) {
         address[] memory markets = new address[](openMarkets.length());
-        for (uint i = 0;i<openMarkets.length();i++){
+        for (uint256 i = 0; i < openMarkets.length(); i++) {
             markets[i] = address(openMarkets.at(i));
         }
         return markets;
     }
-   /**
+
+    /**
      * Get market address by address
      */
     function getMarket(address marketAdress) public view returns (IMarket) {
-        require(openMarkets.contains(marketAdress),'Market does not exist');
+        require(openMarkets.contains(marketAdress), "Market does not exist");
         return IMarket(marketAdress);
     }
 
@@ -859,12 +874,14 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
         uint256 collateralTokenBalance
     ) internal view returns (uint256, uint256) {
         // Max amount of tokens we can get by adding current balance plus what can be minted from collateral
-        uint256 bTokenBalanceMax = market.bToken().balanceOf(address(this)).add(
-            collateralTokenBalance
-        );
-        uint256 wTokenBalanceMax = market.wToken().balanceOf(address(this)).add(
-            collateralTokenBalance
-        );
+        uint256 bTokenBalanceMax =
+            market.bToken().balanceOf(address(this)).add(
+                collateralTokenBalance
+            );
+        uint256 wTokenBalanceMax =
+            market.wToken().balanceOf(address(this)).add(
+                collateralTokenBalance
+            );
 
         uint256 bTokenPrice = getPriceForMarket(market);
         uint256 wTokenPrice = uint256(1e18).sub(bTokenPrice);
@@ -921,17 +938,17 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
         if (shouldInvertOraclePrice) {
             return
                 uint256(1e18)
-                .mul(uint256(10)**paymentDecimals)
-                .mul(uint256(10)**priceOracle.decimals())
-                .div(uint256(10)**collateralDecimals)
-                .div(uint256(latestAnswer));
+                    .mul(uint256(10)**paymentDecimals)
+                    .mul(uint256(10)**priceOracle.decimals())
+                    .div(uint256(10)**collateralDecimals)
+                    .div(uint256(latestAnswer));
         } else {
             return
                 uint256(1e18)
-                .mul(uint256(10)**paymentDecimals)
-                .mul(uint256(latestAnswer))
-                .div(uint256(10)**collateralDecimals)
-                .div(uint256(10)**priceOracle.decimals());
+                    .mul(uint256(10)**paymentDecimals)
+                    .mul(uint256(latestAnswer))
+                    .div(uint256(10)**collateralDecimals)
+                    .div(uint256(10)**priceOracle.decimals());
         }
     }
 
@@ -942,7 +959,11 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
         return getPriceForMarketInternal(market, getCurrentCollateralPrice());
     }
 
-    function getPriceForMarketInternal(IMarket market, uint256 collateralPrice) private view returns (uint256) {
+    function getPriceForMarketInternal(IMarket market, uint256 collateralPrice)
+        private
+        view
+        returns (uint256)
+    {
         return
             // Note! This function assumes the price obtained from the onchain oracle
             // in getCurrentCollateralPrice is a valid market price in units of
@@ -973,11 +994,10 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
             intrinsic = currentPrice.sub(strike).mul(1e18).div(currentPrice);
         }
 
-        uint256 timeValue = Math
-            .sqrt(timeUntilExpiry)
-            .mul(volatility)
-            .mul(currentPrice)
-            .div(strike);
+        uint256 timeValue =
+            Math.sqrt(timeUntilExpiry).mul(volatility).mul(currentPrice).div(
+                strike
+            );
 
         return intrinsic.add(timeValue);
     }
@@ -998,10 +1018,8 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
             "bTokenBuy must be open"
         );
 
-        uint256 collateralAmount = bTokenGetCollateralIn(
-            optionMarket,
-            bTokenAmount
-        );
+        uint256 collateralAmount =
+            bTokenGetCollateralIn(optionMarket, bTokenAmount);
         require(
             collateralAmount <= collateralMaximum,
             "bTokenBuy: slippage exceeded"
@@ -1052,10 +1070,8 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
         // Get initial stats
         bTokenAmount = bTokenAmount;
 
-        uint256 collateralAmount = bTokenGetCollateralOut(
-            optionMarket,
-            bTokenAmount
-        );
+        uint256 collateralAmount =
+            bTokenGetCollateralOut(optionMarket, bTokenAmount);
         require(
             collateralAmount >= collateralMinimum,
             "bTokenSell: slippage exceeded"
@@ -1147,22 +1163,21 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
         // Shortcut for 0 amount
         if (bTokenAmount == 0) return 0;
 
-        (
-            uint256 bTokenBalance,
-            uint256 wTokenBalance
-        ) = getVirtualReservesInternal(market, _collateralTokenBalance);
+        (uint256 bTokenBalance, uint256 wTokenBalance) =
+            getVirtualReservesInternal(market, _collateralTokenBalance);
 
         uint256 toSquare = bTokenAmount.add(bTokenBalance).add(wTokenBalance);
 
-        uint256 collateralAmount = toSquare
-            .sub(
-            Math.sqrt(
-                toSquare.mul(toSquare).sub(
-                    bTokenAmount.mul(wTokenBalance).mul(4)
+        uint256 collateralAmount =
+            toSquare
+                .sub(
+                Math.sqrt(
+                    toSquare.mul(toSquare).sub(
+                        bTokenAmount.mul(wTokenBalance).mul(4)
+                    )
                 )
             )
-        )
-            .div(2);
+                .div(2);
 
         return collateralAmount;
     }
@@ -1179,31 +1194,33 @@ contract MinterAmm is InitializeableAmm,IAddMarketToAmm, OwnableUpgradeSafe, Pro
         // Shortcut for 0 amount
         if (wTokenAmount == 0) return 0;
 
-        (
-            uint256 bTokenBalance,
-            uint256 wTokenBalance
-        ) = getVirtualReservesInternal(market, _collateralTokenBalance);
+        (uint256 bTokenBalance, uint256 wTokenBalance) =
+            getVirtualReservesInternal(market, _collateralTokenBalance);
 
         uint256 toSquare = wTokenAmount.add(wTokenBalance).add(bTokenBalance);
-        uint256 collateralAmount = toSquare
-            .sub(
-            Math.sqrt(
-                toSquare.mul(toSquare).sub(
-                    wTokenAmount.mul(bTokenBalance).mul(4)
+        uint256 collateralAmount =
+            toSquare
+                .sub(
+                Math.sqrt(
+                    toSquare.mul(toSquare).sub(
+                        wTokenAmount.mul(bTokenBalance).mul(4)
+                    )
                 )
             )
-        )
-            .div(2);
+                .div(2);
 
         return collateralAmount;
     }
 
-     /**
+    /**
      * @dev Adds the address of market to the amm
      * This method is called by Market Registry when it is creating a new market
      */
     function addMarket(address newMarketAddress) external override {
-        require(msg.sender == address(registry), "Only registry can call addMarket");
+        require(
+            msg.sender == address(registry),
+            "Only registry can call addMarket"
+        );
         openMarkets.add(newMarketAddress);
     }
 }
