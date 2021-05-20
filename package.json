@@ -27,7 +27,8 @@
     "transfer-ownership-mainnet": "NETWORK=mainnet npm run transfer-ownership-local",
     "clean:dependencies": "rm -rf ./node_modules && rm -rf ./*/**/node_modules",
     "clean:dist": "rm -rf ./*/**/dist && rm -rf ./packages/contracts/build && rm -rf ./packages/contracts/src/ethers",
-    "clean": "npm run clean:dependencies && npm run clean:dist"
+    "clean": "npm run clean:dependencies && npm run clean:dist",
+    "prepare": "husky install"
   },
   "peerDependencies": {
     "ethers": ">5.0.0"
@@ -48,8 +49,9 @@
     "ganache-cli": "^6.9.1",
     "graphql": "^15.4.0",
     "graphql-request": "^3.3.0",
-    "husky": "^4.3.0",
+    "husky": "^6.0.0",
     "prettier": "2.1.1",
+    "prettier-plugin-solidity": "^1.0.0-beta.10",
     "pretty-quick": "^3.1.0",
     "rollup": "^2.33.1",
     "rollup-plugin-peer-deps-external": "^2.2.4",
@@ -59,11 +61,5 @@
     "typechain": "4.0.0",
     "typescript": "^4.0.2",
     "web3": "^1.3.0"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "pretty-quick 'src/**/*.{ts,tsx,js,jsx,md}' --staged",
-      "pre-push": "npm test"
-    }
   }
 }
