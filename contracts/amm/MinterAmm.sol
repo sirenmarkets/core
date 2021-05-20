@@ -537,8 +537,7 @@ contract MinterAmm is
                 //swapping it with the last element in EnumerableSet and then calling .pop on the internal array.
                 //We are relying on this undocumented behavior of EnumerableSet, which is acceptable because once
                 //deployed we will never change the EnumerableSet logic.
-                address evictedMarketAddress = address(optionMarket);
-                openMarkets.remove(evictedMarketAddress);
+                openMarkets.remove(address(optionMarket));
 
                 //Handle edge cases: Since i is at the same position while removing and length is
                 //decreasing i might be bigger than length and cause index out of bounds
