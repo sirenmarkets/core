@@ -64,9 +64,6 @@ contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
     /** Emitted when a new AMM is created and initialized */
     event AmmCreated(address amm);
 
-    /** Emitted when a new LiquidVault is authorized */
-    event LiquidVaultAdded(address liquidVault);
-
     /**
      * Called to set this contract up
      * Creation and initialization should be called in a single transaction.
