@@ -76,6 +76,18 @@ module.exports = {
       gasPrice: 34000000000, // 34 gwei (this should be changed to match current average gas price whenever we use this provide)
       // check https://www.ethgasstation.info/
     },
+
+    bscTestnet: {
+      provider: () =>
+        new HDWalletProvider(
+          mnemonic,
+          `https://data-seed-prebsc-1-s1.binance.org:8545`,
+        ),
+      network_id: 97,
+      confirmations: 10,
+      timeoutBlocks: 200,
+      skipDryRun: true,
+    },
     // Another network with more advanced options...
     // advanced: {
     // port: 8777,             // Custom port

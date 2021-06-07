@@ -7,6 +7,10 @@ const MarketsRegistry = artifacts.require("MarketsRegistry")
  * Deploy MarketsRegistry logic contract
  */
 module.exports = async function (deployer, network, accounts) {
+  if (network === "development") {
+    return
+  }
+
   deployer.then(async () => {
     console.log(`Deploying MarketsRegistry logic contract`)
 

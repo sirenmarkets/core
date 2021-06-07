@@ -5,6 +5,10 @@ const SimpleToken = artifacts.require("SimpleToken")
  */
 module.exports = async function (deployer, network, accounts) {
   deployer.then(async () => {
+    if (network === "development") {
+      return
+    }
+
     console.log(`Deploying SimpleToken logic contract`)
 
     const tokenImpl = await deployer.deploy(SimpleToken)

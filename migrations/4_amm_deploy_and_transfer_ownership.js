@@ -8,6 +8,10 @@ const MockPriceOracle = artifacts.require("MockPriceOracle")
  * Deploy MinterAmm logic contract
  */
 module.exports = async function (deployer, network, accounts) {
+  if (network === "development") {
+    return
+  }
+
   deployer.then(async () => {
     console.log(`Deploying MinterAmm logic contract`)
 

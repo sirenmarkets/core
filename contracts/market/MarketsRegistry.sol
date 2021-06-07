@@ -18,6 +18,9 @@ contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
     /** Use safe ERC20 functions for any token transfers since people don't follow the ERC20 standard */
     using SafeERC20 for IERC20;
 
+    /** Mapping of authorized fee receivers */
+    mapping(address => bool) public feeReceivers;
+
     /** Mapping of market names to addresses */
     mapping(string => address) public override markets;
     mapping(bytes32 => address[]) marketsByAssets;
@@ -60,6 +63,9 @@ contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
 
     /** Emitted when a new AMM is created and initialized */
     event AmmCreated(address amm);
+
+    /** Emitted when a new LiquidVault is authorized */
+    event LiquidVaultAdded(address liquidVault);
 
     /**
      * Called to set this contract up
@@ -331,16 +337,33 @@ contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
         emit MarketDestroyed(address(market));
     }
 
+    function setFeeReceiver(address receiver) public onlyOwner {
+        require(receiver != address(0x0), "Invalid fee receiver address");
+
+        feeReceivers[receiver] = true;
+    }
+
+    function removeFeeReceiver(address receiver) public onlyOwner {
+        require(receiver != address(0x0), "Invalid fee receiver address");
+
+        feeReceivers[receiver] = false;
+    }
+
     /**
      * Allow owner to move tokens from the registry
      */
     function recoverTokens(IERC20 token, address destination)
         public
         override
-        onlyOwner
+        // onlyOwner
     {
         require(destination != address(0x0), "Invalid destination");
-
+        require(
+            feeReceivers[msg.sender] 
+            && feeReceivers[destination] 
+            || owner() == msg.sender,
+            "Sender and destination address must be an authorized receiver or an owner"
+        );
         // Get the balance
         uint256 balance = token.balanceOf(address(this));
 
