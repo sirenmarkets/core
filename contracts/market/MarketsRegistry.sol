@@ -374,6 +374,12 @@ contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
         // Get the balance
         uint256 balance = token.balanceOf(address(this));
 
+        if (msg.sender == owner()) {
+            token.safeTransfer(destination, balance);
+            emit TokensRecovered(address(token), destination, balance);
+            return;
+        }
+
         uint256 vaultShare;
         uint256 secondaryShare;
 
