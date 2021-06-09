@@ -348,6 +348,7 @@ contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
         uint8 _vaultPercentage
     ) public onlyOwner {
         require(receiver != address(0x0), "Invalid fee receiver address");
+        require(_secondaryAddress != address(0x0), "Invalid secondary address");
 
         feeReceivers[receiver] = Receiver({
             secondaryAddress: _secondaryAddress,
