@@ -14,14 +14,17 @@ const Proxy = artifacts.require("Proxy")
 const TestHelpers = require("../testHelpers")
 
 contract("Create Markets", (accounts) => {
+  const bn = (input) => web3.utils.toBN(input)
+  const assertBNequal = (bnOne, bnTwo) =>
+    assert.equal(bnOne.toString(), bnTwo.toString())
+
   const ownerAccount = accounts[0]
   const lv1Account = accounts[1]
   const lv2Account = accounts[2]
   const user = accounts[3]
+  const secondaryAccount = accounts[4]
 
-  const bn = (input) => web3.utils.toBN(input)
-  const assertBNequal = (bnOne, bnTwo) =>
-    assert.equal(bnOne.toString(), bnTwo.toString())
+  const vaultPercentage = bn("70")
 
   const BURN_ADDRESS = "0x000000000000000000000000000000000000dead"
   const baseUnit = bn("1000000000000000000")
@@ -74,36 +77,37 @@ contract("Create Markets", (accounts) => {
   })
 
   it("Sets lv accounts as authorized LiquidVaults", async () => {
-    await deployedMarketsRegistry.setFeeReceiver(lv1Account)
-    await deployedMarketsRegistry.setFeeReceiver(lv2Account)
+    await deployedMarketsRegistry.addFeeReceiver(
+      lv1Account,
+      secondaryAccount,
+      vaultPercentage,
+    )
+    await deployedMarketsRegistry.addFeeReceiver(
+      lv2Account,
+      secondaryAccount,
+      vaultPercentage,
+    )
 
-    assert.isTrue(await deployedMarketsRegistry.feeReceivers(lv1Account))
-    assert.isTrue(await deployedMarketsRegistry.feeReceivers(lv2Account))
+    const {
+      authorized: authorized1,
+    } = await deployedMarketsRegistry.feeReceivers(lv1Account)
+    const {
+      authorized: authorized2,
+    } = await deployedMarketsRegistry.feeReceivers(lv2Account)
+    assert.isTrue(authorized1)
+    assert.isTrue(authorized2)
   })
 
-  it("Reverts setFeeReceiver() from non-owner", async () => {
+  it("Reverts addFeeReceiver() from non-owner", async () => {
     await expectRevert(
-      deployedMarketsRegistry.setFeeReceiver(lv1Account, { from: lv1Account }),
+      deployedMarketsRegistry.addFeeReceiver(
+        lv1Account,
+        secondaryAccount,
+        vaultPercentage,
+        { from: lv1Account },
+      ),
       "Ownable: caller is not the owner.",
     )
-  })
-
-  it("Reverts removeFeeReceiver() from non-owner", async () => {
-    await deployedMarketsRegistry.setFeeReceiver(lv1Account)
-    await expectRevert(
-      deployedMarketsRegistry.removeFeeReceiver(lv1Account, {
-        from: lv1Account,
-      }),
-      "Ownable: caller is not the owner.",
-    )
-  })
-
-  it("Removes authorized liquid vault from the access list", async () => {
-    await deployedMarketsRegistry.setFeeReceiver(lv1Account)
-    assert.isTrue(await deployedMarketsRegistry.feeReceivers(lv1Account))
-
-    await deployedMarketsRegistry.removeFeeReceiver(lv1Account)
-    assert.isFalse(await deployedMarketsRegistry.feeReceivers(lv1Account))
   })
 
   it("Reverts if unauthorized liquid vault is trying to recover tokens", async () => {
@@ -122,7 +126,7 @@ contract("Create Markets", (accounts) => {
         ownerAccount,
         { from: user },
       ),
-      "Sender and destination address must be an authorized receiver or an owner",
+      "Sender address must be an authorized receiver or an owner",
     )
   })
 
@@ -136,10 +140,21 @@ contract("Create Markets", (accounts) => {
       TOKENS_AMOUNT,
     )
 
-    await deployedMarketsRegistry.setFeeReceiver(lv1Account)
+    await deployedMarketsRegistry.addFeeReceiver(
+      lv1Account,
+      secondaryAccount,
+      vaultPercentage,
+    )
     deployedMarketsRegistry.recoverTokens(collateralToken.address, lv1Account, {
       from: lv1Account,
     })
-    assertBNequal(await collateralToken.balanceOf(lv1Account), TOKENS_AMOUNT)
+
+    const expectedTokenAmount = TOKENS_AMOUNT.mul(vaultPercentage).div(
+      bn("100"),
+    )
+    assertBNequal(
+      await collateralToken.balanceOf(lv1Account),
+      expectedTokenAmount,
+    )
   })
 })

@@ -7,6 +7,7 @@ import "./IMarketsRegistry.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "../proxy/Proxy.sol";
 import "../proxy/Proxiable.sol";
 import "../amm/InitializeableAmm.sol";
@@ -17,9 +18,16 @@ import "../amm/InitializeableAmm.sol";
 contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
     /** Use safe ERC20 functions for any token transfers since people don't follow the ERC20 standard */
     using SafeERC20 for IERC20;
+    using SafeMath for uint256;
+
+    struct Receiver {
+        address secondaryAddress;
+        uint8 vaultPercentage;
+        bool authorized;
+    }
 
     /** Mapping of authorized fee receivers */
-    mapping(address => bool) public feeReceivers;
+    mapping(address => Receiver) public feeReceivers;
 
     /** Mapping of market names to addresses */
     mapping(string => address) public override markets;
@@ -334,16 +342,18 @@ contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
         emit MarketDestroyed(address(market));
     }
 
-    function setFeeReceiver(address receiver) public onlyOwner {
+    function addFeeReceiver(
+        address receiver,
+        address _secondaryAddress,
+        uint8 _vaultPercentage
+    ) public onlyOwner {
         require(receiver != address(0x0), "Invalid fee receiver address");
 
-        feeReceivers[receiver] = true;
-    }
-
-    function removeFeeReceiver(address receiver) public onlyOwner {
-        require(receiver != address(0x0), "Invalid fee receiver address");
-
-        feeReceivers[receiver] = false;
+        feeReceivers[receiver] = Receiver({
+            secondaryAddress: _secondaryAddress,
+            vaultPercentage: _vaultPercentage,
+            authorized: true
+        });
     }
 
     /**
@@ -356,19 +366,28 @@ contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
     {
         require(destination != address(0x0), "Invalid destination");
         require(
-            feeReceivers[msg.sender] 
-            && feeReceivers[destination] 
+            feeReceivers[msg.sender].authorized 
             || owner() == msg.sender,
-            "Sender and destination address must be an authorized receiver or an owner"
+            "Sender address must be an authorized receiver or an owner"
         );
         // Get the balance
         uint256 balance = token.balanceOf(address(this));
 
-        // Sweep out
-        token.safeTransfer(destination, balance);
+        uint256 vaultShare;
+        uint256 secondaryShare;
 
-        // Emit the event
-        emit TokensRecovered(address(token), destination, balance);
+        if (feeReceivers[msg.sender].vaultPercentage > 0) {
+            vaultShare = balance.mul(feeReceivers[msg.sender].vaultPercentage).div(100);
+
+            token.safeTransfer(destination, vaultShare);
+            emit TokensRecovered(address(token), destination, vaultShare);
+        }
+
+        secondaryShare = balance.sub(vaultShare);
+        if (secondaryShare > 0) {
+            token.safeTransfer(feeReceivers[msg.sender].secondaryAddress, secondaryShare);
+            emit TokensRecovered(address(token), feeReceivers[msg.sender].secondaryAddress, secondaryShare);
+        }
     }
 
     function getMarketsByAssetPair(bytes32 assetPair)
