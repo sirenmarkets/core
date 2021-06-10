@@ -21,7 +21,7 @@ contract("Create Markets", (accounts) => {
   const ownerAccount = accounts[0]
   const lv1Account = accounts[1]
   const lv2Account = accounts[2]
-  const user = accounts[3]
+  const destinationAccount = accounts[3]
   const secondaryAccount = accounts[4]
 
   const vaultPercentage = bn("70")
@@ -50,12 +50,10 @@ contract("Create Markets", (accounts) => {
     // Create a collateral token
     collateralToken = await SimpleToken.new()
     await collateralToken.initialize("Wrapped BNB", "WBNB", 18)
-    await collateralToken.mint(ownerAccount, TOKENS_MINT)
 
     // Create a payment token
     paymentToken = await SimpleToken.new()
     await paymentToken.initialize("USD Coin", "USDC", 18)
-    await paymentToken.mint(ownerAccount, TOKENS_MINT)
 
     await marketsRegistryLogic.initialize(
       tokenLogic.address,
@@ -65,10 +63,15 @@ contract("Create Markets", (accounts) => {
     await marketsRegistryLogic.transferOwnership(BURN_ADDRESS)
   })
 
+  // TODO: add revert for each test
   beforeEach(async () => {
     // Create a new proxy contract pointing at the marketsRegistry logic for testing
     const proxyContract = await Proxy.new(marketsRegistryLogic.address)
     deployedMarketsRegistry = await MarketsRegistry.at(proxyContract.address)
+
+    await collateralToken.mint(ownerAccount, TOKENS_MINT)
+    await paymentToken.mint(ownerAccount, TOKENS_MINT)
+
     await deployedMarketsRegistry.initialize(
       tokenLogic.address,
       marketLogic.address,
@@ -124,7 +127,7 @@ contract("Create Markets", (accounts) => {
       deployedMarketsRegistry.recoverTokens(
         collateralToken.address,
         ownerAccount,
-        { from: user },
+        { from: destinationAccount },
       ),
       "Sender address must be an authorized receiver or an owner",
     )
@@ -155,6 +158,47 @@ contract("Create Markets", (accounts) => {
     assertBNequal(
       await collateralToken.balanceOf(lv1Account),
       expectedTokenAmount,
+    )
+  })
+
+  it("Does recoverTokens() for 0 balance", async () => {
+    await deployedMarketsRegistry.addFeeReceiver(
+      lv1Account,
+      secondaryAccount,
+      vaultPercentage,
+    )
+
+    assertBNequal(
+      await collateralToken.balanceOf(deployedMarketsRegistry.address),
+      0,
+    )
+    const lvBalanceBefore = await collateralToken.balanceOf(lv1Account)
+    await deployedMarketsRegistry.recoverTokens(
+      collateralToken.address,
+      lv1Account,
+      {
+        from: lv1Account,
+      },
+    )
+    assertBNequal(await collateralToken.balanceOf(lv1Account), lvBalanceBefore)
+  })
+
+  it("Recovers all tokens on the destination address if caller is an owner", async () => {
+    assertBNequal(await collateralToken.balanceOf(destinationAccount), 0)
+    assert.equal(await deployedMarketsRegistry.owner(), ownerAccount)
+
+    await collateralToken.transfer(
+      deployedMarketsRegistry.address,
+      TOKENS_AMOUNT,
+    )
+    await deployedMarketsRegistry.recoverTokens(
+      collateralToken.address,
+      destinationAccount,
+    )
+
+    assertBNequal(
+      await collateralToken.balanceOf(destinationAccount),
+      TOKENS_AMOUNT,
     )
   })
 })
