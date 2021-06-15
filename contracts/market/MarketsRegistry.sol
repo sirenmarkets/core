@@ -343,14 +343,15 @@ contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
     }
 
     function addFeeReceiver(
-        address receiver,
+        address _receiver,
         address _secondaryAddress,
         uint8 _vaultPercentage
     ) public onlyOwner {
-        require(receiver != address(0x0), "Invalid fee receiver address");
+        require(_receiver != address(0x0), "Invalid fee receiver address");
         require(_secondaryAddress != address(0x0), "Invalid secondary address");
+        require(_vaultPercentage <= 100, "Vault percentage must be from 0 to 100");
 
-        feeReceivers[receiver] = Receiver({
+        feeReceivers[_receiver] = Receiver({
             secondaryAddress: _secondaryAddress,
             vaultPercentage: _vaultPercentage,
             authorized: true
@@ -363,11 +364,12 @@ contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
     function recoverTokens(IERC20 token, address destination)
         public
         override
-        // onlyOwner
     {
+        Receiver memory receiver = feeReceivers[msg.sender];
+
         require(destination != address(0x0), "Invalid destination");
         require(
-            feeReceivers[msg.sender].authorized 
+            receiver.authorized
             || owner() == msg.sender,
             "Sender address must be an authorized receiver or an owner"
         );
@@ -383,8 +385,8 @@ contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
         uint256 vaultShare;
         uint256 secondaryShare;
 
-        if (feeReceivers[msg.sender].vaultPercentage > 0) {
-            vaultShare = balance.mul(feeReceivers[msg.sender].vaultPercentage).div(100);
+        if (receiver.vaultPercentage > 0) {
+            vaultShare = balance.mul(receiver.vaultPercentage).div(100);
 
             token.safeTransfer(destination, vaultShare);
             emit TokensRecovered(address(token), destination, vaultShare);
@@ -392,8 +394,8 @@ contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
 
         secondaryShare = balance.sub(vaultShare);
         if (secondaryShare > 0) {
-            token.safeTransfer(feeReceivers[msg.sender].secondaryAddress, secondaryShare);
-            emit TokensRecovered(address(token), feeReceivers[msg.sender].secondaryAddress, secondaryShare);
+            token.safeTransfer(receiver.secondaryAddress, secondaryShare);
+            emit TokensRecovered(address(token), receiver.secondaryAddress, secondaryShare);
         }
     }
 
