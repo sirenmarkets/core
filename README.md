@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://sirenmarkets.com/">
-    <img src="https://i.imgur.com/HuiYOr7.png" alt="SIREN logo" title="Go to
+    <img src="siren_Banner.png" alt="SIREN logo" title="Go to
 sirenmarkets.com" width="600" style="border:none;"/>
   </a>
 </p>
