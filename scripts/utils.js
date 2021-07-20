@@ -10,6 +10,10 @@ module.exports = {
         return "rinkeby"
       case 42:
         return "kovan"
+      case 97:
+        return "bscTestnet"
+      case 56:
+        return "bsc"
     }
 
     return "development"

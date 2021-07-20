@@ -7,6 +7,7 @@ import "./IMarketsRegistry.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "../proxy/Proxy.sol";
 import "../proxy/Proxiable.sol";
 import "../amm/InitializeableAmm.sol";
@@ -17,6 +18,16 @@ import "../amm/InitializeableAmm.sol";
 contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
     /** Use safe ERC20 functions for any token transfers since people don't follow the ERC20 standard */
     using SafeERC20 for IERC20;
+    using SafeMath for uint256;
+
+    struct Receiver {
+        address secondaryAddress;
+        uint8 vaultPercentage;
+        bool authorized;
+    }
+
+    /** Mapping of authorized fee receivers */
+    mapping(address => Receiver) public feeReceivers;
 
     /** Mapping of market names to addresses */
     mapping(string => address) public override markets;
@@ -302,24 +313,61 @@ contract MarketsRegistry is OwnableUpgradeSafe, Proxiable, IMarketsRegistry {
         emit MarketDestroyed(address(market));
     }
 
+    function addFeeReceiver(
+        address _receiver,
+        address _secondaryAddress,
+        uint8 _vaultPercentage
+    ) public onlyOwner {
+        require(_receiver != address(0x0), "Invalid fee receiver address");
+        require(_secondaryAddress != address(0x0), "Invalid secondary address");
+        require(_vaultPercentage <= 100, "Vault percentage must be from 0 to 100");
+
+        feeReceivers[_receiver] = Receiver({
+            secondaryAddress: _secondaryAddress,
+            vaultPercentage: _vaultPercentage,
+            authorized: true
+        });
+    }
+
     /**
      * Allow owner to move tokens from the registry
      */
     function recoverTokens(IERC20 token, address destination)
         public
         override
-        onlyOwner
     {
-        require(destination != address(0x0), "Invalid destination");
+        Receiver memory receiver = feeReceivers[msg.sender];
 
+        require(destination != address(0x0), "Invalid destination");
+        require(
+            receiver.authorized
+            || owner() == msg.sender,
+            "Sender address must be an authorized receiver or an owner"
+        );
         // Get the balance
         uint256 balance = token.balanceOf(address(this));
 
-        // Sweep out
-        token.safeTransfer(destination, balance);
+        if (msg.sender == owner()) {
+            token.safeTransfer(destination, balance);
+            emit TokensRecovered(address(token), destination, balance);
+            return;
+        }
 
-        // Emit the event
-        emit TokensRecovered(address(token), destination, balance);
+        uint256 vaultShare;
+        uint256 secondaryShare;
+
+        if (receiver.vaultPercentage > 0) {
+            vaultShare = balance.mul(receiver.vaultPercentage).div(100);
+
+            token.safeTransfer(destination, vaultShare);
+            emit TokensRecovered(address(token), destination, vaultShare);
+        }
+
+        secondaryShare = balance.sub(vaultShare);
+        if (secondaryShare > 0) {
+            token.safeTransfer(receiver.secondaryAddress, secondaryShare);
+            emit TokensRecovered(address(token), receiver.secondaryAddress, secondaryShare);
+        }
     }
 
     function getMarketsByAssetPair(bytes32 assetPair)
