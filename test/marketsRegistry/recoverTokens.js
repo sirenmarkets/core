@@ -201,4 +201,103 @@ contract("Create Markets", (accounts) => {
       TOKENS_AMOUNT,
     )
   })
+
+  it("Verify if vaultPercentage is equal to 0 then secondaryAddress should get the full balance", async () => {
+    await collateralToken.transfer(
+      deployedMarketsRegistry.address,
+      TOKENS_AMOUNT,
+    )
+    assertBNequal(
+      await collateralToken.balanceOf(deployedMarketsRegistry.address),
+      TOKENS_AMOUNT,
+    )
+
+    const vaultPercentageZero = bn("0")
+    await deployedMarketsRegistry.addFeeReceiver(
+      lv1Account,
+      secondaryAccount,
+      vaultPercentageZero,
+    )
+    deployedMarketsRegistry.recoverTokens(collateralToken.address, lv1Account, {
+      from: lv1Account,
+    })
+
+    const balanceOflv1Account = bn("7000000000000000000000")
+    assertBNequal(
+      await collateralToken.balanceOf(lv1Account),
+      balanceOflv1Account,
+    )
+
+    const balanceOfsecondaryAccount = bn("13000000000000000000000")
+    assertBNequal(
+      await collateralToken.balanceOf(secondaryAccount),
+      balanceOfsecondaryAccount,
+    )
+  })
+
+  it("Verify if vaultPercentage is equal to 50% then destination address and secondaryAddress should get appropriate part of the balance", async () => {
+    await collateralToken.transfer(
+      deployedMarketsRegistry.address,
+      TOKENS_AMOUNT,
+    )
+    assertBNequal(
+      await collateralToken.balanceOf(deployedMarketsRegistry.address),
+      TOKENS_AMOUNT,
+    )
+
+    const vaultPercentageFifty = bn("50")
+    await deployedMarketsRegistry.addFeeReceiver(
+      lv1Account,
+      secondaryAccount,
+      vaultPercentageFifty,
+    )
+    deployedMarketsRegistry.recoverTokens(collateralToken.address, lv1Account, {
+      from: lv1Account,
+    })
+
+    const balanceOflv1Account = bn("12000000000000000000000")
+    assertBNequal(
+      await collateralToken.balanceOf(lv1Account),
+      balanceOflv1Account,
+    )
+
+    const balanceOfsecondaryAccount = bn("18000000000000000000000")
+    assertBNequal(
+      await collateralToken.balanceOf(secondaryAccount),
+      balanceOfsecondaryAccount,
+    )
+  })
+
+  it("Verify if vaultPercentage is equal to 100% then destination address should get the full balance", async () => {
+    await collateralToken.transfer(
+      deployedMarketsRegistry.address,
+      TOKENS_AMOUNT,
+    )
+    assertBNequal(
+      await collateralToken.balanceOf(deployedMarketsRegistry.address),
+      TOKENS_AMOUNT,
+    )
+
+    const vaultPercentageHundred = bn("100")
+    await deployedMarketsRegistry.addFeeReceiver(
+      lv1Account,
+      secondaryAccount,
+      vaultPercentageHundred,
+    )
+    deployedMarketsRegistry.recoverTokens(collateralToken.address, lv1Account, {
+      from: lv1Account,
+    })
+
+    const balanceOflv1Account = bn("22000000000000000000000")
+    assertBNequal(
+      await collateralToken.balanceOf(lv1Account),
+      balanceOflv1Account,
+    )
+
+    const balanceOfsecondaryAccount = bn("18000000000000000000000")
+    assertBNequal(
+      await collateralToken.balanceOf(secondaryAccount),
+      balanceOfsecondaryAccount,
+    )
+  })
 })

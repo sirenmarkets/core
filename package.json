@@ -55,7 +55,7 @@
     "rollup-plugin-peer-deps-external": "^2.2.4",
     "rollup-plugin-typescript2": "^0.29.0",
     "solidity-coverage": "^0.7.12",
-    "truffle": "5.1.49",
+    "truffle": "^5.1.49",
     "truffle-plugin-verify": "^0.5.2",
     "typechain": "4.0.0",
     "typescript": "^4.0.2",
