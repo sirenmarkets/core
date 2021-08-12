@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 
-pragma solidity 0.6.12;
+pragma solidity 0.8.0;
 
 import "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
 
@@ -23,6 +23,15 @@ contract ChainlinkEthUsdProxy is AggregatorV3Interface {
         address _assetEthOracleAddress,
         uint8 _decimals
     ) public {
+        require(
+            _ethUsdOracleAddress != address(0x0),
+            "ChainlinkEthUsdProxy: Invalid _ethUsdOracleAddress"
+        );
+        require(
+            _assetEthOracleAddress != address(0x0),
+            "ChainlinkEthUsdProxy: Invalid _assetEthOracleAddress"
+        );
+
         ethUsdOracle = AggregatorV3Interface(_ethUsdOracleAddress);
         assetEthOracle = AggregatorV3Interface(_assetEthOracleAddress);
 
@@ -52,6 +61,16 @@ contract ChainlinkEthUsdProxy is AggregatorV3Interface {
             uint80 answeredInRound
         )
     {
+        keccak256(
+            abi.encode(
+                _roundId,
+                roundId,
+                answer,
+                startedAt,
+                updatedAt,
+                answeredInRound
+            )
+        );
         require(false, "Method not implemented");
     }
 

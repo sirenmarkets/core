@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 
-pragma solidity 0.6.12;
+pragma solidity 0.8.0;
 
 /** Interface for any Siren contract which implements the functionality for trading
  * wTokens and bTokens

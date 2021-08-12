@@ -1,0 +1,13 @@
+{
+  "network": "mumbai",
+  "ammFactoryAddress": "0xbd1507d3dc6faaa8ee53a635e3d172d14cd1464a",
+  "ammFactoryStartBlock": 17431847,
+  "controllerAddress": "0xf9e3cf98ba0837171d4cff6eede3a8116d73a214",
+  "controllerStartBlock": 17431847,
+  "vaultAddress": "0xdf9529a6a060205bf928ebbcf4e657e34e0350fd",
+  "vaultStartBlock": 17431847,
+  "erc1155ControllerAddress": "0x0c575c519345db3171d58caf2b94eabb190c9c28",
+  "erc1155ControllerStartBlock": 17431847,
+  "priceOracleAddress": "0xfe3f286f7cb57402fd44596a1170896f32f5a267",
+  "priceOracleStartBlock": 17431847
+}

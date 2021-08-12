@@ -1,5 +1,13 @@
 {
   "network": "rinkeby",
-  "marketsRegistryAddress": "0x460e4bd985181db81641a6cb7fe000c4b38c38ee",
-  "marketsRegistryStartBlock": 8058299
+  "ammFactoryAddress": "0xc08bbdd66d3c116efa24db9d3b7d6746ec806524",
+  "ammFactoryStartBlock": 8936071,
+  "controllerAddress": "0x31c044a46679ad818a298ab1030bd87518d35676",
+  "controllerStartBlock": 8936071,
+  "vaultAddress": "0xf4aac86c842c2363ecfe36d9a71808b29cc61061",
+  "vaultStartBlock": 8936071,
+  "erc1155ControllerAddress": "0x59ec668317afdb5744d78694da6a6243aaed1a8e",
+  "erc1155ControllerStartBlock": 8936071,
+  "priceOracleAddress": "0xbd99bf02669282dfa7b9607ba9f4bc0ab356bbd4",
+  "priceOracleStartBlock": 8936071
 }

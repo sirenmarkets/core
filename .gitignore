@@ -106,11 +106,35 @@ dist
 dist/
 
 .secret
+.secret.dev
 .secret-mainnet
 graphql-schema.json
 src/ethers/
 
 # solidity-coverage report
+coverage/
 coverage.json
 
 build
+build/
+
+# Visual Studio Code
+.vscode/
+
+# Sublime Text
+*.sublime-workspace
+GitHub.sublime-settings
+
+# Certora
+.certora*
+certora_*
+
+# MacOS
+*.DS_Store
+
+# Hardhat
+artifacts/
+cache/
+
+# Typechain
+typechain/

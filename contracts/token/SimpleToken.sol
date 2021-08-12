@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-pragma solidity 0.6.12;
+pragma solidity 0.8.0;
 
-import "@openzeppelin/contracts-ethereum-package/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts-ethereum-package/contracts/GSN/Context.sol";
-import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/ERC20Burnable.sol";
-import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/ERC20Pausable.sol";
-import "@openzeppelin/contracts-ethereum-package/contracts/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./ISimpleToken.sol";
 
 // Adapted from @openzeppelin/contracts-ethereum-package/contracts/presets/ERC20PresetMinterBurner.sol
@@ -16,60 +14,49 @@ import "./ISimpleToken.sol";
  * Simple token that will be used for wTokens and bTokens in the Siren system.
  * Name and symbol are created with an "Initialize" call before the token is set up.
  * Mint and Burn are allowed by the owner.
- * Can be destroyed by owner
  */
 contract SimpleToken is
     Initializable,
-    ContextUpgradeSafe,
-    AccessControlUpgradeSafe,
-    ERC20BurnableUpgradeSafe,
-    ERC20PausableUpgradeSafe,
+    AccessControlUpgradeable,
+    ERC20BurnableUpgradeable,
     ISimpleToken
 {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
-    // Track the address that deployed this contract
-    address public deployer;
-
-    /** Emitted when contract is destroyed */
-    event TokenDestroyed();
+    /// @dev the number of decimals for this ERC20's human readable numeric
+    uint8 internal numDecimals;
 
     /**
-     * @dev Grants `DEFAULT_ADMIN_ROLE`, `MINTER_ROLE` and `PAUSER_ROLE` to the
+     * @dev Grants `DEFAULT_ADMIN_ROLE`, `MINTER_ROLE` and `BURNER_ROLE` to the
      * account that deploys the contract.
      *
      * See {ERC20-constructor}.
      */
 
     function initialize(
-        string memory name,
-        string memory symbol,
-        uint8 decimals
+        string memory _name,
+        string memory _symbol,
+        uint8 _decimals
     ) public override {
-        __ERC20PresetMinterBurner_init(name, symbol, decimals);
+        __ERC20PresetMinterBurner_init(_name, _symbol, _decimals);
     }
 
     function __ERC20PresetMinterBurner_init(
-        string memory name,
-        string memory symbol,
-        uint8 decimals
+        string memory _name,
+        string memory _symbol,
+        uint8 _decimals
     ) internal initializer {
-        __Context_init_unchained();
-        __AccessControl_init_unchained();
-        __ERC20_init_unchained(name, symbol);
+        __AccessControl_init();
+        __ERC20_init_unchained(_name, _symbol);
         __ERC20Burnable_init_unchained();
-        __Pausable_init_unchained();
-        __ERC20Pausable_init_unchained();
         __ERC20PresetMinterBurner_init_unchained();
 
-        // Set decimals
-        _setupDecimals(decimals);
+        numDecimals = _decimals;
     }
 
     function __ERC20PresetMinterBurner_init_unchained() internal initializer {
-        // Save off the address that deployed this contract and will be given permissions
-        deployer = _msgSender();
+        address deployer = _msgSender();
 
         _setupRole(DEFAULT_ADMIN_ROLE, deployer);
 
@@ -110,28 +97,24 @@ contract SimpleToken is
         _burn(account, amount);
     }
 
-    /**
-     * Allow the owner to destroy the token
-     */
-    function selfDestructToken(address payable refundAddress) public override {
-        require(refundAddress != address(0x0), "Invalid refundAddress");        
-        require(
-            hasRole(DEFAULT_ADMIN_ROLE, _msgSender()),
-            "SimpleToken: must have admin role to destroy contract"
-        );
-
-        // Emit the event
-        emit TokenDestroyed();
-
-        // Destroy the contract and forward any ETH
-        selfdestruct(refundAddress);
-    }
-
     function _beforeTokenTransfer(
         address from,
         address to,
         uint256 amount
-    ) internal override(ERC20UpgradeSafe, ERC20PausableUpgradeSafe) {
+    ) internal override(ERC20Upgradeable) {
         super._beforeTokenTransfer(from, to, amount);
+    }
+
+    function decimals() public view override(ERC20Upgradeable) returns (uint8) {
+        return numDecimals;
+    }
+
+    function totalSupply()
+        public
+        view
+        override(ERC20Upgradeable)
+        returns (uint256)
+    {
+        return super.totalSupply();
     }
 }

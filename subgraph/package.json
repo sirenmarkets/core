@@ -1,18 +1,19 @@
 {
-  "name": "@sirenprotocol/subgraph",
+  "name": "@sirenmarkets/subgraph",
   "version": "1.0.0",
   "license": "UNLICENSED",
   "scripts": {
     "codegen": "npm run prepare && graph codegen",
     "build": "npm run prepare && graph build",
     "prepare": "mustache ./config/${NETWORK:-local}.json subgraph.template.yaml > subgraph.yaml",
-    "deploy-remote": "npm run prepare && graph deploy sirenmarkets/${NAME:-null} --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/",
-    "create-local": "npm run prepare && graph create --node http://localhost:8020/ sirenmarkets/protocol",
-    "remove-local": "graph remove --node http://localhost:8020/ sirenmarkets/protocol",
-    "deploy-local": "npm run prepare && graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 sirenmarkets/protocol",
-    "deploy-kovan": "NETWORK=kovan NAME=protocol-kovan-v2 npm run deploy-remote",
-    "deploy-rinkeby": "NETWORK=rinkeby NAME=protocol-rinkeby npm run deploy-remote",
-    "deploy-mainnet": "NETWORK=mainnet NAME=protocol npm run deploy-remote",
+    "deploy-remote": "npm run codegen && npm run build && graph deploy ${NAME:-null} --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/",
+    "create-local": "npm run prepare && graph create --node http://localhost:8020/ sirenmarkets/protocol-v2",
+    "remove-local": "graph remove --node http://localhost:8020/ pascalclub/protocol-v2",
+    "deploy-local": "npm run prepare && graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 pascalclub/protocol-v2",
+    "deploy-rinkeby": "NETWORK=rinkeby NAME=pascalclub/protocol-v2-rinkeby npm run deploy-remote",
+    "deploy-mainnet": "NETWORK=mainnet NAME=sirenmarkets/protocol-v2 npm run deploy-remote",
+    "deploy-matic": "NETWORK=matic NAME=sirenmarkets/protocol-v2-matic npm run deploy-remote",
+    "deploy-mumbai": "NETWORK=mumbai NAME=pascalclub/protocol-v2-mumbai npm run deploy-remote",
     "graph-auth": "graph auth https://api.thegraph.com/deploy/ --"
   },
   "dependencies": {
