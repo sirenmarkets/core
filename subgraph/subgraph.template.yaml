@@ -3,12 +3,91 @@ schema:
   file: ./schema.graphql
 dataSources:
   - kind: ethereum/contract
-    name: MarketsRegistry
+    name: SeriesController
     network: {{network}}
     source:
-      address: "{{marketsRegistryAddress}}"
-      abi: MarketsRegistry
-      startBlock: {{marketsRegistryStartBlock}}
+      address: "{{controllerAddress}}"
+      abi: SeriesController
+      startBlock: {{controllerStartBlock}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.4
+      language: wasm/assemblyscript
+      entities:
+        - SeriesEntity
+        - SeriesControllerInitialized
+        - OwnershipTransfer
+        - OptionMinted
+      abis:
+        - name: SeriesController
+          file: ../artifacts/contracts/series/SeriesController.sol/SeriesController.json
+        - name: SimpleToken
+          file: ../artifacts/contracts/token/SimpleToken.sol/SimpleToken.json
+      eventHandlers:
+        - event: SeriesCreated(uint64,(address,address,address),address[],uint256,uint40,bool)
+          handler: handleSeriesCreated
+        - event: SeriesControllerInitialized(address,address,address,(address,uint16,uint16,uint16))
+          handler: handleSeriesControllerInitialized
+        - event: OptionMinted(address,uint64,uint256,uint256,uint256)
+          handler: handleOptionMinted
+      file: ./src/mappings/seriesController.ts
+  - kind: ethereum/contract
+    name: SeriesVault
+    network: {{network}}
+    source:
+      address: "{{vaultAddress}}"
+      abi: SeriesVault
+      startBlock: {{vaultStartBlock}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.4
+      language: wasm/assemblyscript
+      entities:
+        - SeriesVault
+      abis:
+        - name: SeriesVault
+          file: ../artifacts/contracts/series/SeriesVault.sol/SeriesVault.json
+      eventHandlers:
+        - event: SeriesVaultInitialized(address)
+          handler: handleSeriesVaultInitialized
+      file: ./src/mappings/seriesVault.ts
+  - kind: ethereum/contract
+    name: ERC1155Controller
+    network: {{network}}
+    source:
+      address: "{{erc1155ControllerAddress}}"
+      abi: ERC1155Controller
+      startBlock: {{erc1155ControllerStartBlock}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.4
+      language: wasm/assemblyscript
+      entities:
+        - ERC1155Controller
+      abis:
+        - name: ERC1155Controller
+          file: ../artifacts/contracts/series/ERC1155Controller.sol/ERC1155Controller.json
+        - name: SimpleToken
+          file: ../artifacts/contracts/token/SimpleToken.sol/SimpleToken.json
+        - name: SeriesController
+          file: ../artifacts/contracts/series/SeriesController.sol/SeriesController.json
+      eventHandlers:
+        - event: ERC1155ControllerInitialized(address)
+          handler: handleERC1155ControllerInitialized
+        - event: TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)
+          handler: handleTransferSingle
+        - event: TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])
+          handler: handleTransferBatch
+        - event: ApprovalForAll(indexed address,indexed address,bool)
+          handler: handleApprovalForAll
+      file: ./src/mappings/erc1155Controller.ts
+  - kind: ethereum/contract
+    name: AmmFactory
+    network: {{network}}
+    source:
+      address: "{{ammFactoryAddress}}"
+      abi: AmmFactory
+      startBlock: {{ammFactoryStartBlock}}
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.4
@@ -16,56 +95,37 @@ dataSources:
       entities:
         - OwnershipTransfer
       abis:
-        - name: MarketsRegistry
-          file: ../build/contracts/MarketsRegistry.json
+        - name: AmmFactory
+          file: ../artifacts/contracts/amm/AmmFactory.sol/AmmFactory.json
       eventHandlers:
-        - event: MarketCreated(string,address,uint256)
-          handler: handleMarketCreated
         - event: OwnershipTransferred(indexed address,indexed address)
           handler: handleOwnershipTransferred
         - event: AmmCreated(address)
           handler: handleAmmCreated
-      file: ./src/mappings/marketsRegistry.ts
-templates:
+      file: ./src/mappings/ammFactory.ts
   - kind: ethereum/contract
-    name: Market
+    name: PriceOracle
     network: {{network}}
     source:
-      abi: Market
+      address: "{{priceOracleAddress}}"
+      abi: PriceOracle
+      startBlock: {{priceOracleStartBlock}}
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.4
       language: wasm/assemblyscript
       entities:
-        - Market
-        - CollateralClaim
-        - Fee
-        - MarketDestruction
-        - MarketInitialization
-        - OptionClose
-        - OptionExercise
-        - OptionMint
+        - SettlementPrice
       abis:
-        - name: Market
-          file: ../build/contracts/Market.json
-        - name: SimpleToken
-          file: ../build/contracts/SimpleToken.json
+        - name: PriceOracle
+          file: ../artifacts/contracts/series/PriceOracle.sol/PriceOracle.json
       eventHandlers:
-        - event: CollateralClaimed(indexed address,uint256)
-          handler: handleCollateralClaimed
-        - event: FeePaid(indexed uint8,indexed address,uint256)
-          handler: handleFeePaid
-        - event: MarketDestroyed()
-          handler: handleMarketDestroyed
-        - event: MarketInitialized(string,uint8,address,address)
-          handler: handleMarketInitialized
-        - event: OptionClosed(indexed address,uint256)
-          handler: handleOptionClosed
-        - event: OptionExercised(indexed address,uint256)
-          handler: handleOptionExercised
-        - event: OptionMinted(indexed address,uint256)
-          handler: handleOptionMinted
-      file: ./src/mappings/market.ts
+        - event: SettlementPriceSet(address,address,uint256,uint256)
+          handler: handleSettlementPriceSet
+        - event: OracleSet(address,address,address,uint256)
+          handler: handleOracleSet
+      file: ./src/mappings/priceOracle.ts
+templates:
   - kind: ethereum/contract
     name: SimpleToken
     network: {{network}}
@@ -80,7 +140,7 @@ templates:
         - Approval
       abis:
         - name: SimpleToken
-          file: ../build/contracts/SimpleToken.json
+          file: ../artifacts/contracts/token/SimpleToken.sol/SimpleToken.json
       eventHandlers:
         - event: Transfer(indexed address,indexed address,uint256)
           handler: handleTransfer
@@ -100,10 +160,22 @@ templates:
         - Amm
       abis:
         - name: MinterAmm
-          file: ../build/contracts/MinterAmm.json
+          file: ../artifacts/contracts/amm/MinterAmm.sol/MinterAmm.json
         - name: SimpleToken
-          file: ../build/contracts/SimpleToken.json
+          file: ../artifacts/contracts/token/SimpleToken.sol/SimpleToken.json
       eventHandlers:
-        - event: AMMInitialized(address,address)
+        - event: AMMInitialized(address,address,address)
           handler: handleAMMInitialized
+        - event: LpTokensMinted(address,uint256,uint256)
+          handler: handleLpTokensMinted
+        - event: LpTokensBurned(address,uint256,uint256)
+          handler: handleLpTokensBurned
+        - event: BTokensBought(address,uint64,uint256,uint256)
+          handler: handleBTokensBought
+        - event: BTokensSold(address,uint64,uint256,uint256)
+          handler: handleBTokensSold
+        - event: WTokensSold(address,uint64,uint256,uint256)
+          handler: handleWTokensSold
+        - event: NewSirenPriceOracle(address)
+          handler: handleNewSirenPriceOracle
       file: ./src/mappings/amm.ts

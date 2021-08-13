@@ -1,8 +1,18 @@
+import { BigInt, ethereum } from "@graphprotocol/graph-ts"
 
-import { Bytes, ethereum } from '@graphprotocol/graph-ts';
+export function getId(event: ethereum.Event): string {
+  return event.transaction.hash.toHex() + "-" + event.logIndex.toString()
+}
 
-export function getId(
-  event: ethereum.Event
+export function getERC1155TransferId(
+  event: ethereum.Event,
+  id: BigInt,
 ): string {
-  return event.transaction.hash.toHex() + '-' + event.logIndex.toString()
+  return (
+    event.transaction.hash.toHex() +
+    "-" +
+    event.logIndex.toString() +
+    "-" +
+    id.toString()
+  )
 }

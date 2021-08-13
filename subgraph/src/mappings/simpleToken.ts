@@ -1,33 +1,33 @@
-import { Address, BigInt } from "@graphprotocol/graph-ts"
+import { Address } from "@graphprotocol/graph-ts"
 import {
   Approval,
   Transfer,
   SimpleToken,
 } from "../../generated/templates/SimpleToken/SimpleToken"
 import {
-  Token,
-  TokenApproval,
-  TokenTransfer,
-  TokenMint,
-  TokenBurn,
+  ERC20Token,
+  ERC20TokenApproval,
+  ERC20TokenTransfer,
+  ERC20TokenMint,
+  ERC20TokenBurn,
 } from "../../generated/schema"
 import { SimpleToken as SimpleTokenTemplate } from "../../generated/templates"
 import { getId } from "./helpers/transaction"
 import {
   decreaseAccountBalance,
   getOrCreateAccount,
-  increaseAccountBalance,
-  saveAccountBalanceSnapshot,
+  increaseERC20AccountBalance,
+  saveERC20AccountBalanceSnapshot,
 } from "./account"
 
 import { ZERO } from "./helpers/number"
 
-export function findOrCreateToken(address: Address): Token {
+export function findOrCreateToken(address: Address): ERC20Token {
   let tokenId = address.toHexString()
-  let token = Token.load(tokenId)
+  let token = ERC20Token.load(tokenId)
   if (token === null) {
     let contract = SimpleToken.bind(address)
-    token = new Token(tokenId)
+    token = new ERC20Token(tokenId)
     token.decimals = contract.decimals()
     token.name = contract.name()
     token.symbol = contract.symbol()
@@ -37,37 +37,27 @@ export function findOrCreateToken(address: Address): Token {
     token.totalSupply = initialSupply.reverted ? ZERO : initialSupply.value
 
     // TODO: find a more reliable way to detect Siren-tokens
-    let isSirenToken =
-      token.name.startsWith("B-") ||
-      token.name.startsWith("W-") ||
-      token.name.startsWith("LP-")
+    let isSirenToken = token.name.startsWith("LP-")
     if (isSirenToken) {
-      token.type = token.name.startsWith("B-")
-        ? "B_TOKEN"
-        : token.name.startsWith("W-")
-        ? "W_TOKEN"
-        : "LP_TOKEN"
+      token.type = "LP_TOKEN"
       token.totalBurned = ZERO
       token.totalMinted = ZERO
       token.totalTransferred = ZERO
 
-      // Register token as data source - only for bTokens and wTokens
+      // Register token as data source so the graph will pick up future events on this SimpleToken
       SimpleTokenTemplate.create(address)
-
-      // Link to Market
-      token.market = contract.deployer().toHexString()
     }
 
     token.save()
   }
 
-  return token as Token
+  return token as ERC20Token
 }
 
 export function handleApproval(event: Approval): void {
   let token = findOrCreateToken(event.address)
 
-  let approval = new TokenApproval(getId(event))
+  let approval = new ERC20TokenApproval(getId(event))
   approval.token = token.id
   approval.amount = event.params.value
   approval.sender = event.transaction.from
@@ -93,7 +83,7 @@ export function handleTransfer(event: Transfer): void {
   let eventId = getId(event)
 
   if (isBurn) {
-    let burn = new TokenBurn(eventId)
+    let burn = new ERC20TokenBurn(eventId)
     burn.token = token.id
     burn.amount = amount
     burn.sender = event.transaction.from
@@ -107,7 +97,7 @@ export function handleTransfer(event: Transfer): void {
     token.totalBurned = token.totalBurned.plus(amount)
     token.save()
   } else if (isMint) {
-    let mint = new TokenMint(eventId)
+    let mint = new ERC20TokenMint(eventId)
     mint.token = token.id
     mint.amount = amount
     mint.sender = event.transaction.from
@@ -122,7 +112,7 @@ export function handleTransfer(event: Transfer): void {
     token.totalMinted = token.totalMinted.plus(amount)
     token.save()
   } else {
-    let transfer = new TokenTransfer(eventId)
+    let transfer = new ERC20TokenTransfer(eventId)
     transfer.token = token.id
     transfer.amount = amount
     transfer.sender = event.transaction.from
@@ -143,7 +133,7 @@ export function handleTransfer(event: Transfer): void {
 
     let accountBalance = decreaseAccountBalance(
       sourceAccount,
-      token as Token,
+      token as ERC20Token,
       amount,
     )
     accountBalance.block = event.block.number
@@ -154,15 +144,15 @@ export function handleTransfer(event: Transfer): void {
     accountBalance.save()
 
     // To provide information about evolution of account balances
-    saveAccountBalanceSnapshot(accountBalance, eventId, event)
+    saveERC20AccountBalanceSnapshot(accountBalance, eventId, event)
   }
 
   if (isTransfer || isMint) {
     let destinationAccount = getOrCreateAccount(event.params.to)
 
-    let accountBalance = increaseAccountBalance(
+    let accountBalance = increaseERC20AccountBalance(
       destinationAccount,
-      token as Token,
+      token as ERC20Token,
       amount,
     )
     accountBalance.block = event.block.number
@@ -173,6 +163,6 @@ export function handleTransfer(event: Transfer): void {
     accountBalance.save()
 
     // To provide information about evolution of account balances
-    saveAccountBalanceSnapshot(accountBalance, eventId, event)
+    saveERC20AccountBalanceSnapshot(accountBalance, eventId, event)
   }
 }

@@ -1,5 +1,13 @@
 {
   "network": "mainnet",
-  "marketsRegistryAddress": "0xb4F2acD55fB97dE09941064c003bc1b80162dcdA",
-  "marketsRegistryStartBlock": 0
+  "ammFactoryAddress": "0xb7f8bc63bbcad18155201308c8f3540b07f84f5e",
+  "ammFactoryStartBlock": 0,
+  "controllerAddress": "0x5fc8d32690cc91d4c39d9d3abcbd16989f875707",
+  "controllerStartBlock": 0,
+  "vaultAddress": "0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9",
+  "vaultStartBlock": 0,
+  "erc1155ControllerAddress": "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512",
+  "erc1155ControllerStartBlock": 0,
+  "priceOracleAddress": "0xa513e6e4b8f2a923d98304ec87f64353c4d5c853",
+  "priceOracleStartBlock": 0
 }

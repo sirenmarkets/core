@@ -18,7 +18,9 @@ export default {
     resolve({
       preferBuiltins: true,
     }),
-    typescript(),
+    typescript({
+      tsconfig: "./rollup-tsconfig.json",
+    }),
   ],
   external: ["ethers"],
 }

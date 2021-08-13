@@ -1,0 +1,13 @@
+{
+  "network": "matic",
+  "ammFactoryAddress": "0x0cdaa64b47474e02cdfbd811ec9fd2d265cd3a0a",
+  "ammFactoryStartBlock": 17842620,
+  "controllerAddress": "0x716c543b39a85aac0240ba7ed07e79f06e1fed48",
+  "controllerStartBlock": 17842620,
+  "vaultAddress": "0xc40a31bd9fed1569ce647bb7de7ff93facca36e9",
+  "vaultStartBlock": 17842620,
+  "erc1155ControllerAddress": "0x509fe9c9712f9a895a9adbf2f96bad09abf79988",
+  "erc1155ControllerStartBlock": 17842620,
+  "priceOracleAddress": "0xcbcae36b425ce1a94d055602b3b514aed976c383",
+  "priceOracleStartBlock": 17842620
+}

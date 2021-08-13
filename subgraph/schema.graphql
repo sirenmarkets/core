@@ -1,25 +1,105 @@
-## Market
+## SeriesController
 
-type Market @entity {
+type SeriesController @entity {
+  "Equals to: <seriesControllerAddress>"
   id: ID!
   createdBlock: BigInt!
   createdTimestamp: BigInt!
   createdTransaction: Bytes!
-  marketName: String!
-  marketIndex: BigInt!
-  collateralToken: Token
-  paymentToken: Token
-  marketStyle: MarketStyle
-  amm: Amm!
-  priceRatio: BigInt
-  expirationDate: BigInt
+  lastUpdatedBlock: BigInt!
+  lastUpdatedTimestamp: BigInt!
+  lastUpdatedTransaction: Bytes!
+  priceOracle: Bytes!
+  vault: SeriesVault!
+  erc1155Controller: Bytes!
+  feeReceiver: Bytes!
   exerciseFeeBasisPoints: Int
   closeFeeBasisPoints: Int
   claimFeeBasisPoints: Int
-  wToken: Token
-  bToken: Token
-  destroyed: Boolean
-  events: [OptionEvent!]! @derivedFrom(field: "market")
+}
+
+type ERC20VaultTransfer @entity {
+  id: ID!
+  createdBlock: BigInt!
+  createdTimestamp: BigInt!
+  createdTransaction: Bytes!
+}
+
+## Series
+
+# Note, we use the awkward name of "SeriesEntity" instead of the preferred
+# "Series" because graphprotocol breaks when entities end in an "s"
+# See: https://github.com/graphprotocol/support/issues/12
+type SeriesEntity @entity {
+  " Equals to: <ERC1155ContractAddress>-<seriesID>"
+  id: ID!
+  createdBlock: BigInt!
+  createdTimestamp: BigInt!
+  createdTransaction: Bytes!
+  seriesName: String!
+  seriesId: BigInt!
+  underlyingToken: ERC20Token!
+  priceToken: ERC20Token!
+  collateralToken: ERC20Token!
+  isPutOption: Boolean!
+  strikePrice: BigInt!
+  expirationDate: BigInt!
+  exerciseFeeBasisPoints: Int!
+  closeFeeBasisPoints: Int!
+  claimFeeBasisPoints: Int!
+  priceOracle: Bytes!
+  wToken: ERC1155Token!
+  bToken: ERC1155Token!
+  restrictedMinters: [SeriesAmm!]! @derivedFrom(field: "series")
+  events: [OptionEvent!]! @derivedFrom(field: "series")
+}
+
+## AMM
+
+type Amm @entity {
+  id: ID!
+  createdBlock: BigInt!
+  createdTimestamp: BigInt!
+  createdTransaction: Bytes!
+  series: [SeriesAmm]! @derivedFrom(field: "amm")
+  controller: SeriesController!
+  priceOracle: Bytes!
+  underlyingToken: ERC20Token!
+  priceToken: ERC20Token!
+  collateralToken: ERC20Token!
+  tradeFeeBasisPoints: Int!
+  lpToken: ERC20Token!
+  poolValueSnapshots: [PoolValueSnapshot]! @derivedFrom(field: "amm")
+}
+
+#
+# Pool balance data of a particular AMM pool in a certain timestamp. This entity is used to
+# provide information about evolution of AMM pools
+#
+type PoolValueSnapshot @entity {
+  id: ID!
+
+  createdBlock: BigInt!
+  createdTimestamp: BigInt!
+  createdTransaction: Bytes!
+
+  " The pool"
+  amm: Amm!
+
+  " Pool value in collateral asset "
+  poolValue: BigInt!
+
+  " LP Token supply "
+  lpTokenSupply: BigInt!
+
+  ammTokenEvent: AmmTokenEvent! @derivedFrom(field: "poolValueSnapshot")
+}
+
+type SeriesAmm @entity {
+  " Equal to: <seriesID>-<AmmID>"
+  id: ID!
+  series: SeriesEntity!
+  amm: Amm!
 }
 
 enum FeeType {
@@ -28,29 +108,12 @@ enum FeeType {
   CLAIM_FEE
 }
 
-enum MarketStyle {
-  EUROPEAN_STYLE
-  AMERICAN_STYLE
-}
-
 type Fee @entity {
   id: ID!
-  market: Market!
+  series: SeriesEntity!
   feeType: FeeType
-  token: Token!
+  token: ERC20Token!
   value: BigInt!
-}
-
-type MarketDestruction @entity {
-  id: ID!
-  market: Market!
-}
-
-type MarketInitialization @entity {
-  id: ID!
-  market: Market!
-  wToken: Bytes!
-  bToken: Bytes!
 }
 
 enum OptionEventType {
@@ -62,84 +125,252 @@ enum OptionEventType {
 
 interface OptionEvent {
   id: ID!
-  market: Market!
+  series: SeriesEntity!
   eventType: OptionEventType!
   block: BigInt!
   timestamp: BigInt!
-  value: BigInt!
+  optionTokenAmount: BigInt!
 }
 
 type OptionClose implements OptionEvent @entity {
   id: ID!
-  market: Market!
+  series: SeriesEntity!
   eventType: OptionEventType!
   block: BigInt!
   timestamp: BigInt!
-  value: BigInt!
+  optionTokenAmount: BigInt!
   redeemer: Bytes!
 }
 
 type OptionExercise implements OptionEvent @entity {
   id: ID!
-  market: Market!
+  series: SeriesEntity!
   eventType: OptionEventType!
   block: BigInt!
   timestamp: BigInt!
-  value: BigInt!
+  optionTokenAmount: BigInt!
+  collateralAmount: BigInt!
   redeemer: Bytes!
 }
 
 type OptionMint implements OptionEvent @entity {
   id: ID!
-  market: Market!
+  series: SeriesEntity!
   eventType: OptionEventType!
   block: BigInt!
   timestamp: BigInt!
-  value: BigInt!
+  optionTokenAmount: BigInt!
+  wTokenTotalSupply: BigInt!
+  bTokenTotalSupply: BigInt!
   minter: Bytes!
 }
 
 type OptionCollateralClaim implements OptionEvent @entity {
   id: ID!
-  market: Market!
+  series: SeriesEntity!
   eventType: OptionEventType!
   block: BigInt!
   timestamp: BigInt!
-  value: BigInt!
+  optionTokenAmount: BigInt!
+  collateralAmount: BigInt!
   redeemer: Bytes!
 }
 
-## AMM
+# Account
 
-type Amm @entity {
+#
+# Provides information about an Ethereum account's ERC20 and ERC1155 balances
+#
+type Account @entity {
+  "Equals to: <account address>"
   id: ID!
-  createdBlock: BigInt!
-  createdTimestamp: BigInt!
-  createdTransaction: Bytes!
-  markets: [Market]! @derivedFrom(field: "amm")
-  registry: Bytes!
-  priceOracle: Bytes!
-  paymentToken: Token!
-  collateralToken: Token!
-  tradeFeeBasisPoints: Int!
-  lpToken: Token!
-  assetPair: Bytes!
+
+  "The user's address"
+  address: Bytes!
+
+  "ERC20 balances that this account holds"
+  erc20Balances: [ERC20AccountBalance!]! @derivedFrom(field: "account")
+
+  "ERC1155 balances that this account holds"
+  erc1155Balances: [ERC1155AccountBalance!]! @derivedFrom(field: "account")
+
+  "AmmTokenEvents that this account has interacted with"
+  ammTokenEvents: [AmmTokenEvent!]! @derivedFrom(field: "account")
+
 }
 
-## SimpleToken
+## ERC1155
 
-enum TokenType {
-  B_TOKEN
+enum ERC1155TokenType {
   W_TOKEN
+  B_TOKEN
+}
+
+type ERC1155Token @entity {
+  " Equals to: <ERC1155 contract address>-<ERC1155 index> "
+  id: ID!
+
+  " uint256 ID used to identify the token on the ERC1155 contract "
+  index: BigInt!
+
+  " The decimals of the underlying token for this option token's Series"
+  decimals: Int!
+
+  series: SeriesEntity!
+
+  type: ERC1155TokenType
+
+  " Total token supply "
+  totalSupply: BigInt!
+
+  " Total token burned "
+  totalBurned: BigInt
+
+  " Total token minted "
+  totalMinted: BigInt
+
+  " Total token transferred "
+  totalTransferred: BigInt
+
+  " List of token events "
+  events: [ERC1155TokenEvent!]! @derivedFrom(field: "tokens")
+
+  " List of account balances "
+  accountBalances: [ERC1155AccountBalance!]! @derivedFrom(field: "token")
+}
+
+enum ERC1155TokenEventType {
+  Transfer
+  Mint 
+  Burn
+}
+
+interface ERC1155TokenEvent {
+  id: ID!
+  tokens: [ERC1155Token!]!
+  amounts: [BigInt!]!
+  operator: Bytes!
+  sender: Bytes!
+  eventType: ERC1155TokenEventType!
+  block: BigInt!
+  timestamp: BigInt!
+}
+
+type ERC1155TokenTransfer implements ERC1155TokenEvent @entity {
+  id: ID!
+  tokens: [ERC1155Token!]!
+  amounts: [BigInt!]!
+  operator: Bytes!
+  sender: Bytes!
+  eventType: ERC1155TokenEventType!
+  block: BigInt!
+  timestamp: BigInt!
+  from: Bytes!
+  to: Bytes!
+}
+
+type ERC1155TokenMint implements ERC1155TokenEvent @entity {
+  id: ID!
+  tokens: [ERC1155Token!]!
+  amounts: [BigInt!]!
+  operator: Bytes!
+  sender: Bytes!
+  eventType: ERC1155TokenEventType!
+  block: BigInt!
+  timestamp: BigInt!
+  minter: Bytes!
+  destination: Bytes!
+}
+
+type ERC1155TokenBurn implements ERC1155TokenEvent @entity {
+  id: ID!
+  tokens: [ERC1155Token!]!
+  amounts: [BigInt!]!
+  operator: Bytes!
+  sender: Bytes!
+  eventType: ERC1155TokenEventType!
+  block: BigInt!
+  timestamp: BigInt!
+  burner: Bytes!
+}
+
+type ERC1155TokenApprovalForAll @entity {
+  id: ID!
+  erc1155Controller: Bytes!
+  owner: Bytes!
+  operator: Bytes!
+  sender: Bytes!
+  approved: Boolean!
+  block: BigInt!
+  timestamp: BigInt!
+}
+
+#
+# Current token balance of a particular Ethereum ERC1155 account
+#
+type ERC1155AccountBalance @entity {
+  " Equals to: <account address>-<ERC1155 contract address>-<ERC1155 index>"
+  id: ID!
+
+  " Account address "
+  account: Account!
+
+  " ERC1155Token ID "
+  token: ERC1155Token!
+
+  " Current account balance "
+  amount: BigInt!
+
+  " Block number in which the balance was last modified "
+  block: BigInt
+
+  " Last modified timestamp in seconds "
+  modified: BigInt
+
+  " Hash of the last transaction that modified the balance "
+  transaction: Bytes
+}
+
+#
+# ERC1155Token balance of a particular Ethereum ERC1155 account in a certain timestamp. This entity is used to
+# provide information about evolution of account balances
+#
+type ERC1155AccountBalanceSnapshot @entity {
+  " Equals to: <account address>-<ERC1155 contract address>-<ERC1155 index>"
+  id: ID!
+
+  " Account address "
+  account: Account!
+
+  " ERC1155Token ID "
+  token: ERC1155Token!
+
+  " Account balance "
+  amount: BigInt!
+
+  # TODO: Add description and check if could be non-optional
+  event: ERC1155TokenEvent
+
+  " Block number "
+  block: BigInt!
+
+  " Timestamp in seconds "
+  timestamp: BigInt!
+
+  " Transaction hash "
+  transaction: Bytes!
+}
+
+## SimpleToken (ERC20)
+
+enum ERC20TokenType {
   LP_TOKEN
 }
 
-type Token @entity {
+type ERC20Token @entity {
   id: ID!
 
-  market: Market
-
-  type: TokenType
+  type: ERC20TokenType
 
   " Number of decimals the token uses "
   decimals: Int!
@@ -163,104 +394,166 @@ type Token @entity {
   totalTransferred: BigInt
 
   " List of token events "
-  events: [TokenEvent!]! @derivedFrom(field: "token")
+  events: [ERC20TokenEvent!]! @derivedFrom(field: "token")
 
   " List of account balances "
-  accountBalances: [AccountBalance!]! @derivedFrom(field: "token")
+  accountBalances: [ERC20AccountBalance!]! @derivedFrom(field: "token")
 }
 
-enum TokenEventType {
+enum ERC20TokenEventType {
   Transfer
   Approval
   Mint
   Burn
 }
 
-interface TokenEvent {
+interface ERC20TokenEvent {
   id: ID!
-  token: Token!
+  token: ERC20Token!
   amount: BigInt!
   sender: Bytes!
-  eventType: TokenEventType!
+  eventType: ERC20TokenEventType!
   block: BigInt!
   timestamp: BigInt!
 }
 
-type TokenTransfer implements TokenEvent @entity {
+type ERC20TokenTransfer implements ERC20TokenEvent @entity {
   id: ID!
-  token: Token!
+  token: ERC20Token!
   amount: BigInt!
   sender: Bytes!
-  eventType: TokenEventType!
+  eventType: ERC20TokenEventType!
   block: BigInt!
   timestamp: BigInt!
   from: Bytes!
   to: Bytes!
 }
 
-type TokenApproval implements TokenEvent @entity {
+type ERC20TokenApproval implements ERC20TokenEvent @entity {
   id: ID!
-  token: Token!
+  token: ERC20Token!
   amount: BigInt!
   sender: Bytes!
-  eventType: TokenEventType!
+  eventType: ERC20TokenEventType!
   block: BigInt!
   timestamp: BigInt!
   owner: Bytes!
   spender: Bytes!
 }
 
-type TokenMint implements TokenEvent @entity {
+type ERC20TokenMint implements ERC20TokenEvent @entity {
   id: ID!
-  token: Token!
+  token: ERC20Token!
   amount: BigInt!
   sender: Bytes!
-  eventType: TokenEventType!
+  eventType: ERC20TokenEventType!
   block: BigInt!
   timestamp: BigInt!
   minter: Bytes!
   destination: Bytes!
 }
 
-type TokenBurn implements TokenEvent @entity {
+type ERC20TokenBurn implements ERC20TokenEvent @entity {
   id: ID!
-  token: Token!
+  token: ERC20Token!
   amount: BigInt!
   sender: Bytes!
-  eventType: TokenEventType!
+  eventType: ERC20TokenEventType!
   block: BigInt!
   timestamp: BigInt!
   burner: Bytes!
 }
 
-# Account
+enum AmmTokenEventType {
+  LpTokenMint
+  LpTokenBurn
+  BTokenBought
+  BTokenSold
+  WTokenSold
+}
 
-#
-# Provides information about an Ethereum account
-#
-type Account @entity {
-  " Equals to: <accountAddress>"
+interface AmmTokenEvent {
   id: ID!
+  account: Account!
+  collateralAmount: BigInt!
+  tokenAmount: BigInt!
+  #eventType is an array so we can select the types of events we want using the syntax ```eventType_not_contains: []```in graphql
+  #There is currently not an easy implementation to select based on multiple enums unless we put them in an array and select what the array does not contain
+  eventType: [AmmTokenEventType]!
+  amm: Amm!
+  block: BigInt!
+  timestamp: BigInt!
+  poolValueSnapshot: PoolValueSnapshot!
+}
 
-  " Account address "
-  address: Bytes!
-
-  " Token balances that this account holds "
-  balances: [AccountBalance!]! @derivedFrom(field: "account")
+type LpTokenMinted implements AmmTokenEvent @entity {
+  id: ID!
+  account: Account!
+  collateralAmount: BigInt!
+  tokenAmount: BigInt!
+  eventType: [AmmTokenEventType]!
+  amm: Amm!
+  block: BigInt!
+  timestamp: BigInt!
+  poolValueSnapshot: PoolValueSnapshot!
+}
+type LpTokenBurned implements AmmTokenEvent @entity {
+  id: ID!
+  account: Account!
+  collateralAmount: BigInt!
+  tokenAmount: BigInt!
+  eventType: [AmmTokenEventType]!
+  amm: Amm!
+  block: BigInt!
+  timestamp: BigInt!
+  poolValueSnapshot: PoolValueSnapshot!
+}
+type BTokenBought implements AmmTokenEvent @entity {
+  id: ID!
+  account: Account!
+  collateralAmount: BigInt!
+  tokenAmount: BigInt!
+  eventType: [AmmTokenEventType]!
+  amm: Amm!
+  block: BigInt!
+  timestamp: BigInt!
+  poolValueSnapshot: PoolValueSnapshot!
+}
+type BTokenSold implements AmmTokenEvent @entity {
+  id: ID!
+  account: Account!
+  collateralAmount: BigInt!
+  tokenAmount: BigInt!
+  eventType: [AmmTokenEventType]!
+  amm: Amm!
+  block: BigInt!
+  timestamp: BigInt!
+  poolValueSnapshot: PoolValueSnapshot!
+}
+type WTokenSold implements AmmTokenEvent @entity {
+  id: ID!
+  account: Account!
+  collateralAmount: BigInt!
+  tokenAmount: BigInt!
+  eventType: [AmmTokenEventType]!
+  amm: Amm!
+  block: BigInt!
+  timestamp: BigInt!
+  poolValueSnapshot: PoolValueSnapshot!
 }
 
 #
-# Current token balance of a particular Ethereum account
+# Current token balance of a particular Ethereum ERC20 account
 #
-type AccountBalance @entity {
-  " Equals to: <accountAddress>-<tokenAddress>"
+type ERC20AccountBalance @entity {
+  " Equals to: <account address>-<tokenAddress>"
   id: ID!
 
   " Account address "
   account: Account!
 
-  " Token address "
-  token: Token!
+  " ERC20Token address "
+  token: ERC20Token!
 
   " Current account balance "
   amount: BigInt!
@@ -276,24 +569,24 @@ type AccountBalance @entity {
 }
 
 #
-# Token balance of a particular Ethereum account in a certain timestamp. This entity is used to
+# ERC20Token balance of a particular Ethereum ERC20 account in a certain timestamp. This entity is used to
 # provide information about evolution of account balances
 #
-type AccountBalanceSnapshot @entity {
-  " Equals to: <accountAddress>-<tokenAddress>-<timestamp>"
+type ERC20AccountBalanceSnapshot @entity {
+  " Equals to: <account address>-<tokenAddress>-<timestamp>"
   id: ID!
 
   " Account address "
   account: Account!
 
-  " Token addess "
-  token: Token!
+  " ERC20Token address "
+  token: ERC20Token!
 
   " Account balance "
   amount: BigInt!
 
   # TODO: Add description and check if could be non-optional
-  event: TokenEvent
+  event: ERC20TokenEvent
 
   " Block number "
   block: BigInt!
@@ -303,4 +596,83 @@ type AccountBalanceSnapshot @entity {
 
   " Transaction hash "
   transaction: Bytes!
+}
+
+type SettlementPrice @entity {
+  " Equals to: <priceOracleAddress>-<underlyingToken>-<priceToken>-<settlementDate>"
+  id: ID!
+
+  "The address of the Siren Price Oracle"
+  priceOracleAddress: Bytes!
+
+  createdBlock: BigInt!
+  createdTimestamp: BigInt!
+  createdTransaction: Bytes!
+
+  "Address of the price's underlyingToken"
+  underlyingToken: Bytes!
+
+  "Address of the price's priceToken"
+  priceToken: Bytes!
+
+  "Solidity date when the price was set"
+  settlementDate: BigInt!
+
+  "The price, using 8 decimals"
+  price: BigInt!
+}
+
+type OracleSetting @entity {
+  "Equals to: <priceOracleAddress>-<underlyingToken>-<priceToken>"
+  id: ID!
+
+  "The address of the Siren Price Oracle"
+  priceOracleAddress: Bytes!
+
+  createdBlock: BigInt!
+  createdTimestamp: BigInt!
+  createdTransaction: Bytes!
+
+  "The underlyingToken address used to look up with oracle"
+  underlyingToken: Bytes!
+
+  "The priceToken address used to look up with oracle"
+  priceToken: Bytes!
+
+  "Address of the underlying oracle used to fetch prices"
+  oracle: Bytes!
+
+  "The block time of the earliest settlement date which has a price set on it"
+  earliestSettlementDate: BigInt!
+}
+
+## SeriesVault
+
+type SeriesVault @entity {
+  id: ID!
+
+  createdBlock: BigInt!
+  createdTimestamp: BigInt!
+  createdTransaction: Bytes!
+
+  "Address of the SeriesController this SeriesVault stores tokens for"
+  controller: Bytes!
+
+  # TODO: add a "balances" field similar to the same field in Account
+}
+
+## ERC1155Controller
+
+type ERC1155Controller @entity {
+  id: ID!
+
+  createdBlock: BigInt!
+  createdTimestamp: BigInt!
+  createdTransaction: Bytes!
+
+  "ERC1155 URI"
+  uri: String!
+
+  "Address of the SeriesController this ERC1155Controller is paired this"
+  controller: Bytes!
 }
