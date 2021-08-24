@@ -225,16 +225,15 @@ contract MinterAmm is
         lpToken = ISimpleToken(address(lpTokenProxy));
 
         // AMM name will be <underlying>-<price>-<collateral>, e.g. WBTC-USDC-WBTC for a WBTC Call AMM
-        string memory ammName =
-            string(
-                abi.encodePacked(
-                    IERC20Lib(address(underlyingToken)).symbol(),
-                    "-",
-                    IERC20Lib(address(priceToken)).symbol(),
-                    "-",
-                    IERC20Lib(address(collateralToken)).symbol()
-                )
-            );
+        string memory ammName = string(
+            abi.encodePacked(
+                IERC20Lib(address(underlyingToken)).symbol(),
+                "-",
+                IERC20Lib(address(priceToken)).symbol(),
+                "-",
+                IERC20Lib(address(collateralToken)).symbol()
+            )
+        );
         string memory lpTokenName = string(abi.encodePacked("LP-", ammName));
         lpToken.initialize(
             lpTokenName,
@@ -315,12 +314,11 @@ contract MinterAmm is
         uint256 poolValue = getTotalPoolValue(false);
 
         // Mint LP tokens - the percentage added to bTokens should be same as lp tokens added
-        uint256 lpTokenExistingSupply =
-            IERC20Lib(address(lpToken)).totalSupply();
+        uint256 lpTokenExistingSupply = IERC20Lib(address(lpToken))
+            .totalSupply();
 
-        uint256 lpTokensNewSupply =
-            (poolValue * lpTokenExistingSupply) /
-                (poolValue - collateralAmount);
+        uint256 lpTokensNewSupply = (poolValue * lpTokenExistingSupply) /
+            (poolValue - collateralAmount);
         uint256 lpTokensToMint = lpTokensNewSupply - lpTokenExistingSupply;
         require(lpTokensToMint >= lpTokenMinimum, "Slippage exceeded");
         lpToken.mint(msg.sender, lpTokensToMint);
@@ -340,8 +338,9 @@ contract MinterAmm is
     ) public {
         require(!sellTokens || collateralMinimum > 0, "E12");
         // First get starting numbers
-        uint256 redeemerCollateralBalance =
-            collateralToken.balanceOf(msg.sender);
+        uint256 redeemerCollateralBalance = collateralToken.balanceOf(
+            msg.sender
+        );
 
         // Get the lpToken supply
         uint256 lpTokenSupply = IERC20Lib(address(lpToken)).totalSupply();
@@ -352,16 +351,16 @@ contract MinterAmm is
         // Claim all expired wTokens
         claimAllExpiredTokens();
 
-        uint256 collateralTokenBalance =
-            collateralToken.balanceOf(address(this));
+        uint256 collateralTokenBalance = collateralToken.balanceOf(
+            address(this)
+        );
 
         // Withdraw pro-rata collateral token
         // We withdraw this collateral here instead of at the end,
         // because when we sell the residual tokens to the pool we want
         // to exclude the withdrawn collateral
-        uint256 ammCollateralBalance =
-            collateralTokenBalance -
-                ((collateralTokenBalance * lpTokenAmount) / lpTokenSupply);
+        uint256 ammCollateralBalance = collateralTokenBalance -
+            ((collateralTokenBalance * lpTokenAmount) / lpTokenSupply);
 
         // Sell pro-rata active tokens or withdraw if no collateral left
         ammCollateralBalance = _sellOrWithdrawActiveTokens(
@@ -378,8 +377,8 @@ contract MinterAmm is
             collateralTokenBalance - ammCollateralBalance
         );
 
-        uint256 collateralTokenSent =
-            collateralToken.balanceOf(msg.sender) - redeemerCollateralBalance;
+        uint256 collateralTokenSent = collateralToken.balanceOf(msg.sender) -
+            redeemerCollateralBalance;
 
         require(
             !sellTokens || collateralTokenSent >= collateralMinimum,
@@ -422,14 +421,18 @@ contract MinterAmm is
         uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
         uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
 
-        uint256 bTokenBalance =
-            erc1155Controller.balanceOf(address(this), bTokenIndex);
+        uint256 bTokenBalance = erc1155Controller.balanceOf(
+            address(this),
+            bTokenIndex
+        );
         if (bTokenBalance > 0) {
             seriesController.exerciseOption(seriesId, bTokenBalance, false);
         }
 
-        uint256 wTokenBalance =
-            erc1155Controller.balanceOf(address(this), wTokenIndex);
+        uint256 wTokenBalance = erc1155Controller.balanceOf(
+            address(this),
+            wTokenIndex
+        );
         if (wTokenBalance > 0) {
             seriesController.claimCollateral(seriesId, wTokenBalance);
         }
@@ -461,12 +464,14 @@ contract MinterAmm is
                 uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
                 uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
 
-                uint256 bTokenToSell =
-                    (erc1155Controller.balanceOf(address(this), bTokenIndex) *
-                        lpTokenAmount) / lpTokenSupply;
-                uint256 wTokenToSell =
-                    (erc1155Controller.balanceOf(address(this), wTokenIndex) *
-                        lpTokenAmount) / lpTokenSupply;
+                uint256 bTokenToSell = (erc1155Controller.balanceOf(
+                    address(this),
+                    bTokenIndex
+                ) * lpTokenAmount) / lpTokenSupply;
+                uint256 wTokenToSell = (erc1155Controller.balanceOf(
+                    address(this),
+                    wTokenIndex
+                ) * lpTokenAmount) / lpTokenSupply;
                 if (!sellTokens || lpTokenAmount == lpTokenSupply) {
                     // Full LP token withdrawal for the last LP in the pool
                     // or if auto-sale is disabled
@@ -496,8 +501,7 @@ contract MinterAmm is
                     // AMM's collateral balance will be after executing this
                     // transaction (see MinterAmm.withdrawCapital to see where
                     // _sellOrWithdrawActiveTokens gets called)
-                    uint256 collateralAmountB =
-                        optionTokenGetCollateralOutInternal(
+                    uint256 collateralAmountB = optionTokenGetCollateralOutInternal(
                             seriesId,
                             bTokenToSell,
                             collateralLeft,
@@ -511,8 +515,7 @@ contract MinterAmm is
                     // happens, this transaction will revert with a
                     // "revert" error message
                     collateralLeft -= collateralAmountB;
-                    uint256 collateralAmountW =
-                        optionTokenGetCollateralOutInternal(
+                    uint256 collateralAmountW = optionTokenGetCollateralOutInternal(
                             seriesId,
                             wTokenToSell,
                             collateralLeft,
@@ -545,29 +548,36 @@ contract MinterAmm is
         uint256 expiredTokensValue = 0;
         for (uint256 i = 0; i < openSeries.length(); i++) {
             uint64 seriesId = uint64(openSeries.at(i));
-            ISeriesController.Series memory series =
-                seriesController.series(seriesId);
+            ISeriesController.Series memory series = seriesController.series(
+                seriesId
+            );
 
             uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
             uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
 
-            uint256 bTokenBalance =
-                erc1155Controller.balanceOf(address(this), bTokenIndex);
-            uint256 wTokenBalance =
-                erc1155Controller.balanceOf(address(this), wTokenIndex);
+            uint256 bTokenBalance = erc1155Controller.balanceOf(
+                address(this),
+                bTokenIndex
+            );
+            uint256 wTokenBalance = erc1155Controller.balanceOf(
+                address(this),
+                wTokenIndex
+            );
 
             if (
                 seriesController.state(seriesId) ==
                 ISeriesController.SeriesState.OPEN
             ) {
                 // value all active bTokens and wTokens at current prices
-                uint256 bPrice =
-                    getPriceForSeriesInternal(series, underlyingPrice);
+                uint256 bPrice = getPriceForSeriesInternal(
+                    series,
+                    underlyingPrice
+                );
                 // wPrice = 1 - bPrice
                 uint256 wPrice = uint256(1e18) - bPrice;
 
-                uint256 tokensValueCollateral =
-                    seriesController.getCollateralPerOptionToken(
+                uint256 tokensValueCollateral = seriesController
+                    .getCollateralPerOptionToken(
                         seriesId,
                         (bTokenBalance * bPrice + wTokenBalance * wPrice) / 1e18
                     );
@@ -648,13 +658,18 @@ contract MinterAmm is
         uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
 
         // Get residual balances
-        uint256 bTokenBalance =
-            erc1155Controller.balanceOf(address(this), bTokenIndex);
-        uint256 wTokenBalance =
-            erc1155Controller.balanceOf(address(this), wTokenIndex);
+        uint256 bTokenBalance = erc1155Controller.balanceOf(
+            address(this),
+            bTokenIndex
+        );
+        uint256 wTokenBalance = erc1155Controller.balanceOf(
+            address(this),
+            wTokenIndex
+        );
 
-        ISeriesController.Series memory series =
-            seriesController.series(seriesId);
+        ISeriesController.Series memory series = seriesController.series(
+            seriesId
+        );
 
         // For put convert token balances into collateral locked in them
         if (series.isPutOption) {
@@ -672,8 +687,10 @@ contract MinterAmm is
         uint256 bTokenBalanceMax = bTokenBalance + collateralTokenBalance;
         uint256 wTokenBalanceMax = wTokenBalance + collateralTokenBalance;
 
-        uint256 bTokenPrice =
-            getPriceForSeriesInternal(series, getCurrentUnderlyingPrice());
+        uint256 bTokenPrice = getPriceForSeriesInternal(
+            series,
+            getCurrentUnderlyingPrice()
+        );
         uint256 wTokenPrice = uint256(1e18) - bTokenPrice;
 
         // Balance on higher reserve side is the sum of what can be minted (collateralTokenBalance)
@@ -809,6 +826,12 @@ contract MinterAmm is
                 strike;
         }
 
+        // Verify that 100% is the max that can be returned.
+        // A super deep In The Money option could return a higher value than 100% using the approximation formula
+        if (intrinsic + timeValue > 1e18) {
+            return 1e18;
+        }
+
         return intrinsic + timeValue;
     }
 
@@ -828,8 +851,10 @@ contract MinterAmm is
             "Series has expired"
         );
 
-        uint256 collateralAmount =
-            bTokenGetCollateralIn(seriesId, bTokenAmount);
+        uint256 collateralAmount = bTokenGetCollateralIn(
+            seriesId,
+            bTokenAmount
+        );
         require(collateralAmount <= collateralMaximum, "Slippage exceeded");
 
         // Move collateral into this contract
@@ -841,15 +866,14 @@ contract MinterAmm is
 
         // Mint new options only as needed
         uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-        uint256 bTokenBalance =
-            erc1155Controller.balanceOf(address(this), bTokenIndex);
+        uint256 bTokenBalance = erc1155Controller.balanceOf(
+            address(this),
+            bTokenIndex
+        );
         if (bTokenBalance < bTokenAmount) {
             // Approve the collateral to mint bTokenAmount of new options
-            uint256 bTokenCollateralAmount =
-                seriesController.getCollateralPerOptionToken(
-                    seriesId,
-                    bTokenAmount
-                );
+            uint256 bTokenCollateralAmount = seriesController
+                .getCollateralPerOptionToken(seriesId, bTokenAmount);
 
             collateralToken.approve(
                 address(seriesController),
@@ -903,8 +927,10 @@ contract MinterAmm is
             "Series has expired"
         );
 
-        uint256 collateralAmount =
-            bTokenGetCollateralOut(seriesId, bTokenAmount);
+        uint256 collateralAmount = bTokenGetCollateralOut(
+            seriesId,
+            bTokenAmount
+        );
         require(collateralAmount >= collateralMinimum, "Slippage exceeded");
 
         uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
@@ -921,10 +947,14 @@ contract MinterAmm is
         );
 
         // Always be closing!
-        uint256 bTokenBalance =
-            erc1155Controller.balanceOf(address(this), bTokenIndex);
-        uint256 wTokenBalance =
-            erc1155Controller.balanceOf(address(this), wTokenIndex);
+        uint256 bTokenBalance = erc1155Controller.balanceOf(
+            address(this),
+            bTokenIndex
+        );
+        uint256 wTokenBalance = erc1155Controller.balanceOf(
+            address(this),
+            wTokenIndex
+        );
         uint256 closeAmount = Math.min(bTokenBalance, wTokenBalance);
 
         // at this point we know it's worth calling closePosition because
@@ -964,8 +994,9 @@ contract MinterAmm is
         );
 
         // For both puts and calls balances are expressed in collateral token
-        (uint256 bTokenBalance, uint256 wTokenBalance) =
-            getVirtualReserves(seriesId);
+        (uint256 bTokenBalance, uint256 wTokenBalance) = getVirtualReserves(
+            seriesId
+        );
 
         uint256 sumBalance = bTokenBalance + wTokenBalance;
         uint256 toSquare;
@@ -1023,8 +1054,10 @@ contract MinterAmm is
         );
 
         // Get initial stats
-        uint256 collateralAmount =
-            wTokenGetCollateralOut(seriesId, wTokenAmount);
+        uint256 collateralAmount = wTokenGetCollateralOut(
+            seriesId,
+            wTokenAmount
+        );
         require(collateralAmount >= collateralMinimum, "Slippage exceeded");
 
         uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
@@ -1041,10 +1074,14 @@ contract MinterAmm is
         );
 
         // Always be closing!
-        uint256 bTokenBalance =
-            erc1155Controller.balanceOf(address(this), bTokenIndex);
-        uint256 wTokenBalance =
-            erc1155Controller.balanceOf(address(this), wTokenIndex);
+        uint256 bTokenBalance = erc1155Controller.balanceOf(
+            address(this),
+            bTokenIndex
+        );
+        uint256 wTokenBalance = erc1155Controller.balanceOf(
+            address(this),
+            wTokenIndex
+        );
         uint256 closeAmount = Math.min(bTokenBalance, wTokenBalance);
         if (closeAmount > 0) {
             seriesController.closePosition(seriesId, closeAmount);
@@ -1097,8 +1134,10 @@ contract MinterAmm is
             optionTokenAmount
         );
 
-        (uint256 bTokenBalance, uint256 wTokenBalance) =
-            getVirtualReservesInternal(seriesId, _collateralTokenBalance);
+        (
+            uint256 bTokenBalance,
+            uint256 wTokenBalance
+        ) = getVirtualReservesInternal(seriesId, _collateralTokenBalance);
 
         uint256 balanceFactor;
         if (isBToken) {
@@ -1107,11 +1146,10 @@ contract MinterAmm is
             balanceFactor = bTokenBalance;
         }
         uint256 toSquare = optionTokenAmount + wTokenBalance + bTokenBalance;
-        uint256 collateralAmount =
-            (toSquare -
-                Math.sqrt(
-                    (toSquare**2) - (4 * optionTokenAmount * balanceFactor)
-                )) / 2;
+        uint256 collateralAmount = (toSquare -
+            Math.sqrt(
+                (toSquare**2) - (4 * optionTokenAmount * balanceFactor)
+            )) / 2;
 
         return collateralAmount;
     }
@@ -1139,10 +1177,14 @@ contract MinterAmm is
                 uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
 
                 // Get the pool's option token balances
-                uint256 bTokenBalance =
-                    erc1155Controller.balanceOf(address(this), bTokenIndex);
-                uint256 wTokenBalance =
-                    erc1155Controller.balanceOf(address(this), wTokenIndex);
+                uint256 bTokenBalance = erc1155Controller.balanceOf(
+                    address(this),
+                    bTokenIndex
+                );
+                uint256 wTokenBalance = erc1155Controller.balanceOf(
+                    address(this),
+                    wTokenIndex
+                );
 
                 // calculate the amount of collateral The AMM would receive by
                 // redeeming this Series' bTokens and wTokens
@@ -1169,13 +1211,11 @@ contract MinterAmm is
         if (lpTokenSupply == 0) return 0;
 
         // Calculate the amount of collateral receivable by redeeming all the expired option tokens
-        uint256 expiredOptionTokenCollateral =
-            getCollateralValueOfAllExpiredOptionTokens();
+        uint256 expiredOptionTokenCollateral = getCollateralValueOfAllExpiredOptionTokens();
 
         // Calculate amount of collateral left in the pool to sell tokens to
-        uint256 totalCollateral =
-            expiredOptionTokenCollateral +
-                collateralToken.balanceOf(address(this));
+        uint256 totalCollateral = expiredOptionTokenCollateral +
+            collateralToken.balanceOf(address(this));
 
         // Subtract pro-rata collateral amount to be withdrawn
         totalCollateral =
@@ -1191,33 +1231,29 @@ contract MinterAmm is
                 seriesController.state(seriesId) ==
                 ISeriesController.SeriesState.OPEN
             ) {
-                uint256 bTokenToSell =
-                    (erc1155Controller.balanceOf(
-                        address(this),
-                        SeriesLibrary.bTokenIndex(seriesId)
-                    ) * lpTokenAmount) / lpTokenSupply;
-                uint256 wTokenToSell =
-                    (erc1155Controller.balanceOf(
-                        address(this),
-                        SeriesLibrary.wTokenIndex(seriesId)
-                    ) * lpTokenAmount) / lpTokenSupply;
+                uint256 bTokenToSell = (erc1155Controller.balanceOf(
+                    address(this),
+                    SeriesLibrary.bTokenIndex(seriesId)
+                ) * lpTokenAmount) / lpTokenSupply;
+                uint256 wTokenToSell = (erc1155Controller.balanceOf(
+                    address(this),
+                    SeriesLibrary.wTokenIndex(seriesId)
+                ) * lpTokenAmount) / lpTokenSupply;
 
-                uint256 collateralAmountB =
-                    optionTokenGetCollateralOutInternal(
-                        seriesId,
-                        bTokenToSell,
-                        collateralLeft,
-                        true
-                    );
+                uint256 collateralAmountB = optionTokenGetCollateralOutInternal(
+                    seriesId,
+                    bTokenToSell,
+                    collateralLeft,
+                    true
+                );
                 collateralLeft -= collateralAmountB;
 
-                uint256 collateralAmountW =
-                    optionTokenGetCollateralOutInternal(
-                        seriesId,
-                        wTokenToSell,
-                        collateralLeft,
-                        false
-                    );
+                uint256 collateralAmountW = optionTokenGetCollateralOutInternal(
+                    seriesId,
+                    wTokenToSell,
+                    collateralLeft,
+                    false
+                );
                 collateralLeft -= collateralAmountW;
             }
         }
@@ -1238,13 +1274,15 @@ contract MinterAmm is
     ) private view returns (uint256) {
         uint256 unredeemedCollateral = 0;
         if (wTokenBalance > 0) {
-            (uint256 unclaimedCollateral, ) =
-                seriesController.getClaimAmount(seriesId, wTokenBalance);
+            (uint256 unclaimedCollateral, ) = seriesController.getClaimAmount(
+                seriesId,
+                wTokenBalance
+            );
             unredeemedCollateral += unclaimedCollateral;
         }
         if (bTokenBalance > 0) {
-            (uint256 unexercisedCollateral, ) =
-                seriesController.getExerciseAmount(seriesId, bTokenBalance);
+            (uint256 unexercisedCollateral, ) = seriesController
+                .getExerciseAmount(seriesId, bTokenBalance);
             unredeemedCollateral += unexercisedCollateral;
         }
 
