@@ -485,14 +485,9 @@ export async function setupSingletonTestContracts(
 
   UniswapRouterPair = [tokenB.address, tokenA.address]
 
-  const sirenExchangeLogic = await SirenExchange.new(
+  deployedSirenExchange = await SirenExchange.new(
     uniswapV2Router.address,
     deployedERC1155Controller.address,
-  )
-
-  const deployedSirenExchangeProxy = await Proxy.new(sirenExchangeLogic.address)
-  deployedSirenExchange = await SirenExchange.at(
-    deployedSirenExchangeProxy.address,
   )
 
   return {
@@ -636,7 +631,7 @@ export async function setupAllTestContracts(
     expiration,
     erc1155URI,
     UniswapRouterPair,
-    pairAddress,
+    pairAddressUsed,
   } = await setupSingletonTestContracts({
     feeReceiver,
     closeFee,
@@ -705,6 +700,6 @@ export async function setupAllTestContracts(
     erc1155URI,
     restrictedMinters,
     UniswapRouterPair,
-    pairAddress,
+    pairAddressUsed,
   }
 }
