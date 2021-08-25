@@ -120,6 +120,19 @@ export async function deploySingletonContracts(
     ammFactory.address.toLowerCase(),
   )
 
+  const SirenExchange = await hre.ethers.getContractFactory("SirenExchange")
+
+  const sirenExchangeLogic = await SirenExchange.deploy(
+    "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
+    erc1155Controller.address,
+  )
+
+  await sirenExchangeLogic.deployed()
+  console.log(
+    "Logic SirenExchange deployed to:       ",
+    sirenExchangeLogic.address.toLowerCase(),
+  )
+
   // now that we've deployed, let's initialize them in the correct order
   await erc1155Controller.__ERC1155Controller_init(
     "https://erc1155.sirenmarkets.com/v2/{id}.json",

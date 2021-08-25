@@ -11,9 +11,19 @@ import {
   AmmFactoryContract,
   MinterAmmContract,
   ERC1155ControllerInstance,
+  SirenExchangeContract,
+  IUniswapV2Router02Contract,
 } from "../typechain"
-import { artifacts, assert } from "hardhat"
+import { artifacts, assert, ethers } from "hardhat"
 import { time, expectEvent, BN } from "@openzeppelin/test-helpers"
+
+import { BigNumber, bigNumberify } from "ethers/utils"
+
+import { Web3Provider } from "ethers/providers"
+
+import UniswapV2Factory from "@uniswap/v2-core/build/UniswapV2Factory.json"
+import UniswapV2Router from "@uniswap/v2-periphery/build/UniswapV2Router02.json"
+import IUniswapV2Pair from "@uniswap/v2-core/build/IUniswapV2Pair.json"
 
 // these are the deterministic accounts given to use by the Hardhat network. They are
 // deterministic because Hardhat always uses the account mnemonic:
@@ -23,21 +33,22 @@ const bobAccount = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
 
 const PriceOracle: PriceOracleContract = artifacts.require("PriceOracle")
 
-const SeriesController: SeriesControllerContract = artifacts.require(
-  "SeriesController",
-)
+const SeriesController: SeriesControllerContract =
+  artifacts.require("SeriesController")
 const SeriesVault: SeriesVaultContract = artifacts.require("SeriesVault")
-const ERC1155Controller: ERC1155ControllerContract = artifacts.require(
-  "ERC1155Controller",
-)
-const MockPriceOracle: MockPriceOracleContract = artifacts.require(
-  "MockPriceOracle",
-)
+const ERC1155Controller: ERC1155ControllerContract =
+  artifacts.require("ERC1155Controller")
+const MockPriceOracle: MockPriceOracleContract =
+  artifacts.require("MockPriceOracle")
+
 const Proxy: ProxyContract = artifacts.require("Proxy")
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
 
 const AmmFactory: AmmFactoryContract = artifacts.require("AmmFactory")
+const SirenExchange: SirenExchangeContract = artifacts.require("SirenExchange")
 const MinterAmm: MinterAmmContract = artifacts.require("MinterAmm")
+const iUniswapV2Router: IUniswapV2Router02Contract =
+  artifacts.require("IUniswapV2Router02")
 
 const FEE_RECEIVER_ADDRESS = "0x000000000000000000000000000000000000dEaD"
 const ONE_DAY_DURATION = 24 * 60 * 60
@@ -264,6 +275,16 @@ export async function setupSingletonTestContracts(
   const ammLogic = await MinterAmm.deployed()
   const erc20Logic = await SimpleToken.deployed()
 
+  // create mock uniswapRouter
+  // const deployedMockUniswapRouter01Contract = await MockUniswapRouter01Contract.new()
+
+  // const uniSwapFactoryAddress = "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"
+  // const uniSwapRouterAddress = deployedMockUniswapRouter01Contract.address
+
+  console.log(
+    "LSIDJFALKSDNFALSKDNFASLKDNFALSKDNFLASKNDFLASKDNFLAKSNDFLASKNDFLAKSndf",
+  )
+
   if (!underlyingToken) {
     underlyingToken = await SimpleToken.new()
     await underlyingToken.initialize("Wrapped BTC", "WBTC", 8)
@@ -329,17 +350,18 @@ export async function setupSingletonTestContracts(
     priceToken.address,
     deployedMockPriceOracle.address,
   )
-  const controllerInitResp = await deployedSeriesController.__SeriesController_init(
-    deployedPriceOracle.address,
-    deployedVault.address,
-    deployedERC1155Controller.address,
-    {
-      feeReceiver: feeReceiver,
-      exerciseFeeBasisPoints: exerciseFee,
-      closeFeeBasisPoints: closeFee,
-      claimFeeBasisPoints: claimFee,
-    },
-  )
+  const controllerInitResp =
+    await deployedSeriesController.__SeriesController_init(
+      deployedPriceOracle.address,
+      deployedVault.address,
+      deployedERC1155Controller.address,
+      {
+        feeReceiver: feeReceiver,
+        exerciseFeeBasisPoints: exerciseFee,
+        closeFeeBasisPoints: closeFee,
+        claimFeeBasisPoints: claimFee,
+      },
+    )
 
   expectEvent(controllerInitResp, "SeriesControllerInitialized", {
     priceOracle: deployedPriceOracle.address,
@@ -363,6 +385,116 @@ export async function setupSingletonTestContracts(
     deployedSeriesController.address,
   )
 
+  //Below we set up our factory/Router and tokens for uniswap
+  let deployedSirenExchange
+  let UniswapRouterPair
+
+  const SimpleTokenFactory = await ethers.getContractFactory("SimpleToken")
+
+  const tokenA = await SimpleTokenFactory.deploy()
+  await tokenA.deployed()
+  await (await tokenA.initialize("token A", "TKA", 8)).wait()
+  console.log(`deployed WBTC SimpleToken: ${tokenA.address.toLowerCase()}`)
+
+  const tokenB = await SimpleTokenFactory.deploy()
+  await tokenB.deployed()
+  await (await tokenB.initialize("token B", "TKB", 8)).wait()
+  console.log(`deployed WBTC SimpleToken: ${tokenB.address.toLowerCase()}`)
+
+  const weth = await SimpleTokenFactory.deploy()
+  await weth.deployed()
+  await (await weth.initialize("Wrapped ETH", "WETH", 18)).wait()
+  console.log(`deployed WETH SimpleToken: ${weth.address.toLowerCase()}`)
+
+  const WETHPartner = await SimpleTokenFactory.deploy()
+  await WETHPartner.deployed()
+  await (await WETHPartner.initialize("Wrapped ETHPatner", "WETHP", 18)).wait()
+  console.log(`deployed WETH SimpleToken: ${WETHPartner.address.toLowerCase()}`)
+
+  const [owner] = await ethers.getSigners()
+
+  await tokenA.mint(owner.address, 10000000000)
+  await tokenB.mint(owner.address, 10000000000)
+
+  await tokenA.mint(aliceAccount, 10000000)
+
+  const factory = await new ethers.ContractFactory(
+    UniswapV2Factory.abi,
+    UniswapV2Factory.bytecode,
+    owner,
+  )
+  const v2FActory = await factory.deploy(owner.address)
+
+  console.log(`deployed V2Factory: ${v2FActory.address.toLowerCase()}`)
+
+  const router = await new ethers.ContractFactory(
+    UniswapV2Router.abi,
+    UniswapV2Router.bytecode,
+    owner,
+  )
+  const uniswapV2Router = await router.deploy(v2FActory.address, weth.address)
+
+  console.log(
+    `deployed uniswapV2Router: ${uniswapV2Router.address.toLowerCase()}`,
+  )
+
+  await v2FActory.createPair(tokenA.address, tokenB.address)
+  const pairAddress = await v2FActory.getPair(tokenA.address, tokenB.address)
+
+  const pair = new ethers.Contract(
+    pairAddress,
+    JSON.stringify(IUniswapV2Pair.abi),
+    owner,
+  ).connect(owner)
+
+  const token0Address = await pair.token0()
+  const token0 = tokenA.address === token0Address ? tokenA : tokenB
+  const token1 = tokenA.address === token0Address ? tokenB : tokenA
+
+  await v2FActory.createPair(weth.address, WETHPartner.address)
+  const WETHPairAddress = await v2FActory.getPair(
+    weth.address,
+    WETHPartner.address,
+  )
+  const uniswapPair = new ethers.Contract(
+    WETHPairAddress,
+    JSON.stringify(IUniswapV2Pair.abi),
+    owner,
+  ).connect(owner)
+
+  const pairAddressUsed = pair.address
+
+  var minutesToAdd = 10
+  var currentDate = new Date()
+  let deadline = new Date(currentDate.getTime() + minutesToAdd * 60000)
+  await token0.approve(uniswapV2Router.address, 10000)
+  await token1.approve(uniswapV2Router.address, 10000)
+  console.log(owner.address)
+  await uniswapV2Router.addLiquidity(
+    token0.address,
+    token1.address,
+    10000,
+    10000,
+    0,
+    0,
+    owner.address,
+    deadline.getTime(),
+  )
+
+  console.log("WETH ADDRESS", weth.address)
+
+  UniswapRouterPair = [tokenB.address, tokenA.address]
+
+  const sirenExchangeLogic = await SirenExchange.new(
+    uniswapV2Router.address,
+    deployedERC1155Controller.address,
+  )
+
+  const deployedSirenExchangeProxy = await Proxy.new(sirenExchangeLogic.address)
+  deployedSirenExchange = await SirenExchange.at(
+    deployedSirenExchangeProxy.address,
+  )
+
   return {
     underlyingToken,
     collateralToken,
@@ -371,6 +503,7 @@ export async function setupSingletonTestContracts(
     deployedERC1155Controller,
     deployedSeriesController,
     deployedPriceOracle,
+    deployedSirenExchange,
     deployedMockPriceOracle,
     deployedAmmFactory,
     oraclePrice,
@@ -379,6 +512,8 @@ export async function setupSingletonTestContracts(
     closeFee,
     claimFee,
     erc1155URI,
+    UniswapRouterPair,
+    pairAddressUsed,
   }
 }
 
@@ -497,8 +632,11 @@ export async function setupAllTestContracts(
     deployedPriceOracle,
     deployedMockPriceOracle,
     deployedAmmFactory,
+    deployedSirenExchange,
     expiration,
     erc1155URI,
+    UniswapRouterPair,
+    pairAddress,
   } = await setupSingletonTestContracts({
     feeReceiver,
     closeFee,
@@ -554,6 +692,7 @@ export async function setupAllTestContracts(
     deployedPriceOracle,
     deployedMockPriceOracle,
     deployedAmmFactory,
+    deployedSirenExchange,
     deployedAmm,
     oraclePrice,
     expiration,
@@ -565,5 +704,7 @@ export async function setupAllTestContracts(
     claimFee,
     erc1155URI,
     restrictedMinters,
+    UniswapRouterPair,
+    pairAddress,
   }
 }
