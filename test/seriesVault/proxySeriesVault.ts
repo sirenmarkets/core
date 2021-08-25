@@ -13,10 +13,8 @@ contract("Proxy Vault Verification", (accounts) => {
   const aliceAccount = accounts[1]
 
   it("Cannot initialize twice", async () => {
-    const {
-      deployedSeriesController,
-      deployedVault,
-    } = await setupAllTestContracts()
+    const { deployedSeriesController, deployedVault } =
+      await setupAllTestContracts()
     await expectRevert(
       deployedVault.__SeriesVault_init(deployedSeriesController.address),
       "Initializable: contract is already initialized",
@@ -24,11 +22,8 @@ contract("Proxy Vault Verification", (accounts) => {
   })
 
   it("setERC20ApprovalForController should succeed and fail as expected", async () => {
-    const {
-      deployedSeriesController,
-      deployedVault,
-      collateralToken,
-    } = await setupAllTestContracts()
+    const { deployedSeriesController, deployedVault, collateralToken } =
+      await setupAllTestContracts()
 
     // should fail unless the vault's controller is the caller
     await expectRevert(

@@ -15,9 +15,8 @@ import {
   SimpleTokenInstance,
 } from "../../typechain"
 
-const SeriesController: SeriesControllerContract = artifacts.require(
-  "SeriesController",
-)
+const SeriesController: SeriesControllerContract =
+  artifacts.require("SeriesController")
 
 let deployedSeriesController: SeriesControllerInstance
 let deployedVault: SeriesVaultInstance

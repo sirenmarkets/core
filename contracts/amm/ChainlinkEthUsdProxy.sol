@@ -40,8 +40,9 @@ contract ChainlinkEthUsdProxy is AggregatorV3Interface {
             ethUsdOracle.decimals() + assetEthOracle.decimals() >= decimals,
             "Decimals is too large"
         );
-        uint8 netDecimals =
-            ethUsdOracle.decimals() + assetEthOracle.decimals() - decimals;
+        uint8 netDecimals = ethUsdOracle.decimals() +
+            assetEthOracle.decimals() -
+            decimals;
         require(netDecimals <= 36, "Combined decimals are too large");
         priceDivisor = int256(10)**netDecimals;
     }

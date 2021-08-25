@@ -220,8 +220,10 @@ contract SeriesController is
         (uint256 buyerShare, ) = getSettlementAmounts(_seriesId, _bTokenAmount);
 
         // Calculate the redeem Fee and move it if it is valid
-        uint256 feeAmount =
-            calculateFee(buyerShare, fees.exerciseFeeBasisPoints);
+        uint256 feeAmount = calculateFee(
+            buyerShare,
+            fees.exerciseFeeBasisPoints
+        );
         if (feeAmount > 0) {
             buyerShare -= feeAmount;
         }
@@ -248,8 +250,10 @@ contract SeriesController is
         override
         returns (uint256, uint256)
     {
-        (, uint256 writerShare) =
-            getSettlementAmounts(_seriesId, _wTokenAmount);
+        (, uint256 writerShare) = getSettlementAmounts(
+            _seriesId,
+            _wTokenAmount
+        );
 
         // Calculate the claim Fee and move it if it is valid
         uint256 feeAmount = calculateFee(writerShare, fees.claimFeeBasisPoints);
@@ -493,8 +497,9 @@ contract SeriesController is
     ) private view returns (string memory) {
         // convert the expirationDate from a uint256 to a string of the form 20210108 (<year><month><day>)
         // This logic is taken from bokkypoobah's BokkyPooBahsDateTimeLibrary, the timestampToDate function
-        (uint256 year, uint256 month, uint256 day) =
-            _timestampToDate(_expirationDate);
+        (uint256 year, uint256 month, uint256 day) = _timestampToDate(
+            _expirationDate
+        );
         return
             string(
                 abi.encodePacked(
@@ -903,16 +908,16 @@ contract SeriesController is
             data
         );
 
-        uint256 collateralAmount =
-            getCollateralPerOptionToken(_seriesId, _optionTokenAmount);
+        uint256 collateralAmount = getCollateralPerOptionToken(
+            _seriesId,
+            _optionTokenAmount
+        );
 
         // transfer this collateral to the vault for storage
         transferERC20In(msg.sender, _seriesId, collateralAmount);
 
-        uint256[] memory totalSupplies =
-            IERC1155Controller(erc1155Controller).optionTokenTotalSupplyBatch(
-                optionTokenIds
-            );
+        uint256[] memory totalSupplies = IERC1155Controller(erc1155Controller)
+            .optionTokenTotalSupplyBatch(optionTokenIds);
 
         // Tell any offchain listeners that we minted some tokens
         emit OptionMinted(
@@ -948,8 +953,10 @@ contract SeriesController is
         setSettlementPrice(_seriesId);
 
         // Buyer's share
-        (uint256 collateralAmount, uint256 feeAmount) =
-            getExerciseAmount(_seriesId, _bTokenAmount);
+        (uint256 collateralAmount, uint256 feeAmount) = getExerciseAmount(
+            _seriesId,
+            _bTokenAmount
+        );
 
         // Only ITM exercise results in payoff
         require(
@@ -988,10 +995,8 @@ contract SeriesController is
         uint256[] memory optionTokenIds = new uint256[](2);
         optionTokenIds[0] = SeriesLibrary.wTokenIndex(_seriesId);
         optionTokenIds[1] = SeriesLibrary.bTokenIndex(_seriesId);
-        uint256[] memory totalSupplies =
-            IERC1155Controller(erc1155Controller).optionTokenTotalSupplyBatch(
-                optionTokenIds
-            );
+        uint256[] memory totalSupplies = IERC1155Controller(erc1155Controller)
+            .optionTokenTotalSupplyBatch(optionTokenIds);
 
         // Emit the Redeem Event
         emit OptionExercised(
@@ -1025,8 +1030,10 @@ contract SeriesController is
         setSettlementPrice(_seriesId);
 
         // Total collateral owed to wToken holder
-        (uint256 collateralAmount, uint256 feeAmount) =
-            getClaimAmount(_seriesId, _wTokenAmount);
+        (uint256 collateralAmount, uint256 feeAmount) = getClaimAmount(
+            _seriesId,
+            _wTokenAmount
+        );
 
         Series memory series = allSeries[_seriesId];
 
@@ -1055,10 +1062,8 @@ contract SeriesController is
         uint256[] memory optionTokenIds = new uint256[](2);
         optionTokenIds[0] = SeriesLibrary.wTokenIndex(_seriesId);
         optionTokenIds[1] = SeriesLibrary.bTokenIndex(_seriesId);
-        uint256[] memory totalSupplies =
-            IERC1155Controller(erc1155Controller).optionTokenTotalSupplyBatch(
-                optionTokenIds
-            );
+        uint256[] memory totalSupplies = IERC1155Controller(erc1155Controller)
+            .optionTokenTotalSupplyBatch(optionTokenIds);
 
         // Emit event
         emit CollateralClaimed(
@@ -1103,12 +1108,16 @@ contract SeriesController is
             optionTokenAmounts
         );
 
-        uint256 collateralAmount =
-            getCollateralPerOptionToken(_seriesId, _optionTokenAmount);
+        uint256 collateralAmount = getCollateralPerOptionToken(
+            _seriesId,
+            _optionTokenAmount
+        );
 
         // Calculate the claim Fee and move it if it is valid
-        uint256 feeAmount =
-            calculateFee(collateralAmount, fees.closeFeeBasisPoints);
+        uint256 feeAmount = calculateFee(
+            collateralAmount,
+            fees.closeFeeBasisPoints
+        );
         if (feeAmount > 0) {
             // First set the collateral amount that will be left over to send out
             collateralAmount -= feeAmount;
@@ -1130,10 +1139,8 @@ contract SeriesController is
         transferERC20Out(_seriesId, redeemer, collateralAmount);
 
         // get the option token total supplies for the event
-        uint256[] memory totalSupplies =
-            IERC1155Controller(erc1155Controller).optionTokenTotalSupplyBatch(
-                optionTokenIds
-            );
+        uint256[] memory totalSupplies = IERC1155Controller(erc1155Controller)
+            .optionTokenTotalSupplyBatch(optionTokenIds);
 
         // Emit the Closed Event
         emit OptionClosed(

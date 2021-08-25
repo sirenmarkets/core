@@ -9,9 +9,8 @@ import {
 
 import { assertBNEq } from "../util"
 
-const MockPriceOracle: MockPriceOracleContract = artifacts.require(
-  "MockPriceOracle",
-)
+const MockPriceOracle: MockPriceOracleContract =
+  artifacts.require("MockPriceOracle")
 const ChainlinkEthUsdProxy: ChainlinkEthUsdProxyContract = artifacts.require(
   "ChainlinkEthUsdProxy",
 )
@@ -28,11 +27,12 @@ contract("Chainlink ETH/USD Proxy", () => {
     let sushiEthOracle: MockPriceOracleInstance = await MockPriceOracle.new(18)
     await sushiEthOracle.setLatestAnswer("9395798375082420")
 
-    let sushiUsdOracle: ChainlinkEthUsdProxyInstance = await ChainlinkEthUsdProxy.new(
-      ethUsdOracle.address,
-      sushiEthOracle.address,
-      8,
-    )
+    let sushiUsdOracle: ChainlinkEthUsdProxyInstance =
+      await ChainlinkEthUsdProxy.new(
+        ethUsdOracle.address,
+        sushiEthOracle.address,
+        8,
+      )
     let latestRoundData = await sushiUsdOracle.latestRoundData()
     assertBNEq(
       latestRoundData[1],

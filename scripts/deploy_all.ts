@@ -57,11 +57,8 @@ if (IS_PUT_OPTION_ARG == "true") {
 }
 
 async function main() {
-  const {
-    seriesController,
-    priceOracle,
-    ammFactory,
-  } = await deploySingletonContracts(FEE_RECEIVER, ADMIN_ADDRESS)
+  const { seriesController, priceOracle, ammFactory } =
+    await deploySingletonContracts(FEE_RECEIVER, ADMIN_ADDRESS)
 
   const { wbtc, usdc } = await deployERC20s()
 

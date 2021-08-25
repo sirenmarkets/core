@@ -160,14 +160,13 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
         );
 
         // Verify a amm with this name does not exist
-        bytes32 assetPair =
-            keccak256(
-                abi.encode(
-                    address(_underlyingToken),
-                    address(_priceToken),
-                    address(_collateralToken)
-                )
-            );
+        bytes32 assetPair = keccak256(
+            abi.encode(
+                address(_underlyingToken),
+                address(_priceToken),
+                address(_collateralToken)
+            )
+        );
 
         require(amms[assetPair] == address(0x0), "AMM name already registered");
 

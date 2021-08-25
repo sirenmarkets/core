@@ -257,10 +257,11 @@ contract("AMM Put Verification", (accounts) => {
 
     const capitalAmount = 10_000
     // 10_000 * 150
-    const capitalCollateral = await deployedSeriesController.getCollateralPerOptionToken(
-      seriesId,
-      capitalAmount,
-    )
+    const capitalCollateral =
+      await deployedSeriesController.getCollateralPerOptionToken(
+        seriesId,
+        capitalAmount,
+      )
 
     console.log(`capitalCollateral: ${capitalCollateral}`)
 
@@ -289,10 +290,11 @@ contract("AMM Put Verification", (accounts) => {
     const lpToken = await SimpleToken.at(await deployedAmm.lpToken())
 
     const aliceAmount = 1_000
-    const aliceCollateral = await deployedSeriesController.getCollateralPerOptionToken(
-      seriesId,
-      aliceAmount,
-    )
+    const aliceCollateral =
+      await deployedSeriesController.getCollateralPerOptionToken(
+        seriesId,
+        aliceAmount,
+      )
 
     // Now let's do some trading from another account
     await collateralToken.mint(aliceAccount, aliceCollateral)
@@ -329,10 +331,11 @@ contract("AMM Put Verification", (accounts) => {
     const bTokenPaymentAmount = aliceCollateral.toNumber() - 91217
 
     // 3000 * 150
-    const bTokenBuyCollateral = await deployedSeriesController.getCollateralPerOptionToken(
-      seriesId,
-      bTokenBuyAmount,
-    )
+    const bTokenBuyCollateral =
+      await deployedSeriesController.getCollateralPerOptionToken(
+        seriesId,
+        bTokenBuyAmount,
+      )
     let ammCollateralAmount =
       capitalCollateral.toNumber() -
       bTokenBuyCollateral.toNumber() +
@@ -368,10 +371,11 @@ contract("AMM Put Verification", (accounts) => {
     // If another user deposits another 1000 * 150 collateral, it should increase pool value
     // by ~9.9% and mint correct amount of LP tokens
     const bobAmount = 1_000
-    const bobCollateral = await deployedSeriesController.getCollateralPerOptionToken(
-      seriesId,
-      bobAmount,
-    ) // 150_000
+    const bobCollateral =
+      await deployedSeriesController.getCollateralPerOptionToken(
+        seriesId,
+        bobAmount,
+      ) // 150_000
     await collateralToken.mint(bobAccount, bobCollateral)
     await collateralToken.approve(deployedAmm.address, bobCollateral, {
       from: bobAccount,
@@ -496,7 +500,8 @@ contract("AMM Put Verification", (accounts) => {
       "Initial pool value should be 0",
     )
 
-    const unredeemedCollateral = await deployedAmm.getCollateralValueOfAllExpiredOptionTokens()
+    const unredeemedCollateral =
+      await deployedAmm.getCollateralValueOfAllExpiredOptionTokens()
     assertBNEq(
       unredeemedCollateral,
       0,

@@ -231,9 +231,11 @@ contract("Series Fees", (accounts) => {
     )
 
     // should get the same option token total supplies, but fetching in batch
-    const totalSupplies = await deployedERC1155Controller.optionTokenTotalSupplyBatch(
-      [bTokenIndex, wTokenIndex],
-    )
+    const totalSupplies =
+      await deployedERC1155Controller.optionTokenTotalSupplyBatch([
+        bTokenIndex,
+        wTokenIndex,
+      ])
     assert.equal(totalSupplies[0].toNumber(), MINT_AMOUNT / 2)
     assert.equal(totalSupplies[1].toNumber(), 0)
   })
