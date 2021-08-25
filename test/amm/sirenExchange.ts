@@ -12,9 +12,7 @@ import {
   IUniswapV2Router02Instance,
 } from "../../typechain"
 
-const SimpleToken: SimpleTokenContract = artifacts.require(
-  "SimpleTokenContract",
-)
+const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
 
 import { setupAllTestContracts, assertBNEq, ONE_WEEK_DURATION } from "../util"
 
@@ -66,7 +64,9 @@ contract("Siren Exchange Verification", (accounts) => {
 
     const tokenA = UniswapRouterPair[0]
     const erc20A = await SimpleToken.at(tokenA)
-    await erc20A.approve(deployedSirenExchange.address, tokenAmountInMaximum)
+    await erc20A.approve(deployedSirenExchange.address, tokenAmountInMaximum, {
+      from: aliceAccount,
+    })
     // assertBNEq(
     try {
       let maxCollateral = await deployedSirenExchange.bTokenBuy(
