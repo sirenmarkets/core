@@ -359,9 +359,11 @@ contract("Cash Settlement", (accounts) => {
       0,
       "all wTokens should be burned",
     )
-    const totalSupplies = await deployedERC1155Controller.optionTokenTotalSupplyBatch(
-      [bTokenIndex, wTokenIndex],
-    )
+    const totalSupplies =
+      await deployedERC1155Controller.optionTokenTotalSupplyBatch([
+        bTokenIndex,
+        wTokenIndex,
+      ])
     assert.equal(totalSupplies[0].toNumber(), 0)
     assert.equal(totalSupplies[1].toNumber(), 0)
 

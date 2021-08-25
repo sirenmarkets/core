@@ -17,9 +17,8 @@ import {
   MockPriceOracleInstance,
 } from "../../typechain"
 
-const MockPriceOracle: MockPriceOracleContract = artifacts.require(
-  "MockPriceOracle",
-)
+const MockPriceOracle: MockPriceOracleContract =
+  artifacts.require("MockPriceOracle")
 const Proxy: ProxyContract = artifacts.require("Proxy")
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
 const PriceOracle: PriceOracleContract = artifacts.require("PriceOracle")

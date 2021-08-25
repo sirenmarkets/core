@@ -81,8 +81,9 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
         // settlement dates that have not yet had their price set to that spot price
         uint256 spotPrice = getCurrentPrice(underlyingToken, priceToken);
         uint256 priorAligned8am = get8amWeeklyOrDailyAligned(block.timestamp);
-        uint256 currentSettlementPrice =
-            settlementPrices[underlyingToken][priceToken][priorAligned8am];
+        uint256 currentSettlementPrice = settlementPrices[underlyingToken][
+            priceToken
+        ][priorAligned8am];
 
         // keep going back 1 dateOffset until we reach a settlement date that has already been set by a previous
         // call to PriceOracle.setSettlementPrice
@@ -125,8 +126,9 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
             "no oracle address for this token pair"
         );
 
-        uint256 settlementPrice =
-            settlementPrices[underlyingToken][priceToken][settlementDate];
+        uint256 settlementPrice = settlementPrices[underlyingToken][priceToken][
+            settlementDate
+        ];
 
         return (settlementPrice != 0, settlementPrice);
     }
@@ -200,9 +202,9 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
             "no oracle address for this token pair"
         );
 
-        (, int256 latestAnswer, , , ) =
-            AggregatorV3Interface(oracles[underlyingToken][priceToken])
-                .latestRoundData();
+        (, int256 latestAnswer, , , ) = AggregatorV3Interface(
+            oracles[underlyingToken][priceToken]
+        ).latestRoundData();
         require(latestAnswer >= 0, "invalid value received from price oracle");
 
         return uint256(latestAnswer);
@@ -231,8 +233,9 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
         // non-zero price. If we do not add set this price, then the first call to PriceOracle.setSettlementDate the first
         // is guaranteed to run out of gas because there will never be a non-zero price value. We choose the most recent
         // aligned date because it will result in the least gas used by PriceOracle.setSettlementDate
-        uint256 earliestSettlementDate =
-            get8amWeeklyOrDailyAligned(block.timestamp);
+        uint256 earliestSettlementDate = get8amWeeklyOrDailyAligned(
+            block.timestamp
+        );
         settlementPrices[underlyingToken][priceToken][
             earliestSettlementDate
         ] = currentPrice;
@@ -287,8 +290,8 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
                 return eightHoursAligned;
             }
         } else {
-            uint256 fridayEightHoursAligned =
-                timestampRoundedDown + (1 days + 8 hours);
+            uint256 fridayEightHoursAligned = timestampRoundedDown +
+                (1 days + 8 hours);
             if (fridayEightHoursAligned > _timestamp) {
                 return fridayEightHoursAligned - 1 weeks;
             } else {

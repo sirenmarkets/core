@@ -52,7 +52,11 @@ interface ISeriesController {
     }
 
     /** Enum to track Fee Events */
-    enum FeeType {EXERCISE_FEE, CLOSE_FEE, CLAIM_FEE}
+    enum FeeType {
+        EXERCISE_FEE,
+        CLOSE_FEE,
+        CLAIM_FEE
+    }
 
     ///////////////////// EVENTS /////////////////////
 

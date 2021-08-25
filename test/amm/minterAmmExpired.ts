@@ -165,7 +165,8 @@ contract("Minter AMM Expired", (accounts) => {
     assertBNEq(tokensSaleValue.toString(), "0", "tokensSaleValue should be 0")
 
     // Check unclaimed balances
-    const unredeemedCollateral = await deployedAmm.getCollateralValueOfAllExpiredOptionTokens()
+    const unredeemedCollateral =
+      await deployedAmm.getCollateralValueOfAllExpiredOptionTokens()
     assertBNEq(
       unredeemedCollateral.toString(),
       (3000).toString(),
@@ -390,7 +391,8 @@ contract("Minter AMM Expired", (accounts) => {
 
     // Check unclaimed balances
     // 3,000 (initial) - 400 (exercised) - 200 (to be exercised) = 2,400
-    const unredeemedCollateral = await deployedAmm.getCollateralValueOfAllExpiredOptionTokens()
+    const unredeemedCollateral =
+      await deployedAmm.getCollateralValueOfAllExpiredOptionTokens()
     assertBNEq(
       unredeemedCollateral.toString(),
       (2400e8).toString(),
@@ -824,9 +826,8 @@ contract("Minter AMM Expired", (accounts) => {
 
     ammReceipt = await deployedAmm.claimAllExpiredTokens({ from: aliceAccount })
 
-    let CLAIM_ALL_EXPIRED_TOKENS_ENDING_BALANCE = await underlyingToken.balanceOf(
-      deployedAmm.address,
-    )
+    let CLAIM_ALL_EXPIRED_TOKENS_ENDING_BALANCE =
+      await underlyingToken.balanceOf(deployedAmm.address)
     assertBNEq(
       CLAIM_ALL_EXPIRED_TOKENS_ENDING_BALANCE.toString(),
       ammCollateralBeforeClaims.add(new BN(2).mul(new BN(BUY_AMOUNT))),

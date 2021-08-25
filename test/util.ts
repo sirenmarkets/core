@@ -23,16 +23,13 @@ const bobAccount = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
 
 const PriceOracle: PriceOracleContract = artifacts.require("PriceOracle")
 
-const SeriesController: SeriesControllerContract = artifacts.require(
-  "SeriesController",
-)
+const SeriesController: SeriesControllerContract =
+  artifacts.require("SeriesController")
 const SeriesVault: SeriesVaultContract = artifacts.require("SeriesVault")
-const ERC1155Controller: ERC1155ControllerContract = artifacts.require(
-  "ERC1155Controller",
-)
-const MockPriceOracle: MockPriceOracleContract = artifacts.require(
-  "MockPriceOracle",
-)
+const ERC1155Controller: ERC1155ControllerContract =
+  artifacts.require("ERC1155Controller")
+const MockPriceOracle: MockPriceOracleContract =
+  artifacts.require("MockPriceOracle")
 const Proxy: ProxyContract = artifacts.require("Proxy")
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
 
@@ -329,17 +326,18 @@ export async function setupSingletonTestContracts(
     priceToken.address,
     deployedMockPriceOracle.address,
   )
-  const controllerInitResp = await deployedSeriesController.__SeriesController_init(
-    deployedPriceOracle.address,
-    deployedVault.address,
-    deployedERC1155Controller.address,
-    {
-      feeReceiver: feeReceiver,
-      exerciseFeeBasisPoints: exerciseFee,
-      closeFeeBasisPoints: closeFee,
-      claimFeeBasisPoints: claimFee,
-    },
-  )
+  const controllerInitResp =
+    await deployedSeriesController.__SeriesController_init(
+      deployedPriceOracle.address,
+      deployedVault.address,
+      deployedERC1155Controller.address,
+      {
+        feeReceiver: feeReceiver,
+        exerciseFeeBasisPoints: exerciseFee,
+        closeFeeBasisPoints: closeFee,
+        claimFeeBasisPoints: claimFee,
+      },
+    )
 
   expectEvent(controllerInitResp, "SeriesControllerInitialized", {
     priceOracle: deployedPriceOracle.address,
