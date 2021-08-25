@@ -25,7 +25,7 @@
     "remixd": "remixd -s . --remix-ide https://remix.ethereum.org",
     "generate-types": "npm run generate-types:ethers",
     "generate-types:ethers": "npx typechain 'artifacts/contracts/**/!(*.dbg).json' --target=ethers-v5 --out-dir src/ethers",
-    "deploy-local": "ADMIN_ADDRESS=0x5710a1aDB1b9eF59184e729FD3d3aF5B0A791a53 FEE_RECEIVER=0x5710a1aDB1b9eF59184e729FD3d3aF5B0A791a53 PRICE_ORACLE_DATE_OFFSET=86400 npx hardhat run --network ${NETWORK:-localhost} scripts/deploy_singleton_contracts.ts",
+    "deploy-local": "ADMIN_ADDRESS=AdminAddress FEE_RECEIVER=FeeReciever PRICE_ORACLE_DATE_OFFSET=86400 npx hardhat run --network ${NETWORK:-localhost} scripts/deploy_singleton_contracts.ts",
     "deploy-kovan": "NETWORK=kovan npm run deploy-local",
     "deploy-rinkeby": "NETWORK=rinkeby npm run deploy-local",
     "deploy-mumbai": "NETWORK=mumbai npm run deploy-local",
