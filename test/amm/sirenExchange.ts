@@ -6,10 +6,15 @@ import {
   SirenExchangeInstance,
   MinterAmmInstance,
   SimpleTokenInstance,
+  SimpleTokenContract,
   SeriesControllerInstance,
   ERC1155ControllerInstance,
   IUniswapV2Router02Instance,
 } from "../../typechain"
+
+const SimpleToken: SimpleTokenContract = artifacts.require(
+  "SimpleTokenContract",
+)
 
 import { setupAllTestContracts, assertBNEq, ONE_WEEK_DURATION } from "../util"
 
@@ -59,6 +64,9 @@ contract("Siren Exchange Verification", (accounts) => {
     const path = ["ETH", "WETH"]
     console.log("Collateral Token Address", collateralToken.address)
 
+    const tokenA = UniswapRouterPair[0]
+    const erc20A = await SimpleToken.at(tokenA)
+    await erc20A.approve(deployedSirenExchange.address, tokenAmountInMaximum)
     // assertBNEq(
     try {
       let maxCollateral = await deployedSirenExchange.bTokenBuy(
