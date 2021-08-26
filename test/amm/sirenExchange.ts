@@ -1,20 +1,20 @@
 /* global artifacts contract it assert */
-import { time, expectEvent, expectRevert, BN } from "@openzeppelin/test-helpers"
-import { artifacts, contract } from "hardhat"
-import { deployAmm } from "../../scripts/lib/deploy_amm"
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
+import { Contract, ContractFactory } from "ethers"
+import { artifacts, contract, ethers } from "hardhat"
 import {
   SirenExchangeInstance,
   MinterAmmInstance,
   SimpleTokenInstance,
   SimpleTokenContract,
-  SeriesControllerInstance,
-  ERC1155ControllerInstance,
-  IUniswapV2Router02Instance,
+  MinterAmmContract,
 } from "../../typechain"
 
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
 
-import { setupAllTestContracts, assertBNEq, ONE_WEEK_DURATION } from "../util"
+const MinterAmm: MinterAmmContract = artifacts.require("MinterAmm")
+
+import { setUpUniswap, assertBNEq, ONE_WEEK_DURATION } from "../util"
 
 let deployedSirenExchange: SirenExchangeInstance
 let deployedAmm: MinterAmmInstance
@@ -23,11 +23,11 @@ let collateralToken: SimpleTokenInstance
 
 let seriesId: string
 
+let owner: SignerWithAddress
+
 let UniswapRouterPair: Array<string>
 
-let pairAddress: string
-
-let deployedUniswapRouter02: IUniswapV2Router02Instance
+let uniswapRouterContract: ContractFactory
 
 const STRIKE_PRICE = 15000 * 1e8 // 15000 USD
 const BTC_ORACLE_PRICE = 14_000 * 10 ** 8 // BTC oracle answer has 8 decimals places, same as BTC
@@ -47,10 +47,7 @@ contract("Siren Exchange Verification", (accounts) => {
       seriesId,
       deployedSirenExchange,
       UniswapRouterPair,
-    } = await setupAllTestContracts({
-      strikePrice: STRIKE_PRICE.toString(),
-      oraclePrice: BTC_ORACLE_PRICE,
-    }))
+    } = await setUpUniswap())
   })
 
   it("Tries to Execute a BTokenBuy Exchange", async () => {
@@ -58,15 +55,27 @@ contract("Siren Exchange Verification", (accounts) => {
     var minutesToAdd = 10
     var currentDate = new Date()
     let deadline = new Date(currentDate.getTime() + minutesToAdd * 60000)
-    const bTokenBuyAmount = 300
-    const path = ["ETH", "WETH"]
+    const bTokenBuyAmount = 3_000
+
     console.log("Collateral Token Address", collateralToken.address)
 
     const tokenA = UniswapRouterPair[0]
+    const tokenB = UniswapRouterPair[1]
     const erc20A = await SimpleToken.at(tokenA)
     await erc20A.approve(deployedSirenExchange.address, tokenAmountInMaximum, {
       from: aliceAccount,
     })
+
+    const erc20B = await SimpleToken.at(tokenB)
+    await erc20B.approve(deployedAmm.address, 10000)
+
+    //Tokenammount in to high,
+    //User not enough funds
+
+    //Postives would be
+    //Alice sends exact ammount int
+    await deployedAmm.provideCapital(10000, 0)
+
     // assertBNEq(
     try {
       let maxCollateral = await deployedSirenExchange.bTokenBuy(

@@ -5,11 +5,12 @@ import "../amm/ISirenTradeAMM.sol";
 import "../series/SeriesLibrary.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
 import "@uniswap/lib/contracts/libraries/Babylonian.sol";
 import "hardhat/console.sol";
 
-contract SirenExchange {
+contract SirenExchange is ERC1155Holder {
     IUniswapV2Router02 public immutable router;
     IERC1155 public immutable erc1155Controller;
 
@@ -36,12 +37,7 @@ contract SirenExchange {
             collateralAmountOut,
             path
         );
-        console.log("AMountsIn", amountsIn[0]);
-        console.log("TokenAmounts", tokenAmountInMaximum);
-        console.log("address", address(this));
-        console.log("RouterADDress", address(router));
-        console.log(path[0]);
-        console.log(msg.sender);
+
         require(amountsIn[0] <= tokenAmountInMaximum, "Not Enough tokens sent");
 
         TransferHelper.safeTransferFrom(
@@ -57,7 +53,7 @@ contract SirenExchange {
             collateralAmountOut,
             amountsIn[0],
             path,
-            address(router),
+            address(this),
             deadline
         );
 

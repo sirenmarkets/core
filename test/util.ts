@@ -281,10 +281,6 @@ export async function setupSingletonTestContracts(
   // const uniSwapFactoryAddress = "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"
   // const uniSwapRouterAddress = deployedMockUniswapRouter01Contract.address
 
-  console.log(
-    "LSIDJFALKSDNFALSKDNFASLKDNFALSKDNFLASKNDFLASKDNFLAKSNDFLASKNDFLAKSndf",
-  )
-
   if (!underlyingToken) {
     underlyingToken = await SimpleToken.new()
     await underlyingToken.initialize("Wrapped BTC", "WBTC", 8)
@@ -385,61 +381,76 @@ export async function setupSingletonTestContracts(
     deployedSeriesController.address,
   )
 
-  //Below we set up our factory/Router and tokens for uniswap
-  let deployedSirenExchange
-  let UniswapRouterPair
+  return {
+    underlyingToken,
+    collateralToken,
+    priceToken,
+    deployedVault,
+    deployedERC1155Controller,
+    deployedSeriesController,
+    deployedPriceOracle,
+    deployedMockPriceOracle,
+    deployedAmmFactory,
+    oraclePrice,
+    expiration,
+    exerciseFee,
+    closeFee,
+    claimFee,
+    erc1155URI,
+  }
+}
+
+export async function setUpUniswap() {
+  let { collateralToken, deployedERC1155Controller, seriesId, deployedAmm } =
+    await setupAllTestContracts({})
 
   const SimpleTokenFactory = await ethers.getContractFactory("SimpleToken")
 
   const tokenA = await SimpleTokenFactory.deploy()
   await tokenA.deployed()
   await (await tokenA.initialize("token A", "TKA", 8)).wait()
-  console.log(`deployed WBTC SimpleToken: ${tokenA.address.toLowerCase()}`)
 
   const tokenB = await SimpleTokenFactory.deploy()
   await tokenB.deployed()
   await (await tokenB.initialize("token B", "TKB", 8)).wait()
-  console.log(`deployed WBTC SimpleToken: ${tokenB.address.toLowerCase()}`)
 
   const weth = await SimpleTokenFactory.deploy()
   await weth.deployed()
   await (await weth.initialize("Wrapped ETH", "WETH", 18)).wait()
-  console.log(`deployed WETH SimpleToken: ${weth.address.toLowerCase()}`)
 
   const WETHPartner = await SimpleTokenFactory.deploy()
   await WETHPartner.deployed()
   await (await WETHPartner.initialize("Wrapped ETHPatner", "WETHP", 18)).wait()
-  console.log(`deployed WETH SimpleToken: ${WETHPartner.address.toLowerCase()}`)
 
   const [owner] = await ethers.getSigners()
 
-  await tokenA.mint(owner.address, 10000000000)
-  await tokenB.mint(owner.address, 10000000000)
+  await tokenA.mint(owner.address, 10000000000 * 10)
+  await collateralToken.mint(owner.address, 10000000000 * 10)
 
-  await tokenA.mint(aliceAccount, 10000000)
+  await tokenA.mint(aliceAccount, 10000000 * 10)
 
   const factory = await new ethers.ContractFactory(
     UniswapV2Factory.abi,
     UniswapV2Factory.bytecode,
     owner,
   )
-  const v2FActory = await factory.deploy(owner.address)
-
-  console.log(`deployed V2Factory: ${v2FActory.address.toLowerCase()}`)
+  const uniSwapV2Factory = await factory.deploy(owner.address)
 
   const router = await new ethers.ContractFactory(
     UniswapV2Router.abi,
     UniswapV2Router.bytecode,
     owner,
   )
-  const uniswapV2Router = await router.deploy(v2FActory.address, weth.address)
-
-  console.log(
-    `deployed uniswapV2Router: ${uniswapV2Router.address.toLowerCase()}`,
+  const uniswapV2Router = await router.deploy(
+    uniSwapV2Factory.address,
+    weth.address,
   )
 
-  await v2FActory.createPair(tokenA.address, tokenB.address)
-  const pairAddress = await v2FActory.getPair(tokenA.address, tokenB.address)
+  await uniSwapV2Factory.createPair(tokenA.address, collateralToken.address)
+  const pairAddress = await uniSwapV2Factory.getPair(
+    tokenA.address,
+    collateralToken.address,
+  )
 
   const pair = new ethers.Contract(
     pairAddress,
@@ -448,28 +459,18 @@ export async function setupSingletonTestContracts(
   ).connect(owner)
 
   const token0Address = await pair.token0()
-  const token0 = tokenA.address === token0Address ? tokenA : tokenB
-  const token1 = tokenA.address === token0Address ? tokenB : tokenA
+  const token0 = tokenA.address === token0Address ? tokenA : collateralToken
+  const token1 = tokenA.address === token0Address ? collateralToken : tokenA
 
-  await v2FActory.createPair(weth.address, WETHPartner.address)
-  const WETHPairAddress = await v2FActory.getPair(
-    weth.address,
-    WETHPartner.address,
-  )
-  const uniswapPair = new ethers.Contract(
-    WETHPairAddress,
-    JSON.stringify(IUniswapV2Pair.abi),
-    owner,
-  ).connect(owner)
-
-  const pairAddressUsed = pair.address
+  await uniSwapV2Factory.createPair(weth.address, WETHPartner.address)
 
   var minutesToAdd = 10
   var currentDate = new Date()
   let deadline = new Date(currentDate.getTime() + minutesToAdd * 60000)
+
   await token0.approve(uniswapV2Router.address, 10000)
   await token1.approve(uniswapV2Router.address, 10000)
-  console.log(owner.address)
+
   await uniswapV2Router.addLiquidity(
     token0.address,
     token1.address,
@@ -481,34 +482,19 @@ export async function setupSingletonTestContracts(
     deadline.getTime(),
   )
 
-  console.log("WETH ADDRESS", weth.address)
+  const UniswapRouterPair = [tokenA.address, collateralToken.address]
 
-  UniswapRouterPair = [tokenB.address, tokenA.address]
-
-  deployedSirenExchange = await SirenExchange.new(
+  const deployedSirenExchange = await SirenExchange.new(
     uniswapV2Router.address,
     deployedERC1155Controller.address,
   )
 
   return {
-    underlyingToken,
     collateralToken,
-    priceToken,
-    deployedVault,
-    deployedERC1155Controller,
-    deployedSeriesController,
-    deployedPriceOracle,
+    deployedAmm,
+    seriesId,
     deployedSirenExchange,
-    deployedMockPriceOracle,
-    deployedAmmFactory,
-    oraclePrice,
-    expiration,
-    exerciseFee,
-    closeFee,
-    claimFee,
-    erc1155URI,
     UniswapRouterPair,
-    pairAddressUsed,
   }
 }
 
@@ -627,11 +613,8 @@ export async function setupAllTestContracts(
     deployedPriceOracle,
     deployedMockPriceOracle,
     deployedAmmFactory,
-    deployedSirenExchange,
     expiration,
     erc1155URI,
-    UniswapRouterPair,
-    pairAddressUsed,
   } = await setupSingletonTestContracts({
     feeReceiver,
     closeFee,
@@ -687,7 +670,6 @@ export async function setupAllTestContracts(
     deployedPriceOracle,
     deployedMockPriceOracle,
     deployedAmmFactory,
-    deployedSirenExchange,
     deployedAmm,
     oraclePrice,
     expiration,
@@ -699,7 +681,5 @@ export async function setupAllTestContracts(
     claimFee,
     erc1155URI,
     restrictedMinters,
-    UniswapRouterPair,
-    pairAddressUsed,
   }
 }
