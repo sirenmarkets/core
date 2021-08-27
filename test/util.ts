@@ -400,19 +400,15 @@ export async function setupSingletonTestContracts(
   }
 }
 
-export async function setUpUniswap() {
-  let { collateralToken, deployedERC1155Controller, seriesId, deployedAmm } =
-    await setupAllTestContracts({})
-
+export async function setUpUniswap(
+  collateralToken: SimpleTokenInstance,
+  deployedERC1155Controller: ERC1155ControllerInstance,
+) {
   const SimpleTokenFactory = await ethers.getContractFactory("SimpleToken")
 
   const tokenA = await SimpleTokenFactory.deploy()
   await tokenA.deployed()
   await (await tokenA.initialize("token A", "TKA", 8)).wait()
-
-  const tokenB = await SimpleTokenFactory.deploy()
-  await tokenB.deployed()
-  await (await tokenB.initialize("token B", "TKB", 8)).wait()
 
   const weth = await SimpleTokenFactory.deploy()
   await weth.deployed()
@@ -423,6 +419,8 @@ export async function setUpUniswap() {
   await (await WETHPartner.initialize("Wrapped ETHPatner", "WETHP", 18)).wait()
 
   const [owner] = await ethers.getSigners()
+
+  console.log("OWNER", owner.address)
 
   await tokenA.mint(owner.address, 10000000000 * 10)
   await collateralToken.mint(owner.address, 10000000000 * 10)
@@ -490,9 +488,6 @@ export async function setUpUniswap() {
   )
 
   return {
-    collateralToken,
-    deployedAmm,
-    seriesId,
     deployedSirenExchange,
     UniswapRouterPair,
   }

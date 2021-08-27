@@ -31,4 +31,8 @@ interface ISirenTradeAMM {
         uint256 wTokenAmount,
         uint256 collateralMinimum
     ) external returns (uint256);
+
+    function wTokenGetCollateralOut(uint64 seriesId, uint256 bTokenAmount)
+        external
+        returns (uint256);
 }

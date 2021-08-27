@@ -19,6 +19,15 @@ contract SirenExchange is ERC1155Holder {
         erc1155Controller = erc1155Controller_;
     }
 
+    event BTokenBuy(
+        uint256[] amounts,
+        address[] path,
+        address sirenAmmAddress,
+        uint256 bTokenAmount,
+        uint64 seriesId,
+        address buyer
+    );
+
     function bTokenBuy(
         uint64 seriesId,
         uint256 bTokenAmount,
@@ -26,15 +35,20 @@ contract SirenExchange is ERC1155Holder {
         uint256 tokenAmountInMaximum,
         address sirenAmmAddress,
         uint256 deadline
-    ) external {
-        // Uniswap v2 logic below for example, but this will work for quickswap or sushiswap
-        uint256 collateralAmountOut = ISirenTradeAMM(sirenAmmAddress)
+    )
+        external
+        returns (
+            // Returns The input token amount and all subsequent output token amounts.
+            uint256[] memory amounts
+        )
+    {
+        // Emitted when the amm is created
+
+        uint256 collateralPremium = ISirenTradeAMM(sirenAmmAddress)
             .bTokenGetCollateralIn(seriesId, bTokenAmount);
 
-        console.log("Series ID", seriesId);
-
         uint256[] memory amountsIn = router.getAmountsIn(
-            collateralAmountOut,
+            collateralPremium,
             path
         );
 
@@ -49,8 +63,8 @@ contract SirenExchange is ERC1155Holder {
         TransferHelper.safeApprove(path[0], address(router), amountsIn[0]);
 
         // Executes the swap, returning the amountIn actually spent.
-        uint256[] memory amountInSpent = router.swapTokensForExactTokens(
-            collateralAmountOut,
+        amounts = router.swapTokensForExactTokens(
+            collateralPremium,
             amountsIn[0],
             path,
             address(this),
@@ -60,13 +74,13 @@ contract SirenExchange is ERC1155Holder {
         TransferHelper.safeApprove(
             path[path.length - 1],
             sirenAmmAddress,
-            collateralAmountOut
+            collateralPremium
         );
 
         ISirenTradeAMM(sirenAmmAddress).bTokenBuy(
             seriesId,
             bTokenAmount,
-            collateralAmountOut
+            collateralPremium
         );
 
         //Transfer token back to the user
@@ -78,53 +92,118 @@ contract SirenExchange is ERC1155Holder {
             bTokenAmount,
             data
         );
+
+        return amounts;
+        // emit BTokenBuy(
+        //     amounts,
+        //     path,
+        //     sirenAmmAddress,
+        //     bTokenAmount,
+        //     seriesId,
+        //     msg.sender
+        // );
     }
 
-    // function bTokenSell(
-    //     uint64 seriesId,
-    //     uint256 bTokenAmount,
-    //     address[] calldata path,
-    //     uint256 tokenAmountOutMinimum,
-    //     address sirenAmmAddress,
-    //     uint256 deadline
-    // ) external {
-    //         uint256 collateralAmountIn = ISirenTradeAMM(sirenAmmAddress).bTokenGetCollateralOut(seriesId, bTokenAmount);
-    //         uint[] memory amountsOut = router.getAmountsOut(collateralAmountIn, path);
+    function bTokenSell(
+        uint64 seriesId,
+        uint256 bTokenAmount,
+        address[] calldata path,
+        uint256 tokenAmountOutMinimum,
+        address sirenAmmAddress,
+        uint256 deadline
+    ) external returns (uint256[] memory amounts) {
+        uint256 collateralAmountIn = ISirenTradeAMM(sirenAmmAddress)
+            .bTokenGetCollateralOut(seriesId, bTokenAmount);
+        uint256[] memory amountsOut = router.getAmountsOut(
+            collateralAmountIn,
+            path
+        );
 
-    //         require( amountsOut[amountsOut.length - 1] >= tokenAmountOutMinimum, "Minimum token ammunt not met");
+        require(
+            amountsOut[amountsOut.length - 1] >= tokenAmountOutMinimum,
+            "Minimum token ammunt out not met"
+        );
 
-    //          //Transfer token back to the user
-    //         bytes memory data;
-    //         erc1155Controller.safeTransferFrom(
-    //                             msg.sender,
-    //                             address(this),
-    //                             SeriesLibrary.bTokenIndex(seriesId),
-    //                             bTokenAmount,
-    //                             data);
+        //Transfer token back to the user
+        bytes memory data;
+        erc1155Controller.safeTransferFrom(
+            msg.sender,
+            address(this),
+            SeriesLibrary.bTokenIndex(seriesId),
+            bTokenAmount,
+            data
+        );
 
-    //         ISirenTradeAMM(sirenAmmAddress).bTokenSell(seriesId, bTokenAmount, collateralAmountIn);
+        erc1155Controller.setApprovalForAll(address(sirenAmmAddress), true);
 
-    //         // Executes the swap, returning the amountIn actually spent.
-    //         uint256[] memory amountOutRecieved = router.swapExactTokensForTokens(
-    //         collateralAmountIn,
-    //         amountsOut[amountsOut.length - 1],
-    //         path,
-    //         msg.sender,
-    //         deadline
-    //         );
+        ISirenTradeAMM(sirenAmmAddress).bTokenSell(
+            seriesId,
+            bTokenAmount,
+            collateralAmountIn
+        );
 
-    // }
+        TransferHelper.safeApprove(path[0], address(router), amountsOut[0]);
+        // Executes the swap, returning the amountIn actually spent.
+        amounts = router.swapExactTokensForTokens(
+            collateralAmountIn,
+            amountsOut[amountsOut.length - 1],
+            path,
+            msg.sender,
+            deadline
+        );
+        return amounts;
+    }
 
-    // function wTokenSell(
-    //     uint64 seriesId,
-    //     uint256 wTokenAmount,
-    //     uint256 tokenInAddress, // token that AMM is giving in return for wToken, this token goes into Router
-    //     uint256 tokenOutAddress, // token that user gets in the end
-    //     uint256 tokenAmountOutMinimum,
-    //     address routerAddress,
-    //     address[] calldata path,
-    //     address sirenAmmAddress,
-    // ) external {
+    function wTokenSell(
+        uint64 seriesId,
+        uint256 wTokenAmount,
+        address[] calldata path,
+        uint256 tokenAmountOutMinimum,
+        address sirenAmmAddress,
+        uint256 deadline
+    ) external returns (uint256[] memory amounts) {
+        uint256 collateralAmountIn = ISirenTradeAMM(sirenAmmAddress)
+            .wTokenGetCollateralOut(seriesId, wTokenAmount);
+        uint256[] memory amountsOut = router.getAmountsOut(
+            collateralAmountIn,
+            path
+        );
 
-    // }
+        require(
+            amountsOut[amountsOut.length - 1] >= tokenAmountOutMinimum,
+            "Minimum token ammunt out not met"
+        );
+
+        //Transfer token back to the user
+        erc1155Controller.setApprovalForAll(address(sirenAmmAddress), true);
+        bytes memory data;
+        erc1155Controller.safeTransferFrom(
+            msg.sender,
+            address(this),
+            SeriesLibrary.wTokenIndex(seriesId),
+            wTokenAmount,
+            data
+        );
+
+        ISirenTradeAMM(sirenAmmAddress).wTokenSell(
+            seriesId,
+            wTokenAmount,
+            collateralAmountIn
+        );
+
+        TransferHelper.safeApprove(
+            path[0],
+            address(sirenAmmAddress),
+            amountsOut[0]
+        );
+        // Executes the swap, returning the amountIn actually spent.
+        amounts = router.swapExactTokensForTokens(
+            collateralAmountIn,
+            amountsOut[amountsOut.length - 1],
+            path,
+            msg.sender,
+            deadline
+        );
+        return amounts;
+    }
 }
