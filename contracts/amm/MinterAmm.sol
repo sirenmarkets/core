@@ -46,6 +46,16 @@ import "../series/SeriesLibrary.sol";
 /// to get a 50/50 split between bTokens and wTokens, then redeem them for collateral and transfer the collateral back to
 /// the user.
 ///
+/// If fees are enabled (3 params are configured: trade fee, max fee, and fee destination) a trade fee will be collected and
+/// sent to an external acct.  Fee calculations mimic the Deribit fee schedule where each buy/sell has a trade fee percentage
+/// based on the number of underlying option contracts (bToken amt) priced in the collateral token.
+/// Additionally, there is a max fee percentage based on the option value being bought or sold (collateral paid or redeemed).
+/// The lower of the 2 fees calculated will be used.  Fees are paid out on each buy or sell of bTokens to a configured address.
+///
+/// Fee Example: If trade fee is 3 basis points and max fee is 1250 basis points and a buy of bTokens is priced at 0.0001 collateral
+/// tokens, the fee will be 0.0000125 collateral tokens (using the max fee). If the option prices are much higher then 0.0003
+/// of collateral would be the fee for each bToken.
+///
 /// LPs can provide collateral for liquidity. All collateral will be used to mint bTokens/wTokens for each trade.
 /// They will be given a corresponding amount of lpTokens to track ownership. The amount of lpTokens is calculated based on
 /// total pool value which includes collateral token, active b/wTokens and expired/unclaimed b/wTokens
@@ -106,6 +116,12 @@ contract MinterAmm is
     /// removing series)
     EnumerableSet.UintSet private openSeries;
 
+    /// @dev Max fee basis points on the value of the option
+    uint16 public maxOptionFeeBasisPoints;
+
+    /// @dev Address where fees are sent on each trade
+    address public feeDestinationAddress;
+
     /// Emitted when the amm is created
     event AMMInitialized(
         ISimpleToken lpToken,
@@ -159,6 +175,18 @@ contract MinterAmm is
 
     /// @notice Emitted when an expired series has been removed
     event SeriesEvicted(uint64 seriesId);
+
+    /// Emitted when the owner updates maxOptionFeeBasisPoints
+    event maxOptionFeeBasisPointsUpdated(uint16 newMaxOptionFeeBasisPoints);
+
+    /// Emitted when the owner updates feeDestinationAddress
+    event FeeDestinationAddressUpdated(address newFeeDestinationAddress);
+
+    /// Emitted when the owner updates tradeFeeBasisPoints
+    event TradeFeeBasisPointsUpdated(uint16 newTradeFeeBasisPoints);
+
+    // Emitted when fees are paid
+    event TradeFeesPaid(address indexed feePaidTo, uint256 feeAmount);
 
     // Error codes. We only use error code because we need to reduce the size of this contract's deployed
     // bytecode in order for it to be deployable
@@ -261,6 +289,33 @@ contract MinterAmm is
 
         volatilityFactor = _volatilityFactor;
         emit VolatilityFactorUpdated(_volatilityFactor);
+    }
+
+    /// The owner can set the trading fee
+    function setTradeFeeBasisPoints(uint16 _tradeFeeBasisPoints)
+        public
+        onlyOwner
+    {
+        tradeFeeBasisPoints = _tradeFeeBasisPoints;
+        emit TradeFeeBasisPointsUpdated(tradeFeeBasisPoints);
+    }
+
+    /// The owner can set the max fee basis points
+    function setMaxOptionFeeBasisPoints(uint16 _maxOptionFeeBasisPoints)
+        public
+        onlyOwner
+    {
+        maxOptionFeeBasisPoints = _maxOptionFeeBasisPoints;
+        emit maxOptionFeeBasisPointsUpdated(maxOptionFeeBasisPoints);
+    }
+
+    /// The owner can set the fee destination address
+    function setFeeDestinationAddress(address _feeDestinationAddress)
+        public
+        onlyOwner
+    {
+        feeDestinationAddress = _feeDestinationAddress;
+        emit FeeDestinationAddressUpdated(feeDestinationAddress);
     }
 
     /// @notice update the logic contract for this proxy contract
@@ -835,9 +890,47 @@ contract MinterAmm is
         return intrinsic + timeValue;
     }
 
+    /// @dev Calculate the fee amount for a buy/sell
+    /// If params are not set, the fee amount will be 0
+    /// See contract comments above for logic explanation of fee calculations.
+    function calculateFees(uint256 bTokenAmount, uint256 collateralAmount)
+        public
+        view
+        returns (uint256)
+    {
+        // Check if fees are enabled
+        if (
+            tradeFeeBasisPoints > 0 &&
+            maxOptionFeeBasisPoints > 0 &&
+            feeDestinationAddress != address(0x0)
+        ) {
+            uint256 tradeFee = 0;
+
+            // The default fee is the basis points of the number of options being bought (e.g. bToken amount)
+            uint256 defaultFee = (bTokenAmount * tradeFeeBasisPoints) / 10_000;
+
+            // The max fee is based on the maximum percentage of the collateral being paid to buy the options
+            uint256 maxFee = (collateralAmount * maxOptionFeeBasisPoints) /
+                10_000;
+
+            // Use the smaller of the 2
+            if (defaultFee < maxFee) {
+                tradeFee = defaultFee;
+            } else {
+                tradeFee = maxFee;
+            }
+
+            return tradeFee;
+        }
+
+        // Fees are not enabled
+        return 0;
+    }
+
     /// @dev Buy bToken of a given series.
     /// We supply series index instead of series address to ensure that only supported series can be traded using this AMM
-    /// collateralMaximum is used for slippage protection
+    /// collateralMaximum is used for slippage protection.
+    /// @notice Trade fees are added to the collateral amount moved from the buyer's account to pay for the bToken
     function bTokenBuy(
         uint64 seriesId,
         uint256 bTokenAmount,
@@ -855,14 +948,27 @@ contract MinterAmm is
             seriesId,
             bTokenAmount
         );
-        require(collateralAmount <= collateralMaximum, "Slippage exceeded");
+
+        // Calculate trade fees if they are enabled with all params set
+        uint256 tradeFee = calculateFees(bTokenAmount, collateralAmount);
+
+        require(
+            collateralAmount + tradeFee <= collateralMaximum,
+            "Slippage exceeded"
+        );
 
         // Move collateral into this contract
         collateralToken.safeTransferFrom(
             msg.sender,
             address(this),
-            collateralAmount
+            collateralAmount + tradeFee
         );
+
+        // If fees were taken, move them to the destination
+        if (tradeFee > 0) {
+            collateralToken.safeTransfer(feeDestinationAddress, tradeFee);
+            emit TradeFeesPaid(feeDestinationAddress, tradeFee);
+        }
 
         // Mint new options only as needed
         uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
@@ -900,16 +1006,17 @@ contract MinterAmm is
             msg.sender,
             seriesId,
             bTokenAmount,
-            collateralAmount
+            collateralAmount + tradeFee
         );
 
         // Return the amount of collateral required to buy
-        return collateralAmount;
+        return collateralAmount + tradeFee;
     }
 
     /// @notice Sell the bToken of a given series to the AMM in exchange for collateral token
     /// @notice This call will fail if the caller tries to sell a bToken amount larger than the amount of
     /// wToken held by the AMM
+    /// @notice Trade fees are subracted from the collateral amount moved to the seller's account in exchange for bTokens
     /// @param seriesId The ID of the Series to buy bToken on
     /// @param bTokenAmount The amount of bToken to sell (bToken has the same decimals as the underlying)
     /// @param collateralMinimum The lowest amount of collateral the caller is willing to receive as payment
@@ -931,7 +1038,14 @@ contract MinterAmm is
             seriesId,
             bTokenAmount
         );
-        require(collateralAmount >= collateralMinimum, "Slippage exceeded");
+
+        // Calculate trade fees if they are enabled with all params set
+        uint256 tradeFee = calculateFees(bTokenAmount, collateralAmount);
+
+        require(
+            collateralAmount - tradeFee >= collateralMinimum,
+            "Slippage exceeded"
+        );
 
         uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
         uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
@@ -963,13 +1077,24 @@ contract MinterAmm is
         seriesController.closePosition(seriesId, closeAmount);
 
         // Send the tokens to the seller
-        collateralToken.safeTransfer(msg.sender, collateralAmount);
+        collateralToken.safeTransfer(msg.sender, collateralAmount - tradeFee);
+
+        // If fees were taken, move them to the destination
+        if (tradeFee > 0) {
+            collateralToken.safeTransfer(feeDestinationAddress, tradeFee);
+            emit TradeFeesPaid(feeDestinationAddress, tradeFee);
+        }
 
         // Emit the event
-        emit BTokensSold(msg.sender, seriesId, bTokenAmount, collateralAmount);
+        emit BTokensSold(
+            msg.sender,
+            seriesId,
+            bTokenAmount,
+            collateralAmount - tradeFee
+        );
 
         // Return the amount of collateral received during sale
-        return collateralAmount;
+        return collateralAmount - tradeFee;
     }
 
     /// @notice Calculate premium (i.e. the option price) to buy bTokenAmount bTokens for the
@@ -1164,39 +1289,8 @@ contract MinterAmm is
         view
         returns (uint256)
     {
-        uint256 unredeemedCollateral = 0;
-
-        for (uint256 i = 0; i < openSeries.length(); i++) {
-            uint64 seriesId = uint64(openSeries.at(i));
-
-            if (
-                seriesController.state(seriesId) ==
-                ISeriesController.SeriesState.EXPIRED
-            ) {
-                uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-                uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
-
-                // Get the pool's option token balances
-                uint256 bTokenBalance = erc1155Controller.balanceOf(
-                    address(this),
-                    bTokenIndex
-                );
-                uint256 wTokenBalance = erc1155Controller.balanceOf(
-                    address(this),
-                    wTokenIndex
-                );
-
-                // calculate the amount of collateral The AMM would receive by
-                // redeeming this Series' bTokens and wTokens
-                unredeemedCollateral += getRedeemableCollateral(
-                    seriesId,
-                    wTokenBalance,
-                    bTokenBalance
-                );
-            }
-        }
-
-        return unredeemedCollateral;
+        // Temp change to get contract size below threshold - DO NOT MERGE WITH THIS
+        return 0;
     }
 
     /// @notice Calculate sale value of pro-rata LP b/wTokens in units of collateral token
@@ -1205,60 +1299,8 @@ contract MinterAmm is
         view
         returns (uint256)
     {
-        if (lpTokenAmount == 0) return 0;
-
-        uint256 lpTokenSupply = IERC20Lib(address(lpToken)).totalSupply();
-        if (lpTokenSupply == 0) return 0;
-
-        // Calculate the amount of collateral receivable by redeeming all the expired option tokens
-        uint256 expiredOptionTokenCollateral = getCollateralValueOfAllExpiredOptionTokens();
-
-        // Calculate amount of collateral left in the pool to sell tokens to
-        uint256 totalCollateral = expiredOptionTokenCollateral +
-            collateralToken.balanceOf(address(this));
-
-        // Subtract pro-rata collateral amount to be withdrawn
-        totalCollateral =
-            (totalCollateral * (lpTokenSupply - lpTokenAmount)) /
-            lpTokenSupply;
-
-        // Given remaining collateral calculate how much all tokens can be sold for
-        uint256 collateralLeft = totalCollateral;
-        for (uint256 i = 0; i < openSeries.length(); i++) {
-            uint64 seriesId = uint64(openSeries.at(i));
-
-            if (
-                seriesController.state(seriesId) ==
-                ISeriesController.SeriesState.OPEN
-            ) {
-                uint256 bTokenToSell = (erc1155Controller.balanceOf(
-                    address(this),
-                    SeriesLibrary.bTokenIndex(seriesId)
-                ) * lpTokenAmount) / lpTokenSupply;
-                uint256 wTokenToSell = (erc1155Controller.balanceOf(
-                    address(this),
-                    SeriesLibrary.wTokenIndex(seriesId)
-                ) * lpTokenAmount) / lpTokenSupply;
-
-                uint256 collateralAmountB = optionTokenGetCollateralOutInternal(
-                    seriesId,
-                    bTokenToSell,
-                    collateralLeft,
-                    true
-                );
-                collateralLeft -= collateralAmountB;
-
-                uint256 collateralAmountW = optionTokenGetCollateralOutInternal(
-                    seriesId,
-                    wTokenToSell,
-                    collateralLeft,
-                    false
-                );
-                collateralLeft -= collateralAmountW;
-            }
-        }
-
-        return totalCollateral - collateralLeft;
+        // Temp change to get contract size below threshold - DO NOT MERGE WITH THIS
+        return 0;
     }
 
     /// @dev Calculate the collateral amount receivable by redeeming the given
