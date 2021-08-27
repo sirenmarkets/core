@@ -56,19 +56,38 @@ if (IS_PUT_OPTION_ARG == "true") {
   IS_PUT_OPTION = false
 }
 
-async function main() {
-  const { seriesController, priceOracle, ammFactory } =
-    await deploySingletonContracts(FEE_RECEIVER, ADMIN_ADDRESS)
+const PRICE_ORACLE_DATE_OFFSET = parseInt(process.env.PRICE_ORACLE_DATE_OFFSET)
+if (
+  Number.isNaN(PRICE_ORACLE_DATE_OFFSET) ||
+  PRICE_ORACLE_DATE_OFFSET == null
+) {
+  argumentError("PRICE_ORACLE_DATE_OFFSET")
+}
 
-  const { wbtc, usdc } = await deployERC20s()
+const CHAINLINK_ORACLE_ADDRESS = process.env.CHAINLINK_ORACLE_ADDRESS
+if (CHAINLINK_ORACLE_ADDRESS == null || CHAINLINK_ORACLE_ADDRESS == "") {
+  argumentError("CHAINLINK_ORACLE_ADDRESS")
+}
+
+async function main() {
+  const { seriesController, priceOracle, ammFactory, ammDataProvider } =
+    await deploySingletonContracts(
+      FEE_RECEIVER,
+      ADMIN_ADDRESS,
+      PRICE_ORACLE_DATE_OFFSET,
+    )
+
+  const { wbtc, usdc } = await deployERC20s(ADMIN_ADDRESS)
 
   const { ammAddress } = await deployAmm(
     ammFactory.address,
     priceOracle.address,
+    ammDataProvider.address,
     wbtc.address,
     usdc.address,
     wbtc.address,
     TRADE_FEE_BASIS_POINTS,
+    CHAINLINK_ORACLE_ADDRESS,
   )
 
   await deploySeries(

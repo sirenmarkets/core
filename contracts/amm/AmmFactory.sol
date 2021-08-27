@@ -140,6 +140,7 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
     /// @param _tradeFeeBasisPoints The fees to charge on option token trades
     function createAmm(
         address _sirenPriceOracle,
+        address _ammDataProvider,
         IERC20 _underlyingToken,
         IERC20 _priceToken,
         IERC20 _collateralToken,
@@ -148,6 +149,10 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
         require(
             address(_sirenPriceOracle) != address(0x0),
             "Invalid _sirenPriceOracle"
+        );
+        require(
+            address(_ammDataProvider) != address(0x0),
+            "Invalid _ammDataProvider"
         );
         require(
             address(_underlyingToken) != address(0x0),
@@ -177,6 +182,7 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
         newAmm.initialize(
             seriesController,
             _sirenPriceOracle,
+            _ammDataProvider,
             _underlyingToken,
             _priceToken,
             _collateralToken,
