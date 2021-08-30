@@ -1168,8 +1168,39 @@ contract MinterAmm is
         view
         returns (uint256)
     {
-        // Temp change to get contract size below threshold - DO NOT MERGE WITH THIS
-        return 0;
+        uint256 unredeemedCollateral = 0;
+
+        for (uint256 i = 0; i < openSeries.length(); i++) {
+            uint64 seriesId = uint64(openSeries.at(i));
+
+            if (
+                seriesController.state(seriesId) ==
+                ISeriesController.SeriesState.EXPIRED
+            ) {
+                uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
+                uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
+
+                // Get the pool's option token balances
+                uint256 bTokenBalance = erc1155Controller.balanceOf(
+                    address(this),
+                    bTokenIndex
+                );
+                uint256 wTokenBalance = erc1155Controller.balanceOf(
+                    address(this),
+                    wTokenIndex
+                );
+
+                // calculate the amount of collateral The AMM would receive by
+                // redeeming this Series' bTokens and wTokens
+                unredeemedCollateral += getRedeemableCollateral(
+                    seriesId,
+                    wTokenBalance,
+                    bTokenBalance
+                );
+            }
+        }
+
+        return unredeemedCollateral;
     }
 
     /// @notice Calculate sale value of pro-rata LP b/wTokens in units of collateral token
@@ -1178,8 +1209,60 @@ contract MinterAmm is
         view
         returns (uint256)
     {
-        // Temp change to get contract size below threshold - DO NOT MERGE WITH THIS
-        return 0;
+        if (lpTokenAmount == 0) return 0;
+
+        uint256 lpTokenSupply = IERC20Lib(address(lpToken)).totalSupply();
+        if (lpTokenSupply == 0) return 0;
+
+        // Calculate the amount of collateral receivable by redeeming all the expired option tokens
+        uint256 expiredOptionTokenCollateral = getCollateralValueOfAllExpiredOptionTokens();
+
+        // Calculate amount of collateral left in the pool to sell tokens to
+        uint256 totalCollateral = expiredOptionTokenCollateral +
+            collateralToken.balanceOf(address(this));
+
+        // Subtract pro-rata collateral amount to be withdrawn
+        totalCollateral =
+            (totalCollateral * (lpTokenSupply - lpTokenAmount)) /
+            lpTokenSupply;
+
+        // Given remaining collateral calculate how much all tokens can be sold for
+        uint256 collateralLeft = totalCollateral;
+        for (uint256 i = 0; i < openSeries.length(); i++) {
+            uint64 seriesId = uint64(openSeries.at(i));
+
+            if (
+                seriesController.state(seriesId) ==
+                ISeriesController.SeriesState.OPEN
+            ) {
+                uint256 bTokenToSell = (erc1155Controller.balanceOf(
+                    address(this),
+                    SeriesLibrary.bTokenIndex(seriesId)
+                ) * lpTokenAmount) / lpTokenSupply;
+                uint256 wTokenToSell = (erc1155Controller.balanceOf(
+                    address(this),
+                    SeriesLibrary.wTokenIndex(seriesId)
+                ) * lpTokenAmount) / lpTokenSupply;
+
+                uint256 collateralAmountB = optionTokenGetCollateralOutInternal(
+                    seriesId,
+                    bTokenToSell,
+                    collateralLeft,
+                    true
+                );
+                collateralLeft -= collateralAmountB;
+
+                uint256 collateralAmountW = optionTokenGetCollateralOutInternal(
+                    seriesId,
+                    wTokenToSell,
+                    collateralLeft,
+                    false
+                );
+                collateralLeft -= collateralAmountW;
+            }
+        }
+
+        return totalCollateral - collateralLeft;
     }
 
     /// @dev Calculate the collateral amount receivable by redeeming the given
