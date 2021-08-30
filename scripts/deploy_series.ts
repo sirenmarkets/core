@@ -22,12 +22,12 @@ if (COLLATERAL_ADDRESS == null || COLLATERAL_ADDRESS == "") {
 }
 
 const STRIKE_PRICE = parseInt(process.env.STRIKE_PRICE)
-if (STRIKE_PRICE == NaN || STRIKE_PRICE == null) {
+if (Number.isNaN(STRIKE_PRICE) || STRIKE_PRICE == null) {
   argumentError("STRIKE_PRICE")
 }
 
 const EXPIRATION_DATE = parseInt(process.env.EXPIRATION_DATE)
-if (EXPIRATION_DATE == NaN || EXPIRATION_DATE == null) {
+if (Number.isNaN(EXPIRATION_DATE) || EXPIRATION_DATE == null) {
   argumentError("EXPIRATION_DATE")
 }
 

@@ -11,6 +11,7 @@ import "../proxy/Proxiable.sol";
 import "../proxy/Proxy.sol";
 import "../libraries/Math.sol";
 import "./InitializeableAmm.sol";
+import "./IAmmDataProvider.sol";
 import "./IAddSeriesToAmm.sol";
 import "../series/IPriceOracle.sol";
 import "../token/ISimpleToken.sol";
@@ -122,6 +123,9 @@ contract MinterAmm is
     /// @dev Address where fees are sent on each trade
     address public feeDestinationAddress;
 
+    /// @dev The contract used to make pricing calculations for the MinterAmm
+    address public ammDataProvider;
+
     /// Emitted when the amm is created
     event AMMInitialized(
         ISimpleToken lpToken,
@@ -202,6 +206,9 @@ contract MinterAmm is
     // E10: Invalid _newImplementation
     // E11: Can only be called by SeriesController
     // E12: withdrawCapital: collateralMinimum must be set
+    // E13: Series does not exist on this AMM
+    // E14: Invalid _newAmmDataProvider
+    // E15: Invalid _ammDataProvider
 
     /// @dev Require minimum trade size to prevent precision errors at low values
     modifier minTradeSize(uint256 tradeSize) {
@@ -216,6 +223,7 @@ contract MinterAmm is
     function initialize(
         ISeriesController _seriesController,
         address _sirenPriceOracle,
+        address _ammDataProvider,
         IERC20 _underlyingToken,
         IERC20 _priceToken,
         IERC20 _collateralToken,
@@ -223,6 +231,7 @@ contract MinterAmm is
         uint16 _tradeFeeBasisPoints
     ) public override {
         require(address(_sirenPriceOracle) != address(0x0), "E02");
+        require(_ammDataProvider != address(0x0), "E15");
         require(address(_underlyingToken) != address(0x0), "E03");
         require(address(_priceToken) != address(0x0), "E04");
         require(address(_collateralToken) != address(0x0), "E05");
@@ -235,6 +244,7 @@ contract MinterAmm is
 
         // Save off state variables
         seriesController = _seriesController;
+        ammDataProvider = _ammDataProvider;
         erc1155Controller = IERC1155(_seriesController.erc1155Controller());
 
         // Approve seriesController to move tokens
@@ -328,6 +338,18 @@ contract MinterAmm is
         require(_newImplementation != address(0x0), "E10");
 
         _updateCodeAddress(_newImplementation);
+    }
+
+    /// @notice update the AmmDataProvider used by this AMM
+    /// @param _newAmmDataProvider the address of the new AmmDataProvider contract
+    /// @dev only the admin address may call this function
+    function updateAmmDataProvider(address _newAmmDataProvider)
+        external
+        onlyOwner
+    {
+        require(_newAmmDataProvider != address(0x0), "E14");
+
+        ammDataProvider = _newAmmDataProvider;
     }
 
     /// LP allows collateral to be used to mint new options
@@ -699,93 +721,12 @@ contract MinterAmm is
         require(openSeries.contains(seriesId), "E13");
 
         return
-            getVirtualReservesInternal(
+            IAmmDataProvider(ammDataProvider).getVirtualReserves(
                 seriesId,
-                collateralToken.balanceOf(address(this))
+                address(this),
+                collateralToken.balanceOf(address(this)),
+                getPriceForSeries(seriesId)
             );
-    }
-
-    function getVirtualReservesInternal(
-        uint64 seriesId,
-        uint256 collateralTokenBalance
-    ) internal view returns (uint256, uint256) {
-        uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-        uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
-
-        // Get residual balances
-        uint256 bTokenBalance = erc1155Controller.balanceOf(
-            address(this),
-            bTokenIndex
-        );
-        uint256 wTokenBalance = erc1155Controller.balanceOf(
-            address(this),
-            wTokenIndex
-        );
-
-        ISeriesController.Series memory series = seriesController.series(
-            seriesId
-        );
-
-        // For put convert token balances into collateral locked in them
-        if (series.isPutOption) {
-            bTokenBalance = seriesController.getCollateralPerOptionToken(
-                seriesId,
-                bTokenBalance
-            );
-            wTokenBalance = seriesController.getCollateralPerOptionToken(
-                seriesId,
-                wTokenBalance
-            );
-        }
-
-        // Max amount of tokens we can get by adding current balance plus what can be minted from collateral
-        uint256 bTokenBalanceMax = bTokenBalance + collateralTokenBalance;
-        uint256 wTokenBalanceMax = wTokenBalance + collateralTokenBalance;
-
-        uint256 bTokenPrice = getPriceForSeriesInternal(
-            series,
-            getCurrentUnderlyingPrice()
-        );
-        uint256 wTokenPrice = uint256(1e18) - bTokenPrice;
-
-        // Balance on higher reserve side is the sum of what can be minted (collateralTokenBalance)
-        // plus existing balance of the token
-        uint256 bTokenVirtualBalance;
-        uint256 wTokenVirtualBalance;
-
-        if (bTokenPrice <= wTokenPrice) {
-            // Rb >= Rw, Pb <= Pw
-            bTokenVirtualBalance = bTokenBalanceMax;
-            wTokenVirtualBalance =
-                (bTokenVirtualBalance * bTokenPrice) /
-                wTokenPrice;
-
-            // Sanity check that we don't exceed actual physical balances
-            // In case this happens, adjust virtual balances to not exceed maximum
-            // available reserves while still preserving correct price
-            if (wTokenVirtualBalance > wTokenBalanceMax) {
-                wTokenVirtualBalance = wTokenBalanceMax;
-                bTokenVirtualBalance =
-                    (wTokenVirtualBalance * wTokenPrice) /
-                    bTokenPrice;
-            }
-        } else {
-            // if Rb < Rw, Pb > Pw
-            wTokenVirtualBalance = wTokenBalanceMax;
-            bTokenVirtualBalance =
-                (wTokenVirtualBalance * wTokenPrice) /
-                bTokenPrice;
-
-            // Sanity check
-            if (bTokenVirtualBalance > bTokenBalanceMax) {
-                bTokenVirtualBalance = bTokenBalanceMax;
-                wTokenVirtualBalance =
-                    (bTokenVirtualBalance * bTokenPrice) /
-                    wTokenPrice;
-            }
-        }
-
-        return (bTokenVirtualBalance, wTokenVirtualBalance);
     }
 
     /// @dev Get the current series price of the underlying token with units of priceToken,
@@ -810,11 +751,7 @@ contract MinterAmm is
     /// X units of bToken have a price of 0.1 * X * strikePrice units of USDC.
     /// @notice This value will always be between 0 and 1e18, so you can think of it as
     /// representing the price as a fraction of 1 collateral token unit
-    function getPriceForSeries(uint64 seriesId)
-        external
-        view
-        returns (uint256)
-    {
+    function getPriceForSeries(uint64 seriesId) public view returns (uint256) {
         require(openSeries.contains(seriesId), "E13");
 
         return
@@ -855,39 +792,15 @@ contract MinterAmm is
         uint256 currentPrice,
         uint256 volatility,
         bool isPutOption
-    ) public pure returns (uint256) {
-        uint256 intrinsic = 0;
-        uint256 timeValue = 0;
-
-        if (isPutOption) {
-            if (currentPrice < strike) {
-                // ITM
-                intrinsic = ((strike - currentPrice) * 1e18) / strike;
-            }
-
-            timeValue =
-                (Math.sqrt(timeUntilExpiry) * volatility * strike) /
-                currentPrice;
-        } else {
-            if (currentPrice > strike) {
-                // ITM
-                intrinsic = ((currentPrice - strike) * 1e18) / currentPrice;
-            }
-
-            // use a Black-Scholes approximation to calculate the option price given the
-            // volatility, strike price, and the current series price
-            timeValue =
-                (Math.sqrt(timeUntilExpiry) * volatility * currentPrice) /
-                strike;
-        }
-
-        // Verify that 100% is the max that can be returned.
-        // A super deep In The Money option could return a higher value than 100% using the approximation formula
-        if (intrinsic + timeValue > 1e18) {
-            return 1e18;
-        }
-
-        return intrinsic + timeValue;
+    ) public view returns (uint256) {
+        return
+            IAmmDataProvider(ammDataProvider).calcPrice(
+                timeUntilExpiry,
+                strike,
+                currentPrice,
+                volatility,
+                isPutOption
+            );
     }
 
     /// @dev Calculate the fee amount for a buy/sell
@@ -1110,31 +1023,14 @@ contract MinterAmm is
         view
         returns (uint256)
     {
-        // Shortcut for 0 amount
-        if (bTokenAmount == 0) return 0;
-
-        bTokenAmount = seriesController.getCollateralPerOptionToken(
-            seriesId,
-            bTokenAmount
-        );
-
-        // For both puts and calls balances are expressed in collateral token
-        (uint256 bTokenBalance, uint256 wTokenBalance) = getVirtualReserves(
-            seriesId
-        );
-
-        uint256 sumBalance = bTokenBalance + wTokenBalance;
-        uint256 toSquare;
-        if (sumBalance > bTokenAmount) {
-            toSquare = sumBalance - bTokenAmount;
-        } else {
-            toSquare = bTokenAmount - sumBalance;
-        }
-
-        // return the collateral amount
         return
-            (((Math.sqrt((toSquare**2) + (4 * bTokenAmount * wTokenBalance)) +
-                bTokenAmount) - bTokenBalance) - wTokenBalance) / 2;
+            IAmmDataProvider(ammDataProvider).bTokenGetCollateralIn(
+                seriesId,
+                address(this),
+                bTokenAmount,
+                collateralToken.balanceOf(address(this)),
+                getPriceForSeries(seriesId)
+            );
     }
 
     /// @notice Calculate the amount of collateral token the user will receive for selling
@@ -1251,32 +1147,15 @@ contract MinterAmm is
         uint256 _collateralTokenBalance,
         bool isBToken
     ) private view returns (uint256) {
-        // Shortcut for 0 amount
-        if (optionTokenAmount == 0) return 0;
-
-        optionTokenAmount = seriesController.getCollateralPerOptionToken(
-            seriesId,
-            optionTokenAmount
-        );
-
-        (
-            uint256 bTokenBalance,
-            uint256 wTokenBalance
-        ) = getVirtualReservesInternal(seriesId, _collateralTokenBalance);
-
-        uint256 balanceFactor;
-        if (isBToken) {
-            balanceFactor = wTokenBalance;
-        } else {
-            balanceFactor = bTokenBalance;
-        }
-        uint256 toSquare = optionTokenAmount + wTokenBalance + bTokenBalance;
-        uint256 collateralAmount = (toSquare -
-            Math.sqrt(
-                (toSquare**2) - (4 * optionTokenAmount * balanceFactor)
-            )) / 2;
-
-        return collateralAmount;
+        return
+            IAmmDataProvider(ammDataProvider).optionTokenGetCollateralOut(
+                seriesId,
+                address(this),
+                optionTokenAmount,
+                _collateralTokenBalance,
+                getPriceForSeries(seriesId),
+                isBToken
+            );
     }
 
     /// @notice Calculate the amount of collateral the AMM would received if all of the

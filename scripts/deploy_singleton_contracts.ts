@@ -14,7 +14,10 @@ if (ADMIN_ADDRESS == null || ADMIN_ADDRESS == "") {
 }
 
 const PRICE_ORACLE_DATE_OFFSET = parseInt(process.env.PRICE_ORACLE_DATE_OFFSET)
-if (PRICE_ORACLE_DATE_OFFSET == NaN || PRICE_ORACLE_DATE_OFFSET == null) {
+if (
+  Number.isNaN(PRICE_ORACLE_DATE_OFFSET) ||
+  PRICE_ORACLE_DATE_OFFSET == null
+) {
   argumentError("PRICE_ORACLE_DATE_OFFSET")
 }
 

@@ -5,12 +5,14 @@ import {
   SimpleTokenContract,
   SeriesControllerContract,
   SeriesVaultContract,
+  ERC1155ControllerInstance,
   ERC1155ControllerContract,
+  AmmDataProviderContract,
+  AmmDataProviderInstance,
   MockPriceOracleContract,
   ProxyContract,
   AmmFactoryContract,
   MinterAmmContract,
-  ERC1155ControllerInstance,
 } from "../typechain"
 import { artifacts, assert } from "hardhat"
 import { time, expectEvent, BN } from "@openzeppelin/test-helpers"
@@ -35,6 +37,8 @@ const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
 
 const AmmFactory: AmmFactoryContract = artifacts.require("AmmFactory")
 const MinterAmm: MinterAmmContract = artifacts.require("MinterAmm")
+const AmmDataProvider: AmmDataProviderContract =
+  artifacts.require("AmmDataProvider")
 
 const FEE_RECEIVER_ADDRESS = "0x000000000000000000000000000000000000dEaD"
 const ONE_DAY_DURATION = 24 * 60 * 60
@@ -297,6 +301,11 @@ export async function setupSingletonTestContracts(
     deployedSeriesController.address,
   )
 
+  const deployedAmmDataProvider = await AmmDataProvider.new(
+    deployedSeriesController.address,
+    deployedERC1155Controller.address,
+  )
+
   // create mock price oracle
   const deployedMockPriceOracle = await MockPriceOracle.new(
     await underlyingToken.decimals(),
@@ -371,6 +380,7 @@ export async function setupSingletonTestContracts(
     deployedPriceOracle,
     deployedMockPriceOracle,
     deployedAmmFactory,
+    deployedAmmDataProvider,
     oraclePrice,
     expiration,
     exerciseFee,
@@ -384,6 +394,7 @@ export async function setupSingletonTestContracts(
 export async function setupAmm({
   deployedAmmFactory,
   deployedPriceOracle,
+  deployedAmmDataProvider,
   underlyingToken,
   priceToken,
   collateralToken,
@@ -391,6 +402,7 @@ export async function setupAmm({
 }) {
   const createAmmResp = await deployedAmmFactory.createAmm(
     deployedPriceOracle.address,
+    deployedAmmDataProvider.address,
     underlyingToken.address,
     priceToken.address,
     collateralToken.address,
@@ -495,6 +507,7 @@ export async function setupAllTestContracts(
     deployedPriceOracle,
     deployedMockPriceOracle,
     deployedAmmFactory,
+    deployedAmmDataProvider,
     expiration,
     erc1155URI,
   } = await setupSingletonTestContracts({
@@ -515,6 +528,7 @@ export async function setupAllTestContracts(
   const { deployedAmm } = await setupAmm({
     deployedAmmFactory,
     deployedPriceOracle,
+    deployedAmmDataProvider,
     underlyingToken,
     priceToken,
     collateralToken,
@@ -552,6 +566,7 @@ export async function setupAllTestContracts(
     deployedPriceOracle,
     deployedMockPriceOracle,
     deployedAmmFactory,
+    deployedAmmDataProvider,
     deployedAmm,
     oraclePrice,
     expiration,
