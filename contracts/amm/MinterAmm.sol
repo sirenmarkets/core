@@ -48,9 +48,10 @@ import "../series/SeriesLibrary.sol";
 /// the user.
 ///
 /// If fees are enabled (3 params are configured: trade fee, max fee, and fee destination) a trade fee will be collected and
-/// sent to an external acct.  Fee calculations mimic the Deribit fee schedule where each buy/sell has a trade fee percentage
+/// sent to an external acct.  Fee calculations mimic the Deribit fee schedule (see https://www.deribit.com/pages/information/fees for
+/// their explanation with examples of BTC/ETH options). Each buy/sell has a trade fee percentage
 /// based on the number of underlying option contracts (bToken amt) priced in the collateral token.
-/// Additionally, there is a max fee percentage based on the option value being bought or sold (collateral paid or redeemed).
+/// Additionally, there is a max fee percentage based on the option value being bought or sold (collateral paid or received).
 /// The lower of the 2 fees calculated will be used.  Fees are paid out on each buy or sell of bTokens to a configured address.
 ///
 /// Fee Example: If trade fee is 3 basis points and max fee is 1250 basis points and a buy of bTokens is priced at 0.0001 collateral
