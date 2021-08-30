@@ -50,52 +50,41 @@ contract("AMM Fees", (accounts) => {
       deployedAmm.address,
     )
 
-    // Ensure an non-owner can't edit destination
+    // Ensure an non-owner can't update fee params
     await expectRevert(
-      deployedFeeAmm.setFeeDestinationAddress(accounts[2], {
-        from: bobAccount,
-      }),
+      deployedFeeAmm.setTradingFeeParams(
+        new BN(100),
+        new BN(200),
+        accounts[2],
+        {
+          from: bobAccount,
+        },
+      ),
       ERROR_MESSAGES.UNAUTHORIZED,
     )
 
-    // Ensure an non-owner can't update max fee
-    await expectRevert(
-      deployedFeeAmm.setMaxOptionFeeBasisPoints(new BN(100), {
-        from: bobAccount,
-      }),
-      ERROR_MESSAGES.UNAUTHORIZED,
+    // Set it from the owner account
+    let ret = await deployedFeeAmm.setTradingFeeParams(
+      new BN(100),
+      new BN(200),
+      accounts[2],
+      {
+        from: ownerAccount,
+      },
     )
 
-    // Ensure an non-owner can't update trade fees
-    await expectRevert(
-      deployedFeeAmm.setTradeFeeBasisPoints(new BN(100), { from: bobAccount }),
-      ERROR_MESSAGES.UNAUTHORIZED,
-    )
-
-    // Destination address
-    let ret = await deployedFeeAmm.setFeeDestinationAddress(accounts[2], {
-      from: ownerAccount,
-    })
-
-    expectEvent(ret, "FeeDestinationAddressUpdated", {
+    expectEvent(ret, "TradeFeesUpdated", {
+      newTradeFeeBasisPoints: new BN(100),
+      newMaxOptionFeeBasisPoints: new BN(200),
       newFeeDestinationAddress: accounts[2],
     })
 
     // Verify it got set correctly
-    assert.equal(
-      await deployedFeeAmm.feeDestinationAddress(),
-      accounts[2],
-      "Fee dest should be set",
+    assertBNEq(
+      await deployedFeeAmm.tradeFeeBasisPoints(),
+      new BN(100),
+      "Trade fee should be set",
     )
-
-    // Max Fee
-    ret = await deployedFeeAmm.setMaxOptionFeeBasisPoints(new BN(200), {
-      from: ownerAccount,
-    })
-
-    expectEvent(ret, "maxOptionFeeBasisPointsUpdated", {
-      newMaxOptionFeeBasisPoints: new BN(200),
-    })
 
     // Verify it got set correctly
     assertBNEq(
@@ -104,20 +93,11 @@ contract("AMM Fees", (accounts) => {
       "Max fee should be set",
     )
 
-    // Trade Fee
-    ret = await deployedFeeAmm.setTradeFeeBasisPoints(new BN(300), {
-      from: ownerAccount,
-    })
-
-    expectEvent(ret, "TradeFeeBasisPointsUpdated", {
-      newTradeFeeBasisPoints: new BN(300),
-    })
-
     // Verify it got set correctly
-    assertBNEq(
-      await deployedFeeAmm.tradeFeeBasisPoints(),
-      new BN(300),
-      "Trade fee should be set",
+    assert.equal(
+      await deployedFeeAmm.feeDestinationAddress(),
+      accounts[2],
+      "Fee dest should be set",
     )
   })
 
@@ -133,9 +113,6 @@ contract("AMM Fees", (accounts) => {
     // Provide capital
     let ret = await deployedAmm.provideCapital(10000e8, 0)
 
-    const bTokenIndex = await deployedSeriesController.bTokenIndex(seriesId)
-    const wTokenIndex = await deployedSeriesController.wTokenIndex(seriesId)
-
     // Approve collateral
     await underlyingToken.mint(aliceAccount, 10e8)
     await underlyingToken.approve(deployedAmm.address, 10e8, {
@@ -143,15 +120,14 @@ contract("AMM Fees", (accounts) => {
     })
 
     // Enable fees
-    await deployedAmm.setFeeDestinationAddress(feeDestination, {
-      from: ownerAccount,
-    })
-    await deployedAmm.setTradeFeeBasisPoints(new BN(3), {
-      from: ownerAccount,
-    })
-    await deployedAmm.setMaxOptionFeeBasisPoints(new BN(1250), {
-      from: ownerAccount,
-    })
+    await deployedAmm.setTradingFeeParams(
+      new BN(3),
+      new BN(1250),
+      feeDestination,
+      {
+        from: ownerAccount,
+      },
+    )
 
     let feesCollected = 0
 
@@ -177,9 +153,14 @@ contract("AMM Fees", (accounts) => {
 
     // Set the trade fee really high to verify the max collateral fee is used
     // 10% trade fee
-    await deployedAmm.setTradeFeeBasisPoints(new BN(1000), {
-      from: ownerAccount,
-    })
+    await deployedAmm.setTradingFeeParams(
+      new BN(1000),
+      new BN(1250),
+      feeDestination,
+      {
+        from: ownerAccount,
+      },
+    )
 
     // Buys success - ignore slippage and use a big number
     ret = await deployedAmm.bTokenBuy(seriesId, 10000, 1000e7, {
@@ -209,9 +190,14 @@ contract("AMM Fees", (accounts) => {
     )
 
     // Set trade fee back
-    await deployedAmm.setTradeFeeBasisPoints(new BN(3), {
-      from: ownerAccount,
-    })
+    await deployedAmm.setTradingFeeParams(
+      new BN(3),
+      new BN(1250),
+      feeDestination,
+      {
+        from: ownerAccount,
+      },
+    )
 
     // Approve bTokens to trade for collateral
     await deployedERC1155Controller.setApprovalForAll(
@@ -244,9 +230,14 @@ contract("AMM Fees", (accounts) => {
     })
 
     // Bump trade fee so that the max fee is used
-    await deployedAmm.setTradeFeeBasisPoints(new BN(5000), {
-      from: ownerAccount,
-    })
+    await deployedAmm.setTradingFeeParams(
+      new BN(5000),
+      new BN(1250),
+      feeDestination,
+      {
+        from: ownerAccount,
+      },
+    )
 
     // Sell into AMM - ignore slippage
     ret = await deployedAmm.bTokenSell(seriesId, 5000, 0, {

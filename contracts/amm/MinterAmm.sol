@@ -180,14 +180,12 @@ contract MinterAmm is
     /// @notice Emitted when an expired series has been removed
     event SeriesEvicted(uint64 seriesId);
 
-    /// Emitted when the owner updates maxOptionFeeBasisPoints
-    event maxOptionFeeBasisPointsUpdated(uint16 newMaxOptionFeeBasisPoints);
-
-    /// Emitted when the owner updates feeDestinationAddress
-    event FeeDestinationAddressUpdated(address newFeeDestinationAddress);
-
-    /// Emitted when the owner updates tradeFeeBasisPoints
-    event TradeFeeBasisPointsUpdated(uint16 newTradeFeeBasisPoints);
+    /// Emitted when the owner updates fee params
+    event TradeFeesUpdated(
+        uint16 newTradeFeeBasisPoints,
+        uint16 newMaxOptionFeeBasisPoints,
+        address newFeeDestinationAddress
+    );
 
     // Emitted when fees are paid
     event TradeFeesPaid(address indexed feePaidTo, uint256 feeAmount);
@@ -301,31 +299,20 @@ contract MinterAmm is
         emit VolatilityFactorUpdated(_volatilityFactor);
     }
 
-    /// The owner can set the trading fee
-    function setTradeFeeBasisPoints(uint16 _tradeFeeBasisPoints)
-        public
-        onlyOwner
-    {
+    /// The owner can set the trade fee params - if any are set to 0/0x0 then trade fees are disabled
+    function setTradingFeeParams(
+        uint16 _tradeFeeBasisPoints,
+        uint16 _maxOptionFeeBasisPoints,
+        address _feeDestinationAddress
+    ) public onlyOwner {
         tradeFeeBasisPoints = _tradeFeeBasisPoints;
-        emit TradeFeeBasisPointsUpdated(tradeFeeBasisPoints);
-    }
-
-    /// The owner can set the max fee basis points
-    function setMaxOptionFeeBasisPoints(uint16 _maxOptionFeeBasisPoints)
-        public
-        onlyOwner
-    {
         maxOptionFeeBasisPoints = _maxOptionFeeBasisPoints;
-        emit maxOptionFeeBasisPointsUpdated(maxOptionFeeBasisPoints);
-    }
-
-    /// The owner can set the fee destination address
-    function setFeeDestinationAddress(address _feeDestinationAddress)
-        public
-        onlyOwner
-    {
         feeDestinationAddress = _feeDestinationAddress;
-        emit FeeDestinationAddressUpdated(feeDestinationAddress);
+        emit TradeFeesUpdated(
+            tradeFeeBasisPoints,
+            maxOptionFeeBasisPoints,
+            feeDestinationAddress
+        );
     }
 
     /// @notice update the logic contract for this proxy contract
