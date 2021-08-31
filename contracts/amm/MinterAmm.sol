@@ -845,7 +845,7 @@ contract MinterAmm is
             "Series has expired"
         );
 
-        uint256 collateralAmount = bTokenGetCollateralIn(
+        uint256 collateralAmount = bTokenGetCollateralInWithoutFees(
             seriesId,
             bTokenAmount
         );
@@ -935,7 +935,7 @@ contract MinterAmm is
             "Series has expired"
         );
 
-        uint256 collateralAmount = bTokenGetCollateralOut(
+        uint256 collateralAmount = bTokenGetCollateralOutWithoutFees(
             seriesId,
             bTokenAmount
         );
@@ -999,18 +999,17 @@ contract MinterAmm is
     }
 
     /// @notice Calculate premium (i.e. the option price) to buy bTokenAmount bTokens for the
-    /// given Series
+    /// given Series without including any trade fees
     /// @notice The premium depends on the amount of collateral token in the pool, the reserves
     /// of bToken and wToken in the pool, and the current series price of the underlying
     /// @param seriesId The ID of the Series to buy bToken on
     /// @param bTokenAmount The amount of bToken to buy, which uses the same decimals as
     /// the underlying ERC20 token
     /// @return The amount of collateral token necessary to buy bTokenAmount worth of bTokens
-    function bTokenGetCollateralIn(uint64 seriesId, uint256 bTokenAmount)
-        public
-        view
-        returns (uint256)
-    {
+    function bTokenGetCollateralInWithoutFees(
+        uint64 seriesId,
+        uint256 bTokenAmount
+    ) public view returns (uint256) {
         return
             IAmmDataProvider(ammDataProvider).bTokenGetCollateralIn(
                 seriesId,
@@ -1018,6 +1017,51 @@ contract MinterAmm is
                 bTokenAmount,
                 collateralToken.balanceOf(address(this)),
                 getPriceForSeries(seriesId)
+            );
+    }
+
+    /// @notice Calculate premium (i.e. the option price) to buy bTokenAmount bTokens for the
+    /// given Series
+    /// @notice The premium depends on the amount of collateral token in the pool, the reserves
+    /// of bToken and wToken in the pool, and the current series price of the underlying
+    /// @param seriesId The ID of the Series to buy bToken on
+    /// @param bTokenAmount The amount of bToken to buy, which uses the same decimals as
+    /// the underlying ERC20 token
+    /// @return The amount of collateral token necessary to buy bTokenAmount worth of bTokens
+    /// NOTE: This returns the collateral + fee amount
+    function bTokenGetCollateralIn(uint64 seriesId, uint256 bTokenAmount)
+        public
+        view
+        returns (uint256)
+    {
+        uint256 collateralWithoutFees = bTokenGetCollateralInWithoutFees(
+            seriesId,
+            bTokenAmount
+        );
+        uint256 tradeFee = calculateFees(bTokenAmount, collateralWithoutFees);
+        return collateralWithoutFees + tradeFee;
+    }
+
+    /// @notice Calculate the amount of collateral token the user will receive for selling
+    /// bTokenAmount worth of bToken to the pool. This is the option's sell price without
+    /// including any trade fees
+    /// @notice The sell price depends on the amount of collateral token in the pool, the reserves
+    /// of bToken and wToken in the pool, and the current series price of the underlying
+    /// @param seriesId The ID of the Series to sell bToken on
+    /// @param bTokenAmount The amount of bToken to sell, which uses the same decimals as
+    /// the underlying ERC20 token
+    /// @return The amount of collateral token the user will receive upon selling bTokenAmount of
+    /// bTokens to the pool
+    function bTokenGetCollateralOutWithoutFees(
+        uint64 seriesId,
+        uint256 bTokenAmount
+    ) public view returns (uint256) {
+        return
+            optionTokenGetCollateralOutInternal(
+                seriesId,
+                bTokenAmount,
+                collateralToken.balanceOf(address(this)),
+                true
             );
     }
 
@@ -1029,19 +1073,21 @@ contract MinterAmm is
     /// @param bTokenAmount The amount of bToken to sell, which uses the same decimals as
     /// the underlying ERC20 token
     /// @return The amount of collateral token the user will receive upon selling bTokenAmount of
-    /// bTokens to the pool
+    /// bTokens to the pool minus any trade fees
+    /// NOTE: This returns the collateral - fee amount
     function bTokenGetCollateralOut(uint64 seriesId, uint256 bTokenAmount)
         public
         view
         returns (uint256)
     {
-        return
-            optionTokenGetCollateralOutInternal(
-                seriesId,
-                bTokenAmount,
-                collateralToken.balanceOf(address(this)),
-                true
-            );
+        uint256 collateralWithoutFees = optionTokenGetCollateralOutInternal(
+            seriesId,
+            bTokenAmount,
+            collateralToken.balanceOf(address(this)),
+            true
+        );
+        uint256 tradeFee = calculateFees(bTokenAmount, collateralWithoutFees);
+        return collateralWithoutFees - tradeFee;
     }
 
     /// @notice Sell the wToken of a given series to the AMM in exchange for collateral token
