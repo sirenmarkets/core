@@ -112,6 +112,7 @@ export function handleBTokensBought(event: BTokensBought): void {
   bTokenBought.block = event.block.number
   bTokenBought.timestamp = event.block.timestamp
   bTokenBought.poolValueSnapshot = poolValueSnapShot.id
+  bTokenBought.seriesId = event.params.seriesId.toI32()
 
   bTokenBought.save()
 }
@@ -130,6 +131,7 @@ export function handleBTokensSold(event: BTokensSold): void {
   bTokenSold.block = event.block.number
   bTokenSold.timestamp = event.block.timestamp
   bTokenSold.poolValueSnapshot = poolValueSnapShot.id
+  bTokenSold.seriesId = event.params.seriesId.toI32()
 
   bTokenSold.save()
 }
@@ -148,6 +150,7 @@ export function handleWTokensSold(event: WTokensSold): void {
   wTokenSold.block = event.block.number
   wTokenSold.timestamp = event.block.timestamp
   wTokenSold.poolValueSnapshot = poolValueSnapShot.id
+  wTokenSold.seriesId = event.params.seriesId.toI32()
 
   wTokenSold.save()
 }
