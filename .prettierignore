@@ -1,2 +1,7 @@
 **/node_modules/
 subgraph.template.yaml
+artifacts/
+subgraph/generated
+subgraph/build
+typechain/
+src/

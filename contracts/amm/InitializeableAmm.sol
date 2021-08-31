@@ -9,6 +9,7 @@ interface InitializeableAmm {
     function initialize(
         ISeriesController _seriesController,
         address _priceOracle,
+        address _ammDataProvider,
         IERC20 _underlyingToken,
         IERC20 _priceToken,
         IERC20 _collateralToken,

@@ -3,6 +3,7 @@ import * as hre from "hardhat"
 export async function deployAmm(
   ammFactoryAddress: string,
   sirenOracleAddress: string,
+  ammDataProviderAddress: string,
   underlyingTokenAddress: string,
   priceTokenAddress: string,
   collateralTokenAddress: string,
@@ -18,6 +19,7 @@ export async function deployAmm(
   let resp = await (
     await ammFactoryContract.createAmm(
       sirenOracleAddress,
+      ammDataProviderAddress,
       underlyingTokenAddress,
       priceTokenAddress,
       collateralTokenAddress,

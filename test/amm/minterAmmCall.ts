@@ -926,7 +926,8 @@ contract("AMM Call Verification", (accounts) => {
       "Initial pool value should be 0",
     )
 
-    const unredeemedCollateral = await deployedAmm.getCollateralValueOfAllExpiredOptionTokens()
+    const unredeemedCollateral =
+      await deployedAmm.getCollateralValueOfAllExpiredOptionTokens()
     assertBNEq(
       unredeemedCollateral,
       0,

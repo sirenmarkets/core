@@ -35,12 +35,12 @@ contract Proxy {
             let retSz := returndatasize()
             returndatacopy(ptr, 0, retSz)
             switch success
-                case 0 {
-                    revert(ptr, retSz)
-                }
-                default {
-                    return(ptr, retSz)
-                }
+            case 0 {
+                revert(ptr, retSz)
+            }
+            default {
+                return(ptr, retSz)
+            }
         }
     }
 }

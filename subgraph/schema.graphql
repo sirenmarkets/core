@@ -196,7 +196,6 @@ type Account @entity {
 
   "AmmTokenEvents that this account has interacted with"
   ammTokenEvents: [AmmTokenEvent!]! @derivedFrom(field: "account")
-
 }
 
 ## ERC1155
@@ -241,7 +240,7 @@ type ERC1155Token @entity {
 
 enum ERC1155TokenEventType {
   Transfer
-  Mint 
+  Mint
   Burn
 }
 
@@ -518,6 +517,7 @@ type BTokenBought implements AmmTokenEvent @entity {
   block: BigInt!
   timestamp: BigInt!
   poolValueSnapshot: PoolValueSnapshot!
+  seriesId: Int!
 }
 type BTokenSold implements AmmTokenEvent @entity {
   id: ID!
@@ -529,6 +529,7 @@ type BTokenSold implements AmmTokenEvent @entity {
   block: BigInt!
   timestamp: BigInt!
   poolValueSnapshot: PoolValueSnapshot!
+  seriesId: Int!
 }
 type WTokenSold implements AmmTokenEvent @entity {
   id: ID!
@@ -540,6 +541,7 @@ type WTokenSold implements AmmTokenEvent @entity {
   block: BigInt!
   timestamp: BigInt!
   poolValueSnapshot: PoolValueSnapshot!
+  seriesId: Int!
 }
 
 #

@@ -6,9 +6,8 @@ import { ERC1155ControllerContract } from "../../typechain"
 
 import { setupAllTestContracts, setupSeries } from "../util"
 
-const ERC1155Controller: ERC1155ControllerContract = artifacts.require(
-  "ERC1155Controller",
-)
+const ERC1155Controller: ERC1155ControllerContract =
+  artifacts.require("ERC1155Controller")
 
 contract("Proxy ERC1155Controller Verification", (accounts) => {
   const ownerAccount = accounts[0]
@@ -22,13 +21,10 @@ contract("Proxy ERC1155Controller Verification", (accounts) => {
   })
 
   it("Cannot initialize twice", async () => {
-    const {
-      deployedSeriesController,
-      deployedERC1155Controller,
-      erc1155URI,
-    } = await setupAllTestContracts({
-      restrictedMinters,
-    })
+    const { deployedSeriesController, deployedERC1155Controller, erc1155URI } =
+      await setupAllTestContracts({
+        restrictedMinters,
+      })
     await expectRevert(
       deployedERC1155Controller.__ERC1155Controller_init(
         erc1155URI,
@@ -55,7 +51,8 @@ contract("Proxy ERC1155Controller Verification", (accounts) => {
 
     // now make sure it changes when we update the implementation
 
-    const existingImplAddress = await deployedERC1155Controller.getLogicAddress()
+    const existingImplAddress =
+      await deployedERC1155Controller.getLogicAddress()
 
     await deployedERC1155Controller.updateImplementation(newImpl.address)
 
@@ -130,15 +127,14 @@ contract("Proxy ERC1155Controller Verification", (accounts) => {
 
     // now check that the bToken and wToken total supplies are non-zero, and that some
     // un-minted 5th option token is 0
-    const totalSupplies = await deployedERC1155Controller.optionTokenTotalSupplyBatch(
-      [
+    const totalSupplies =
+      await deployedERC1155Controller.optionTokenTotalSupplyBatch([
         bTokenIndex,
         wTokenIndex,
         anotherBTokenIndex,
         anotherWTokenIndex,
         anotherBTokenIndex.toNumber() + 1,
-      ],
-    )
+      ])
     assert.notEqual(totalSupplies[0].toNumber(), 0)
     assert.notEqual(totalSupplies[1].toNumber(), 0)
     assert.notEqual(totalSupplies[2].toNumber(), 0)

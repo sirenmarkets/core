@@ -7,93 +7,93 @@ import {
   Entity,
   Bytes,
   Address,
-  BigInt,
-} from "@graphprotocol/graph-ts"
+  BigInt
+} from "@graphprotocol/graph-ts";
 
 export class CodeAddressUpdated extends ethereum.Event {
   get params(): CodeAddressUpdated__Params {
-    return new CodeAddressUpdated__Params(this)
+    return new CodeAddressUpdated__Params(this);
   }
 }
 
 export class CodeAddressUpdated__Params {
-  _event: CodeAddressUpdated
+  _event: CodeAddressUpdated;
 
   constructor(event: CodeAddressUpdated) {
-    this._event = event
+    this._event = event;
   }
 
   get newAddress(): Address {
-    return this._event.parameters[0].value.toAddress()
+    return this._event.parameters[0].value.toAddress();
   }
 }
 
 export class OwnershipTransferred extends ethereum.Event {
   get params(): OwnershipTransferred__Params {
-    return new OwnershipTransferred__Params(this)
+    return new OwnershipTransferred__Params(this);
   }
 }
 
 export class OwnershipTransferred__Params {
-  _event: OwnershipTransferred
+  _event: OwnershipTransferred;
 
   constructor(event: OwnershipTransferred) {
-    this._event = event
+    this._event = event;
   }
 
   get previousOwner(): Address {
-    return this._event.parameters[0].value.toAddress()
+    return this._event.parameters[0].value.toAddress();
   }
 
   get newOwner(): Address {
-    return this._event.parameters[1].value.toAddress()
+    return this._event.parameters[1].value.toAddress();
   }
 }
 
 export class SeriesVaultInitialized extends ethereum.Event {
   get params(): SeriesVaultInitialized__Params {
-    return new SeriesVaultInitialized__Params(this)
+    return new SeriesVaultInitialized__Params(this);
   }
 }
 
 export class SeriesVaultInitialized__Params {
-  _event: SeriesVaultInitialized
+  _event: SeriesVaultInitialized;
 
   constructor(event: SeriesVaultInitialized) {
-    this._event = event
+    this._event = event;
   }
 
   get controller(): Address {
-    return this._event.parameters[0].value.toAddress()
+    return this._event.parameters[0].value.toAddress();
   }
 }
 
 export class SeriesVault extends ethereum.SmartContract {
   static bind(address: Address): SeriesVault {
-    return new SeriesVault("SeriesVault", address)
+    return new SeriesVault("SeriesVault", address);
   }
 
   getLogicAddress(): Address {
     let result = super.call(
       "getLogicAddress",
       "getLogicAddress():(address)",
-      [],
-    )
+      []
+    );
 
-    return result[0].toAddress()
+    return result[0].toAddress();
   }
 
   try_getLogicAddress(): ethereum.CallResult<Address> {
     let result = super.tryCall(
       "getLogicAddress",
       "getLogicAddress():(address)",
-      [],
-    )
+      []
+    );
     if (result.reverted) {
-      return new ethereum.CallResult()
+      return new ethereum.CallResult();
     }
-    let value = result.value
-    return ethereum.CallResult.fromValue(value[0].toAddress())
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toAddress());
   }
 
   onERC1155BatchReceived(
@@ -101,7 +101,7 @@ export class SeriesVault extends ethereum.SmartContract {
     param1: Address,
     param2: Array<BigInt>,
     param3: Array<BigInt>,
-    param4: Bytes,
+    param4: Bytes
   ): Bytes {
     let result = super.call(
       "onERC1155BatchReceived",
@@ -111,11 +111,11 @@ export class SeriesVault extends ethereum.SmartContract {
         ethereum.Value.fromAddress(param1),
         ethereum.Value.fromUnsignedBigIntArray(param2),
         ethereum.Value.fromUnsignedBigIntArray(param3),
-        ethereum.Value.fromBytes(param4),
-      ],
-    )
+        ethereum.Value.fromBytes(param4)
+      ]
+    );
 
-    return result[0].toBytes()
+    return result[0].toBytes();
   }
 
   try_onERC1155BatchReceived(
@@ -123,7 +123,7 @@ export class SeriesVault extends ethereum.SmartContract {
     param1: Address,
     param2: Array<BigInt>,
     param3: Array<BigInt>,
-    param4: Bytes,
+    param4: Bytes
   ): ethereum.CallResult<Bytes> {
     let result = super.tryCall(
       "onERC1155BatchReceived",
@@ -133,14 +133,14 @@ export class SeriesVault extends ethereum.SmartContract {
         ethereum.Value.fromAddress(param1),
         ethereum.Value.fromUnsignedBigIntArray(param2),
         ethereum.Value.fromUnsignedBigIntArray(param3),
-        ethereum.Value.fromBytes(param4),
-      ],
-    )
+        ethereum.Value.fromBytes(param4)
+      ]
+    );
     if (result.reverted) {
-      return new ethereum.CallResult()
+      return new ethereum.CallResult();
     }
-    let value = result.value
-    return ethereum.CallResult.fromValue(value[0].toBytes())
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBytes());
   }
 
   onERC1155Received(
@@ -148,7 +148,7 @@ export class SeriesVault extends ethereum.SmartContract {
     param1: Address,
     param2: BigInt,
     param3: BigInt,
-    param4: Bytes,
+    param4: Bytes
   ): Bytes {
     let result = super.call(
       "onERC1155Received",
@@ -158,11 +158,11 @@ export class SeriesVault extends ethereum.SmartContract {
         ethereum.Value.fromAddress(param1),
         ethereum.Value.fromUnsignedBigInt(param2),
         ethereum.Value.fromUnsignedBigInt(param3),
-        ethereum.Value.fromBytes(param4),
-      ],
-    )
+        ethereum.Value.fromBytes(param4)
+      ]
+    );
 
-    return result[0].toBytes()
+    return result[0].toBytes();
   }
 
   try_onERC1155Received(
@@ -170,7 +170,7 @@ export class SeriesVault extends ethereum.SmartContract {
     param1: Address,
     param2: BigInt,
     param3: BigInt,
-    param4: Bytes,
+    param4: Bytes
   ): ethereum.CallResult<Bytes> {
     let result = super.tryCall(
       "onERC1155Received",
@@ -180,371 +180,375 @@ export class SeriesVault extends ethereum.SmartContract {
         ethereum.Value.fromAddress(param1),
         ethereum.Value.fromUnsignedBigInt(param2),
         ethereum.Value.fromUnsignedBigInt(param3),
-        ethereum.Value.fromBytes(param4),
-      ],
-    )
+        ethereum.Value.fromBytes(param4)
+      ]
+    );
     if (result.reverted) {
-      return new ethereum.CallResult()
+      return new ethereum.CallResult();
     }
-    let value = result.value
-    return ethereum.CallResult.fromValue(value[0].toBytes())
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBytes());
   }
 
   owner(): Address {
-    let result = super.call("owner", "owner():(address)", [])
+    let result = super.call("owner", "owner():(address)", []);
 
-    return result[0].toAddress()
+    return result[0].toAddress();
   }
 
   try_owner(): ethereum.CallResult<Address> {
-    let result = super.tryCall("owner", "owner():(address)", [])
+    let result = super.tryCall("owner", "owner():(address)", []);
     if (result.reverted) {
-      return new ethereum.CallResult()
+      return new ethereum.CallResult();
     }
-    let value = result.value
-    return ethereum.CallResult.fromValue(value[0].toAddress())
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toAddress());
   }
 
   proxiableUUID(): Bytes {
-    let result = super.call("proxiableUUID", "proxiableUUID():(bytes32)", [])
+    let result = super.call("proxiableUUID", "proxiableUUID():(bytes32)", []);
 
-    return result[0].toBytes()
+    return result[0].toBytes();
   }
 
   try_proxiableUUID(): ethereum.CallResult<Bytes> {
-    let result = super.tryCall("proxiableUUID", "proxiableUUID():(bytes32)", [])
+    let result = super.tryCall(
+      "proxiableUUID",
+      "proxiableUUID():(bytes32)",
+      []
+    );
     if (result.reverted) {
-      return new ethereum.CallResult()
+      return new ethereum.CallResult();
     }
-    let value = result.value
-    return ethereum.CallResult.fromValue(value[0].toBytes())
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBytes());
   }
 
   setERC1155ApprovalForController(erc1155Contract: Address): boolean {
     let result = super.call(
       "setERC1155ApprovalForController",
       "setERC1155ApprovalForController(address):(bool)",
-      [ethereum.Value.fromAddress(erc1155Contract)],
-    )
+      [ethereum.Value.fromAddress(erc1155Contract)]
+    );
 
-    return result[0].toBoolean()
+    return result[0].toBoolean();
   }
 
   try_setERC1155ApprovalForController(
-    erc1155Contract: Address,
+    erc1155Contract: Address
   ): ethereum.CallResult<boolean> {
     let result = super.tryCall(
       "setERC1155ApprovalForController",
       "setERC1155ApprovalForController(address):(bool)",
-      [ethereum.Value.fromAddress(erc1155Contract)],
-    )
+      [ethereum.Value.fromAddress(erc1155Contract)]
+    );
     if (result.reverted) {
-      return new ethereum.CallResult()
+      return new ethereum.CallResult();
     }
-    let value = result.value
-    return ethereum.CallResult.fromValue(value[0].toBoolean())
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBoolean());
   }
 
   supportsInterface(interfaceId: Bytes): boolean {
     let result = super.call(
       "supportsInterface",
       "supportsInterface(bytes4):(bool)",
-      [ethereum.Value.fromFixedBytes(interfaceId)],
-    )
+      [ethereum.Value.fromFixedBytes(interfaceId)]
+    );
 
-    return result[0].toBoolean()
+    return result[0].toBoolean();
   }
 
   try_supportsInterface(interfaceId: Bytes): ethereum.CallResult<boolean> {
     let result = super.tryCall(
       "supportsInterface",
       "supportsInterface(bytes4):(bool)",
-      [ethereum.Value.fromFixedBytes(interfaceId)],
-    )
+      [ethereum.Value.fromFixedBytes(interfaceId)]
+    );
     if (result.reverted) {
-      return new ethereum.CallResult()
+      return new ethereum.CallResult();
     }
-    let value = result.value
-    return ethereum.CallResult.fromValue(value[0].toBoolean())
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBoolean());
   }
 }
 
 export class __SeriesVault_initCall extends ethereum.Call {
   get inputs(): __SeriesVault_initCall__Inputs {
-    return new __SeriesVault_initCall__Inputs(this)
+    return new __SeriesVault_initCall__Inputs(this);
   }
 
   get outputs(): __SeriesVault_initCall__Outputs {
-    return new __SeriesVault_initCall__Outputs(this)
+    return new __SeriesVault_initCall__Outputs(this);
   }
 }
 
 export class __SeriesVault_initCall__Inputs {
-  _call: __SeriesVault_initCall
+  _call: __SeriesVault_initCall;
 
   constructor(call: __SeriesVault_initCall) {
-    this._call = call
+    this._call = call;
   }
 
   get _seriesController(): Address {
-    return this._call.inputValues[0].value.toAddress()
+    return this._call.inputValues[0].value.toAddress();
   }
 }
 
 export class __SeriesVault_initCall__Outputs {
-  _call: __SeriesVault_initCall
+  _call: __SeriesVault_initCall;
 
   constructor(call: __SeriesVault_initCall) {
-    this._call = call
+    this._call = call;
   }
 }
 
 export class OnERC1155BatchReceivedCall extends ethereum.Call {
   get inputs(): OnERC1155BatchReceivedCall__Inputs {
-    return new OnERC1155BatchReceivedCall__Inputs(this)
+    return new OnERC1155BatchReceivedCall__Inputs(this);
   }
 
   get outputs(): OnERC1155BatchReceivedCall__Outputs {
-    return new OnERC1155BatchReceivedCall__Outputs(this)
+    return new OnERC1155BatchReceivedCall__Outputs(this);
   }
 }
 
 export class OnERC1155BatchReceivedCall__Inputs {
-  _call: OnERC1155BatchReceivedCall
+  _call: OnERC1155BatchReceivedCall;
 
   constructor(call: OnERC1155BatchReceivedCall) {
-    this._call = call
+    this._call = call;
   }
 
   get value0(): Address {
-    return this._call.inputValues[0].value.toAddress()
+    return this._call.inputValues[0].value.toAddress();
   }
 
   get value1(): Address {
-    return this._call.inputValues[1].value.toAddress()
+    return this._call.inputValues[1].value.toAddress();
   }
 
   get value2(): Array<BigInt> {
-    return this._call.inputValues[2].value.toBigIntArray()
+    return this._call.inputValues[2].value.toBigIntArray();
   }
 
   get value3(): Array<BigInt> {
-    return this._call.inputValues[3].value.toBigIntArray()
+    return this._call.inputValues[3].value.toBigIntArray();
   }
 
   get value4(): Bytes {
-    return this._call.inputValues[4].value.toBytes()
+    return this._call.inputValues[4].value.toBytes();
   }
 }
 
 export class OnERC1155BatchReceivedCall__Outputs {
-  _call: OnERC1155BatchReceivedCall
+  _call: OnERC1155BatchReceivedCall;
 
   constructor(call: OnERC1155BatchReceivedCall) {
-    this._call = call
+    this._call = call;
   }
 
   get value0(): Bytes {
-    return this._call.outputValues[0].value.toBytes()
+    return this._call.outputValues[0].value.toBytes();
   }
 }
 
 export class OnERC1155ReceivedCall extends ethereum.Call {
   get inputs(): OnERC1155ReceivedCall__Inputs {
-    return new OnERC1155ReceivedCall__Inputs(this)
+    return new OnERC1155ReceivedCall__Inputs(this);
   }
 
   get outputs(): OnERC1155ReceivedCall__Outputs {
-    return new OnERC1155ReceivedCall__Outputs(this)
+    return new OnERC1155ReceivedCall__Outputs(this);
   }
 }
 
 export class OnERC1155ReceivedCall__Inputs {
-  _call: OnERC1155ReceivedCall
+  _call: OnERC1155ReceivedCall;
 
   constructor(call: OnERC1155ReceivedCall) {
-    this._call = call
+    this._call = call;
   }
 
   get value0(): Address {
-    return this._call.inputValues[0].value.toAddress()
+    return this._call.inputValues[0].value.toAddress();
   }
 
   get value1(): Address {
-    return this._call.inputValues[1].value.toAddress()
+    return this._call.inputValues[1].value.toAddress();
   }
 
   get value2(): BigInt {
-    return this._call.inputValues[2].value.toBigInt()
+    return this._call.inputValues[2].value.toBigInt();
   }
 
   get value3(): BigInt {
-    return this._call.inputValues[3].value.toBigInt()
+    return this._call.inputValues[3].value.toBigInt();
   }
 
   get value4(): Bytes {
-    return this._call.inputValues[4].value.toBytes()
+    return this._call.inputValues[4].value.toBytes();
   }
 }
 
 export class OnERC1155ReceivedCall__Outputs {
-  _call: OnERC1155ReceivedCall
+  _call: OnERC1155ReceivedCall;
 
   constructor(call: OnERC1155ReceivedCall) {
-    this._call = call
+    this._call = call;
   }
 
   get value0(): Bytes {
-    return this._call.outputValues[0].value.toBytes()
+    return this._call.outputValues[0].value.toBytes();
   }
 }
 
 export class RenounceOwnershipCall extends ethereum.Call {
   get inputs(): RenounceOwnershipCall__Inputs {
-    return new RenounceOwnershipCall__Inputs(this)
+    return new RenounceOwnershipCall__Inputs(this);
   }
 
   get outputs(): RenounceOwnershipCall__Outputs {
-    return new RenounceOwnershipCall__Outputs(this)
+    return new RenounceOwnershipCall__Outputs(this);
   }
 }
 
 export class RenounceOwnershipCall__Inputs {
-  _call: RenounceOwnershipCall
+  _call: RenounceOwnershipCall;
 
   constructor(call: RenounceOwnershipCall) {
-    this._call = call
+    this._call = call;
   }
 }
 
 export class RenounceOwnershipCall__Outputs {
-  _call: RenounceOwnershipCall
+  _call: RenounceOwnershipCall;
 
   constructor(call: RenounceOwnershipCall) {
-    this._call = call
+    this._call = call;
   }
 }
 
 export class SetERC1155ApprovalForControllerCall extends ethereum.Call {
   get inputs(): SetERC1155ApprovalForControllerCall__Inputs {
-    return new SetERC1155ApprovalForControllerCall__Inputs(this)
+    return new SetERC1155ApprovalForControllerCall__Inputs(this);
   }
 
   get outputs(): SetERC1155ApprovalForControllerCall__Outputs {
-    return new SetERC1155ApprovalForControllerCall__Outputs(this)
+    return new SetERC1155ApprovalForControllerCall__Outputs(this);
   }
 }
 
 export class SetERC1155ApprovalForControllerCall__Inputs {
-  _call: SetERC1155ApprovalForControllerCall
+  _call: SetERC1155ApprovalForControllerCall;
 
   constructor(call: SetERC1155ApprovalForControllerCall) {
-    this._call = call
+    this._call = call;
   }
 
   get erc1155Contract(): Address {
-    return this._call.inputValues[0].value.toAddress()
+    return this._call.inputValues[0].value.toAddress();
   }
 }
 
 export class SetERC1155ApprovalForControllerCall__Outputs {
-  _call: SetERC1155ApprovalForControllerCall
+  _call: SetERC1155ApprovalForControllerCall;
 
   constructor(call: SetERC1155ApprovalForControllerCall) {
-    this._call = call
+    this._call = call;
   }
 
   get value0(): boolean {
-    return this._call.outputValues[0].value.toBoolean()
+    return this._call.outputValues[0].value.toBoolean();
   }
 }
 
 export class SetERC20ApprovalForControllerCall extends ethereum.Call {
   get inputs(): SetERC20ApprovalForControllerCall__Inputs {
-    return new SetERC20ApprovalForControllerCall__Inputs(this)
+    return new SetERC20ApprovalForControllerCall__Inputs(this);
   }
 
   get outputs(): SetERC20ApprovalForControllerCall__Outputs {
-    return new SetERC20ApprovalForControllerCall__Outputs(this)
+    return new SetERC20ApprovalForControllerCall__Outputs(this);
   }
 }
 
 export class SetERC20ApprovalForControllerCall__Inputs {
-  _call: SetERC20ApprovalForControllerCall
+  _call: SetERC20ApprovalForControllerCall;
 
   constructor(call: SetERC20ApprovalForControllerCall) {
-    this._call = call
+    this._call = call;
   }
 
   get erc20Token(): Address {
-    return this._call.inputValues[0].value.toAddress()
+    return this._call.inputValues[0].value.toAddress();
   }
 }
 
 export class SetERC20ApprovalForControllerCall__Outputs {
-  _call: SetERC20ApprovalForControllerCall
+  _call: SetERC20ApprovalForControllerCall;
 
   constructor(call: SetERC20ApprovalForControllerCall) {
-    this._call = call
+    this._call = call;
   }
 }
 
 export class TransferOwnershipCall extends ethereum.Call {
   get inputs(): TransferOwnershipCall__Inputs {
-    return new TransferOwnershipCall__Inputs(this)
+    return new TransferOwnershipCall__Inputs(this);
   }
 
   get outputs(): TransferOwnershipCall__Outputs {
-    return new TransferOwnershipCall__Outputs(this)
+    return new TransferOwnershipCall__Outputs(this);
   }
 }
 
 export class TransferOwnershipCall__Inputs {
-  _call: TransferOwnershipCall
+  _call: TransferOwnershipCall;
 
   constructor(call: TransferOwnershipCall) {
-    this._call = call
+    this._call = call;
   }
 
   get newOwner(): Address {
-    return this._call.inputValues[0].value.toAddress()
+    return this._call.inputValues[0].value.toAddress();
   }
 }
 
 export class TransferOwnershipCall__Outputs {
-  _call: TransferOwnershipCall
+  _call: TransferOwnershipCall;
 
   constructor(call: TransferOwnershipCall) {
-    this._call = call
+    this._call = call;
   }
 }
 
 export class UpdateImplementationCall extends ethereum.Call {
   get inputs(): UpdateImplementationCall__Inputs {
-    return new UpdateImplementationCall__Inputs(this)
+    return new UpdateImplementationCall__Inputs(this);
   }
 
   get outputs(): UpdateImplementationCall__Outputs {
-    return new UpdateImplementationCall__Outputs(this)
+    return new UpdateImplementationCall__Outputs(this);
   }
 }
 
 export class UpdateImplementationCall__Inputs {
-  _call: UpdateImplementationCall
+  _call: UpdateImplementationCall;
 
   constructor(call: UpdateImplementationCall) {
-    this._call = call
+    this._call = call;
   }
 
   get _newImplementation(): Address {
-    return this._call.inputValues[0].value.toAddress()
+    return this._call.inputValues[0].value.toAddress();
   }
 }
 
 export class UpdateImplementationCall__Outputs {
-  _call: UpdateImplementationCall
+  _call: UpdateImplementationCall;
 
   constructor(call: UpdateImplementationCall) {
-    this._call = call
+    this._call = call;
   }
 }

@@ -8,6 +8,7 @@ import {
   PriceOracleInstance,
   MinterAmmContract,
   SeriesControllerInstance,
+  AmmDataProviderInstance,
 } from "../../typechain"
 
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
@@ -16,6 +17,7 @@ let deployedAmm: MinterAmmInstance
 let deployedAmmFactory: AmmFactoryInstance
 let deployedPriceOracle: PriceOracleInstance
 let deployedSeriesController: SeriesControllerInstance
+let deployedAmmDataProvider: AmmDataProviderInstance
 
 let underlyingToken: SimpleTokenInstance
 let priceToken: SimpleTokenInstance
@@ -36,6 +38,7 @@ contract("AMM Upgradeability", (accounts) => {
       deployedAmmFactory,
       deployedSeriesController,
       deployedPriceOracle,
+      deployedAmmDataProvider,
       underlyingToken,
       priceToken,
       collateralToken,
@@ -46,6 +49,7 @@ contract("AMM Upgradeability", (accounts) => {
     await expectRevert(
       deployedAmmFactory.createAmm(
         deployedPriceOracle.address,
+        deployedAmmDataProvider.address,
         underlyingToken.address,
         priceToken.address,
         collateralToken.address,
@@ -74,6 +78,7 @@ contract("AMM Upgradeability", (accounts) => {
 
     const { deployedAmm: otherDeployedAmm } = await setupAmm({
       deployedAmmFactory,
+      deployedAmmDataProvider,
       deployedPriceOracle,
       underlyingToken: otherUnderlyingToken,
       priceToken,
@@ -113,6 +118,7 @@ contract("AMM Upgradeability", (accounts) => {
     await expectRevert(
       deployedAmm.initialize(
         deployedSeriesController.address,
+        deployedAmmDataProvider.address,
         deployedPriceOracle.address,
         underlyingToken.address,
         priceToken.address,

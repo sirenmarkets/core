@@ -28,6 +28,7 @@ export async function deploySingletonContracts(
     "SeriesController",
   )
   const PriceOracle = await hre.ethers.getContractFactory("PriceOracle")
+  const AmmDataProvider = await hre.ethers.getContractFactory("AmmDataProvider")
 
   // each of these singleton contracts is upgradeable, and so we must deploy
   // them via a Proxy after we've deployed the logic contract
@@ -88,6 +89,14 @@ export async function deploySingletonContracts(
   console.log(
     "PriceOracle deployed to:             ",
     priceOracle.address.toLowerCase(),
+  )
+  const ammDataProvider = await AmmDataProvider.deploy(
+    seriesController.address,
+    erc1155Controller.address,
+  )
+  console.log(
+    "AmmDataProvider deployed to:         ",
+    ammDataProvider.address.toLowerCase(),
   )
 
   // now deploy the logic contracts and proxy contract we'll use for the AmmFactory
@@ -232,6 +241,7 @@ export async function deploySingletonContracts(
     seriesController,
     priceOracle,
     ammFactory,
+    ammDataProvider,
   }
 }
 
