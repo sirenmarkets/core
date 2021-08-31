@@ -410,6 +410,10 @@ export async function setUpUniswap(
   await tokenA.deployed()
   await (await tokenA.initialize("token A", "TKA", 8)).wait()
 
+  // const tokenB = await SimpleTokenFactory.deploy()
+  // await tokenB.deployed()
+  // await (await tokenA.initialize("token B", "TKB", 8)).wait()
+
   const weth = await SimpleTokenFactory.deploy()
   await weth.deployed()
   await (await weth.initialize("Wrapped ETH", "WETH", 18)).wait()
@@ -420,12 +424,13 @@ export async function setUpUniswap(
 
   const [owner] = await ethers.getSigners()
 
-  console.log("OWNER", owner.address)
-
   await tokenA.mint(owner.address, 10000000000 * 10)
+  // await tokenB.mint(owner.address, 10000000000 * 10)
   await collateralToken.mint(owner.address, 10000000000 * 10)
 
-  await tokenA.mint(aliceAccount, 10000000 * 10)
+  await tokenA.mint(aliceAccount, 1000000000 * 10)
+  await collateralToken.mint(aliceAccount, 1000000000 * 10)
+  // await tokenB.mint(aliceAccount, 10000000 * 10)
 
   const factory = await new ethers.ContractFactory(
     UniswapV2Factory.abi,
@@ -483,11 +488,12 @@ export async function setUpUniswap(
   const UniswapRouterPair = [tokenA.address, collateralToken.address]
 
   const deployedSirenExchange = await SirenExchange.new(
-    uniswapV2Router.address,
     deployedERC1155Controller.address,
   )
+  const uniswapV2RouterAddress = uniswapV2Router.address
 
   return {
+    uniswapV2RouterAddress,
     deployedSirenExchange,
     UniswapRouterPair,
   }
