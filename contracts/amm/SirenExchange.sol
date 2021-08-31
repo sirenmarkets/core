@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0-only
-
 pragma solidity >=0.5.0 <=0.8.0;
 import "../amm/ISirenTradeAMM.sol";
 import "../series/SeriesLibrary.sol";
@@ -7,17 +6,12 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
-import "@uniswap/lib/contracts/libraries/Babylonian.sol";
 import "hardhat/console.sol";
 
 contract SirenExchange is ERC1155Holder {
-    // IUniswapV2Router02 public immutable router;
     IERC1155 public immutable erc1155Controller;
 
-    // IUniswapV2Router02 public router;
-
     constructor(IERC1155 erc1155Controller_) public {
-        // router = IUniswapV2Router02(router_);
         erc1155Controller = erc1155Controller_;
     }
 
@@ -48,14 +42,23 @@ contract SirenExchange is ERC1155Holder {
         address seller
     );
 
+    /// @dev Returns bytes to be used in safeTransferFrom ( prevents stack to deep error )
     function dataReturn() public returns (bytes memory data) {
         return data;
     }
 
+    /// @notice Sell the wToken of a given series to the AMM in exchange for collateral token
+    /// @param seriesId The ID of the Series to buy wToken on
+    /// @param bTokenAmount The amount of bToken to buy (bToken has the same decimals as the underlying)
+    /// @param path The path of the collateral token we supply to the collateral the series wishes to receive
+    /// @param tokenAmountInMaximum The largest amount of collateral the caller is willing to pay for the bTokens
+    /// @param sirenAmmAddress address of the amm that we wish to call
+    /// @param deadline deadline the transaction must be completed by
+    /// @param _router address of the router we wish to use ( QuickSwap or SushiSwap )
     /// @dev Exchange collateral for bToken for a given series.
     /// We supply a collateral that is not the underlying token of this series and then find the route
-    /// Of the collateral provided to the underlying token using Uniswaps router the addresses provided are currently from quickswap and sushiswap.
-    /// We then call bTokenBuy in MinterAMM to buy the btokens and then send the bought bTokens to the user
+    /// Of the collateral provided to the underlying token using Uniswap router the addresses provided are currently from QuickSwap and SushiSwap.
+    /// We then call bTokenBuy in MinterAMM to buy the bTokens and then send the bought bTokens to the user
     function bTokenBuy(
         uint64 seriesId,
         uint256 bTokenAmount,
@@ -130,6 +133,15 @@ contract SirenExchange is ERC1155Holder {
         return amounts;
     }
 
+    /// @notice Sell the wToken of a given series to the AMM in exchange for collateral token
+    /// @param seriesId The ID of the Series to buy wToken on
+    /// @param bTokenAmount The amount of bToken to sell (bToken has the same decimals as the underlying)
+    /// @param path The path of the collateral token of the series to the collateral the caller wishes to receive
+    /// @param tokenAmountOutMinimum The lowest amount of collateral the caller is willing to receive as payment
+    /// @param sirenAmmAddress address of the amm that we wish to call
+    /// @param deadline deadline the transaction must be completed by
+    /// @param _router address of the router we wish to use ( QuickSwap or SushiSwap )
+    /// We supply a bToken and then select which collateral we wish to receive as our payment ( if it isnt the underlying asset )
     function bTokenSell(
         uint64 seriesId,
         uint256 bTokenAmount,
@@ -193,6 +205,15 @@ contract SirenExchange is ERC1155Holder {
         return amounts;
     }
 
+    /// @notice Sell the wToken of a given series to the AMM in exchange for collateral token
+    /// @param seriesId The ID of the Series to buy wToken on
+    /// @param wTokenAmount The amount of wToken to sell (wToken has the same decimals as the underlying)
+    /// @param path The path of the collateral token of the series to the collateral the caller wishes to receive
+    /// @param tokenAmountOutMinimum The lowest amount of collateral the caller is willing to receive as payment
+    /// @param sirenAmmAddress address of the amm that we wish to call
+    /// @param deadline deadline the transaction must be completed by
+    /// @param _router address of the router we wish to use ( QuickSwap or SushiSwap )
+    /// We supply a wToken and then select which collateral we wish to receive as our payment ( if it isnt the underlying asset )
     function wTokenSell(
         uint64 seriesId,
         uint256 wTokenAmount,
