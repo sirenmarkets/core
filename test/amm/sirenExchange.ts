@@ -30,18 +30,17 @@ let deployedSeriesController: SeriesControllerInstance
 let uniswapV2RouterAddress: string
 
 const ERROR_MESSAGES = {
+  NOT_ENOUGH_TOKENS_IN_ACCOUNT: "Not Enough tokens sent",
   NOT_ENOUGH_TOKENS_SENT: "Not Enough tokens sent",
+  MINIMUM_TOKENS_TO_HIGH: "Minimum token ammunt out not met",
+  NOT_ENOUGH_BTOKENS_SENT: "ERC1155: insufficient balance for transfer",
 }
 
 const STRIKE_PRICE = 15000 * 1e8 // 15000 USD
 const BTC_ORACLE_PRICE = 14_000 * 10 ** 8 // BTC oracle answer has 8 decimals places, same as BTC
 
 contract("Siren Exchange Verification", (accounts) => {
-  const ownerAccount = accounts[0]
   const aliceAccount = accounts[1]
-  const bobAccount = accounts[2]
-  const tokenInAddress = "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599"
-  const tokenOutAddress = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 
   const tokenAmountInMaximum = 10000
   let tokenA
@@ -119,8 +118,10 @@ contract("Siren Exchange Verification", (accounts) => {
     )
     assertBNEq(
       bTokenBuyAmount,
-      await deployedERC1155Controller.balanceOf(aliceAccount, bTokenIndex),
-      "Trader should have a balance of 3000 BTokens",
+      (
+        await deployedERC1155Controller.balanceOf(aliceAccount, bTokenIndex)
+      ).toNumber(),
+      "Trader should have a balance of 10_000 BTokens",
     )
 
     assertBNEq(
@@ -136,8 +137,8 @@ contract("Siren Exchange Verification", (accounts) => {
 
   it("Tries to Execute a BTokenBuy Exchange Not Enough Payment Token", async () => {
     const bTokenBuyAmount = 10_000
-    await erc20CollateralToken.approve(deployedAmm.address, 100000000)
-    await deployedAmm.provideCapital(100000000, 0)
+    await erc20CollateralToken.approve(deployedAmm.address, 1000000000)
+    await deployedAmm.provideCapital(1000000000, 0)
 
     await expectRevert(
       deployedSirenExchange.bTokenBuy(
@@ -154,32 +155,23 @@ contract("Siren Exchange Verification", (accounts) => {
       ),
       ERROR_MESSAGES.NOT_ENOUGH_TOKENS_SENT,
     )
-    // assertBNEq(
-    //   bTokenBuyAmount,
-    //   await deployedERC1155Controller.balanceOf(aliceAccount, bTokenIndex),
-    //   "Trader should have a balance of 3000 BTokens",
-    // )
 
-    // assertBNEq(
-    //   aliceATokenPreAmount > (await erc20A.balanceOf(aliceAccount)).toNumber(),
-    //   true,
-    //   "Trader should have a less Payment Token than before",
-    // )
     assertBNEq(
-      true,
-      true,
-      "Trader should have a less Payment Token than before",
+      0,
+      (
+        await deployedERC1155Controller.balanceOf(aliceAccount, bTokenIndex)
+      ).toNumber(),
+      "Trader should have no bTokens",
+    )
+    assertBNEq(
+      (await erc20A.balanceOf(aliceAccount)).toNumber(),
+      aliceATokenPreAmount,
+      "Trader should have the same amount of collateral Token as before",
     )
   })
 
   it("Tries to Execute a BTokenSell Exchange", async () => {
-    //Tokenammount in to high,
-    //User not enough funds
-
-    //Postives would be
-    //Alice sends exact ammount int
-
-    let maxCollateral = await deployedSirenExchange.bTokenBuy(
+    await deployedSirenExchange.bTokenBuy(
       seriesId,
       10000,
       UniswapRouterPair,
@@ -197,7 +189,7 @@ contract("Siren Exchange Verification", (accounts) => {
     assertBNEq(
       10000,
       await deployedERC1155Controller.balanceOf(aliceAccount, bTokenIndex),
-      "Trader should have no BTokens",
+      "Trader should have 10_000 BTokens",
     )
 
     await deployedERC1155Controller.setApprovalForAll(
@@ -215,7 +207,8 @@ contract("Siren Exchange Verification", (accounts) => {
       },
     )
 
-    let maxCollateral2 = await deployedSirenExchange.bTokenSell(
+    const aliceATokenPreSell = (await erc20A.balanceOf(aliceAccount)).toNumber()
+    await deployedSirenExchange.bTokenSell(
       seriesId,
       bTokenSellAmount,
       SellUniswapRouterPair2,
@@ -231,13 +224,105 @@ contract("Siren Exchange Verification", (accounts) => {
     assertBNEq(
       8000,
       await deployedERC1155Controller.balanceOf(aliceAccount, bTokenIndex),
-      "Trader should have a balance of 0 BTokens",
+      "Trader should have a balance of 8000 BTokens",
     )
 
     assertBNEq(
-      aliceATokenPreAmount > (await erc20A.balanceOf(aliceAccount)).toNumber(),
+      aliceATokenPreSell < (await erc20A.balanceOf(aliceAccount)).toNumber(),
       true,
-      "Trader should have a less Payment Token than before",
+      "Trader should have a more Payment Token than before",
+    )
+  })
+
+  it("Tries to Execute a BTokenSell With Not Enough BTokens", async () => {
+    await deployedSirenExchange.bTokenBuy(
+      seriesId,
+      10000,
+      UniswapRouterPair,
+      tokenAmountInMaximum,
+      deployedAmm.address,
+      deadline.getTime(),
+      uniswapV2RouterAddress,
+      {
+        from: aliceAccount,
+      },
+    )
+
+    const bTokenSellAmount = 11_000
+
+    assertBNEq(
+      10000,
+      await deployedERC1155Controller.balanceOf(aliceAccount, bTokenIndex),
+      "Trader should have no BTokens",
+    )
+
+    assertBNEq(
+      10000,
+      await deployedERC1155Controller.balanceOf(aliceAccount, bTokenIndex),
+      "Trader should have 10_000 BTokens",
+    )
+
+    await deployedERC1155Controller.setApprovalForAll(
+      deployedSirenExchange.address,
+      true,
+      {
+        from: aliceAccount,
+      },
+    )
+    await deployedERC1155Controller.setApprovalForAll(
+      deployedAmm.address,
+      true,
+      {
+        from: aliceAccount,
+      },
+    )
+
+    await expectRevert(
+      deployedSirenExchange.bTokenSell(
+        seriesId,
+        bTokenSellAmount,
+        SellUniswapRouterPair2,
+        bTokenSellAmount,
+        deployedAmm.address,
+        deadline.getTime(),
+        uniswapV2RouterAddress,
+        {
+          from: aliceAccount,
+        },
+      ),
+      ERROR_MESSAGES.MINIMUM_TOKENS_TO_HIGH,
+    )
+
+    await expectRevert(
+      deployedSirenExchange.bTokenSell(
+        seriesId,
+        1000,
+        SellUniswapRouterPair2,
+        10000,
+        deployedAmm.address,
+        deadline.getTime(),
+        uniswapV2RouterAddress,
+        {
+          from: aliceAccount,
+        },
+      ),
+      ERROR_MESSAGES.MINIMUM_TOKENS_TO_HIGH,
+    )
+
+    await expectRevert(
+      deployedSirenExchange.bTokenSell(
+        seriesId,
+        bTokenSellAmount,
+        SellUniswapRouterPair2,
+        0,
+        deployedAmm.address,
+        deadline.getTime(),
+        uniswapV2RouterAddress,
+        {
+          from: aliceAccount,
+        },
+      ),
+      ERROR_MESSAGES.NOT_ENOUGH_BTOKENS_SENT,
     )
   })
 
