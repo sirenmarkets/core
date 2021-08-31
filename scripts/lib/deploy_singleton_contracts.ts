@@ -132,7 +132,6 @@ export async function deploySingletonContracts(
   const SirenExchange = await hre.ethers.getContractFactory("SirenExchange")
 
   const sirenExchangeLogic = await SirenExchange.deploy(
-    "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
     erc1155Controller.address,
   )
 

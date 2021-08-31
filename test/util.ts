@@ -7,14 +7,12 @@ import {
   SeriesVaultContract,
   ERC1155ControllerContract,
   AmmDataProviderContract,
-  AmmDataProviderInstance,
   MockPriceOracleContract,
   ProxyContract,
   AmmFactoryContract,
   MinterAmmContract,
   ERC1155ControllerInstance,
   SirenExchangeContract,
-  IUniswapV2Router02Contract,
 } from "../typechain"
 import { artifacts, assert, ethers } from "hardhat"
 import { time, expectEvent, BN } from "@openzeppelin/test-helpers"
@@ -44,8 +42,6 @@ const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
 const AmmFactory: AmmFactoryContract = artifacts.require("AmmFactory")
 const SirenExchange: SirenExchangeContract = artifacts.require("SirenExchange")
 const MinterAmm: MinterAmmContract = artifacts.require("MinterAmm")
-const iUniswapV2Router: IUniswapV2Router02Contract =
-  artifacts.require("IUniswapV2Router02")
 const AmmDataProvider: AmmDataProviderContract =
   artifacts.require("AmmDataProvider")
 
@@ -273,12 +269,6 @@ export async function setupSingletonTestContracts(
   const ammFactoryLogic = await AmmFactory.deployed()
   const ammLogic = await MinterAmm.deployed()
   const erc20Logic = await SimpleToken.deployed()
-
-  // create mock uniswapRouter
-  // const deployedMockUniswapRouter01Contract = await MockUniswapRouter01Contract.new()
-
-  // const uniSwapFactoryAddress = "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"
-  // const uniSwapRouterAddress = deployedMockUniswapRouter01Contract.address
 
   if (!underlyingToken) {
     underlyingToken = await SimpleToken.new()
