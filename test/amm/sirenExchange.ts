@@ -45,6 +45,8 @@ contract("Siren Exchange Verification", (accounts) => {
   const tokenAmountInMaximum = 10000
   let tokenA
   let erc20A
+  let tokenB
+  let erc20B
   let collateralTokenPair
   let bTokenIndex
   var currentDate = new Date()
@@ -68,25 +70,32 @@ contract("Siren Exchange Verification", (accounts) => {
       ({ uniswapV2RouterAddress, deployedSirenExchange, UniswapRouterPair } =
         await setUpUniswap(collateralToken, deployedERC1155Controller))
     tokenA = UniswapRouterPair[0]
+    tokenB = UniswapRouterPair[1]
 
     erc20A = await SimpleToken.at(tokenA)
+    erc20B = await SimpleToken.at(tokenB)
     await erc20A.approve(deployedSirenExchange.address, tokenAmountInMaximum, {
       from: aliceAccount,
     })
 
-    SellUniswapRouterPair2 = [UniswapRouterPair[1], UniswapRouterPair[0]]
+    SellUniswapRouterPair2 = [
+      UniswapRouterPair[2],
+      UniswapRouterPair[1],
+      UniswapRouterPair[0],
+    ]
 
-    collateralTokenPair = UniswapRouterPair[1]
+    collateralTokenPair = UniswapRouterPair[2]
 
     erc20CollateralToken = await SimpleToken.at(collateralTokenPair)
     await erc20CollateralToken.approve(deployedAmm.address, 1000000, {
       from: aliceAccount,
     })
-    await erc20CollateralToken.approve(deployedAmm.address, 1000000)
 
     await deployedAmm.provideCapital(100000, 0, {
       from: aliceAccount,
     })
+
+    await erc20CollateralToken.approve(deployedAmm.address, 1000000)
 
     await deployedAmm.provideCapital(100000, 0)
 
@@ -326,7 +335,7 @@ contract("Siren Exchange Verification", (accounts) => {
     )
   })
 
-  it("Tries to Execute a WTokenSell Exchange", async () => {
+  it("Executes a WTokenSell Exchange", async () => {
     let aliceATokenPreWTokenSell = (
       await erc20A.balanceOf(aliceAccount)
     ).toNumber()
@@ -371,11 +380,7 @@ contract("Siren Exchange Verification", (accounts) => {
     )
 
     const wTokenIndex = await deployedSeriesController.wTokenIndex(seriesId)
-    console.log(
-      (
-        await deployedERC1155Controller.balanceOf(aliceAccount, wTokenIndex)
-      ).toString(),
-    )
+
     await deployedERC1155Controller.setApprovalForAll(deployedAmm.address, true)
     let maxCollateral3 = await deployedSirenExchange.wTokenSell(
       seriesId,
@@ -389,11 +394,7 @@ contract("Siren Exchange Verification", (accounts) => {
         from: aliceAccount,
       },
     )
-    console.log(
-      (
-        await deployedERC1155Controller.balanceOf(aliceAccount, wTokenIndex)
-      ).toString(),
-    )
+
     assertBNEq(
       1500,
       await deployedERC1155Controller.balanceOf(aliceAccount, wTokenIndex),

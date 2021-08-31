@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
-import "hardhat/console.sol";
 
 contract SirenExchange is ERC1155Holder {
     IERC1155 public immutable erc1155Controller;

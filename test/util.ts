@@ -17,10 +17,6 @@ import {
 import { artifacts, assert, ethers } from "hardhat"
 import { time, expectEvent, BN } from "@openzeppelin/test-helpers"
 
-import { BigNumber, bigNumberify } from "ethers/utils"
-
-import { Web3Provider } from "ethers/providers"
-
 import UniswapV2Factory from "@uniswap/v2-core/build/UniswapV2Factory.json"
 import UniswapV2Router from "@uniswap/v2-periphery/build/UniswapV2Router02.json"
 import IUniswapV2Pair from "@uniswap/v2-core/build/IUniswapV2Pair.json"
@@ -410,9 +406,9 @@ export async function setUpUniswap(
   await tokenA.deployed()
   await (await tokenA.initialize("token A", "TKA", 8)).wait()
 
-  // const tokenB = await SimpleTokenFactory.deploy()
-  // await tokenB.deployed()
-  // await (await tokenA.initialize("token B", "TKB", 8)).wait()
+  const tokenB = await SimpleTokenFactory.deploy()
+  await tokenB.deployed()
+  await (await tokenB.initialize("token B", "TKB", 8)).wait()
 
   const weth = await SimpleTokenFactory.deploy()
   await weth.deployed()
@@ -425,12 +421,11 @@ export async function setUpUniswap(
   const [owner] = await ethers.getSigners()
 
   await tokenA.mint(owner.address, 10000000000 * 10)
-  // await tokenB.mint(owner.address, 10000000000 * 10)
+  await tokenB.mint(owner.address, 10000000000 * 10)
   await collateralToken.mint(owner.address, 10000000000 * 10)
 
   await tokenA.mint(aliceAccount, 1000000000 * 10)
   await collateralToken.mint(aliceAccount, 1000000000 * 10)
-  // await tokenB.mint(aliceAccount, 10000000 * 10)
 
   const factory = await new ethers.ContractFactory(
     UniswapV2Factory.abi,
@@ -449,9 +444,9 @@ export async function setUpUniswap(
     weth.address,
   )
 
-  await uniSwapV2Factory.createPair(tokenA.address, collateralToken.address)
+  await uniSwapV2Factory.createPair(tokenB.address, collateralToken.address)
   const pairAddress = await uniSwapV2Factory.getPair(
-    tokenA.address,
+    tokenB.address,
     collateralToken.address,
   )
 
@@ -461,9 +456,24 @@ export async function setUpUniswap(
     owner,
   ).connect(owner)
 
+  await uniSwapV2Factory.createPair(tokenA.address, tokenB.address)
+  const pairAddress2 = await uniSwapV2Factory.getPair(
+    tokenA.address,
+    tokenB.address,
+  )
+  const pair2 = new ethers.Contract(
+    pairAddress2,
+    JSON.stringify(IUniswapV2Pair.abi),
+    owner,
+  ).connect(owner)
+
   const token0Address = await pair.token0()
-  const token0 = tokenA.address === token0Address ? tokenA : collateralToken
-  const token1 = tokenA.address === token0Address ? collateralToken : tokenA
+  const token0 = tokenB.address === token0Address ? tokenB : collateralToken
+  const token1 = tokenB.address === token0Address ? collateralToken : tokenB
+
+  const token1Address = await pair2.token1()
+  const token2 = tokenA.address === token1Address ? tokenA : tokenB
+  const token3 = tokenA.address === token1Address ? tokenB : tokenA
 
   await uniSwapV2Factory.createPair(weth.address, WETHPartner.address)
 
@@ -485,7 +495,25 @@ export async function setUpUniswap(
     deadline.getTime(),
   )
 
-  const UniswapRouterPair = [tokenA.address, collateralToken.address]
+  await token2.approve(uniswapV2Router.address, 10000)
+  await token3.approve(uniswapV2Router.address, 10000)
+
+  await uniswapV2Router.addLiquidity(
+    token2.address,
+    token3.address,
+    10000,
+    10000,
+    0,
+    0,
+    owner.address,
+    deadline.getTime(),
+  )
+
+  const UniswapRouterPair = [
+    tokenA.address,
+    tokenB.address,
+    collateralToken.address,
+  ]
 
   const deployedSirenExchange = await SirenExchange.new(
     deployedERC1155Controller.address,
