@@ -104,7 +104,7 @@ contract("Siren Exchange Verification", (accounts) => {
     aliceATokenPreAmount = (await erc20A.balanceOf(aliceAccount)).toNumber()
   })
   describe("Successes", async () => {
-    //Sucessful BtokenBuy
+    //Successful BtokenBuy
     it("Tries to Execute a BTokenBuy Exchange", async () => {
       const bTokenBuyAmount = 10_000
 
@@ -219,7 +219,7 @@ contract("Siren Exchange Verification", (accounts) => {
         await erc20A.balanceOf(aliceAccount)
       ).toNumber()
 
-      let maxCollateral = await deployedSirenExchange.bTokenBuy(
+      await deployedSirenExchange.bTokenBuy(
         seriesId,
         10000,
         UniswapRouterPair,
@@ -264,7 +264,7 @@ contract("Siren Exchange Verification", (accounts) => {
         deployedAmm.address,
         true,
       )
-      let maxCollateral3 = await deployedSirenExchange.wTokenSell(
+      await deployedSirenExchange.wTokenSell(
         seriesId,
         wTokenSellAmount,
         SellUniswapRouterPair2,
