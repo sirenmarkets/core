@@ -39,6 +39,7 @@ const ERROR_MESSAGES = {
 const STRIKE_PRICE = 15000 * 1e8 // 15000 USD
 const BTC_ORACLE_PRICE = 14_000 * 10 ** 8 // BTC oracle answer has 8 decimals places, same as BTC
 
+//Testing Siren Exchange contract
 contract("Siren Exchange Verification", (accounts) => {
   const aliceAccount = accounts[1]
 
@@ -69,6 +70,8 @@ contract("Siren Exchange Verification", (accounts) => {
     })),
       ({ uniswapV2RouterAddress, deployedSirenExchange, UniswapRouterPair } =
         await setUpUniswap(collateralToken, deployedERC1155Controller))
+
+    //Below we provide capitol for our AMMs so we can do trading on them
     tokenA = UniswapRouterPair[0]
     tokenB = UniswapRouterPair[1]
 
@@ -78,6 +81,7 @@ contract("Siren Exchange Verification", (accounts) => {
       from: aliceAccount,
     })
 
+    //We reverse the route we created so we can test selling as well as buying.
     SellUniswapRouterPair2 = [
       UniswapRouterPair[2],
       UniswapRouterPair[1],
