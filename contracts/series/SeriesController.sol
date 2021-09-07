@@ -74,6 +74,11 @@ contract SeriesController is
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
+
+    uint256 private _status;
+
     ///////////////////// MODIFIER FUNCTIONS /////////////////////
 
     /// @notice Check if the msg.sender is the privileged DEFAULT_ADMIN_ROLE holder
@@ -84,6 +89,25 @@ contract SeriesController is
         );
 
         _;
+    }
+
+    /// @dev Prevents a contract from calling itself, directly or indirectly.
+    /// Calling a `nonReentrant` function from another `nonReentrant`
+    /// function is not supported. It is possible to prevent this from happening
+    /// by making the `nonReentrant` function external, and make it call a
+    /// `private` function that does the actual work.
+    modifier nonReentrant() {
+        // On the first call to nonReentrant, _notEntered will be true
+        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
+
+        // Any calls to nonReentrant after this point will fail
+        _status = _ENTERED;
+
+        _;
+
+        // By storing the original value once again, a refund is triggered (see
+        // https://eips.ethereum.org/EIPS/eip-2200)
+        _status = _NOT_ENTERED;
     }
 
     ///////////////////// VIEW/PURE FUNCTIONS /////////////////////
@@ -220,8 +244,10 @@ contract SeriesController is
         (uint256 buyerShare, ) = getSettlementAmounts(_seriesId, _bTokenAmount);
 
         // Calculate the redeem Fee and move it if it is valid
-        uint256 feeAmount =
-            calculateFee(buyerShare, fees.exerciseFeeBasisPoints);
+        uint256 feeAmount = calculateFee(
+            buyerShare,
+            fees.exerciseFeeBasisPoints
+        );
         if (feeAmount > 0) {
             buyerShare -= feeAmount;
         }
@@ -248,8 +274,10 @@ contract SeriesController is
         override
         returns (uint256, uint256)
     {
-        (, uint256 writerShare) =
-            getSettlementAmounts(_seriesId, _wTokenAmount);
+        (, uint256 writerShare) = getSettlementAmounts(
+            _seriesId,
+            _wTokenAmount
+        );
 
         // Calculate the claim Fee and move it if it is valid
         uint256 feeAmount = calculateFee(writerShare, fees.claimFeeBasisPoints);
@@ -493,8 +521,9 @@ contract SeriesController is
     ) private view returns (string memory) {
         // convert the expirationDate from a uint256 to a string of the form 20210108 (<year><month><day>)
         // This logic is taken from bokkypoobah's BokkyPooBahsDateTimeLibrary, the timestampToDate function
-        (uint256 year, uint256 month, uint256 day) =
-            _timestampToDate(_expirationDate);
+        (uint256 year, uint256 month, uint256 day) = _timestampToDate(
+            _expirationDate
+        );
         return
             string(
                 abi.encodePacked(
@@ -863,6 +892,7 @@ contract SeriesController is
         external
         override
         whenNotPaused
+        nonReentrant
     {
         // NOTE: this assumes that values in the allSeries array are never removed,
         // which is fine because there's currently no way to remove Series
@@ -903,16 +933,16 @@ contract SeriesController is
             data
         );
 
-        uint256 collateralAmount =
-            getCollateralPerOptionToken(_seriesId, _optionTokenAmount);
+        uint256 collateralAmount = getCollateralPerOptionToken(
+            _seriesId,
+            _optionTokenAmount
+        );
 
         // transfer this collateral to the vault for storage
         transferERC20In(msg.sender, _seriesId, collateralAmount);
 
-        uint256[] memory totalSupplies =
-            IERC1155Controller(erc1155Controller).optionTokenTotalSupplyBatch(
-                optionTokenIds
-            );
+        uint256[] memory totalSupplies = IERC1155Controller(erc1155Controller)
+            .optionTokenTotalSupplyBatch(optionTokenIds);
 
         // Tell any offchain listeners that we minted some tokens
         emit OptionMinted(
@@ -933,7 +963,7 @@ contract SeriesController is
         uint64 _seriesId,
         uint256 _bTokenAmount,
         bool _revertOtm
-    ) external override whenNotPaused {
+    ) external override whenNotPaused nonReentrant {
         // We support only European style options so we exercise only after expiry, and only using
         // the settlement price set at expiration
         require(
@@ -948,8 +978,10 @@ contract SeriesController is
         setSettlementPrice(_seriesId);
 
         // Buyer's share
-        (uint256 collateralAmount, uint256 feeAmount) =
-            getExerciseAmount(_seriesId, _bTokenAmount);
+        (uint256 collateralAmount, uint256 feeAmount) = getExerciseAmount(
+            _seriesId,
+            _bTokenAmount
+        );
 
         // Only ITM exercise results in payoff
         require(
@@ -988,10 +1020,8 @@ contract SeriesController is
         uint256[] memory optionTokenIds = new uint256[](2);
         optionTokenIds[0] = SeriesLibrary.wTokenIndex(_seriesId);
         optionTokenIds[1] = SeriesLibrary.bTokenIndex(_seriesId);
-        uint256[] memory totalSupplies =
-            IERC1155Controller(erc1155Controller).optionTokenTotalSupplyBatch(
-                optionTokenIds
-            );
+        uint256[] memory totalSupplies = IERC1155Controller(erc1155Controller)
+            .optionTokenTotalSupplyBatch(optionTokenIds);
 
         // Emit the Redeem Event
         emit OptionExercised(
@@ -1012,6 +1042,7 @@ contract SeriesController is
         external
         override
         whenNotPaused
+        nonReentrant
     {
         require(
             state(_seriesId) == SeriesState.EXPIRED,
@@ -1025,8 +1056,10 @@ contract SeriesController is
         setSettlementPrice(_seriesId);
 
         // Total collateral owed to wToken holder
-        (uint256 collateralAmount, uint256 feeAmount) =
-            getClaimAmount(_seriesId, _wTokenAmount);
+        (uint256 collateralAmount, uint256 feeAmount) = getClaimAmount(
+            _seriesId,
+            _wTokenAmount
+        );
 
         Series memory series = allSeries[_seriesId];
 
@@ -1055,10 +1088,8 @@ contract SeriesController is
         uint256[] memory optionTokenIds = new uint256[](2);
         optionTokenIds[0] = SeriesLibrary.wTokenIndex(_seriesId);
         optionTokenIds[1] = SeriesLibrary.bTokenIndex(_seriesId);
-        uint256[] memory totalSupplies =
-            IERC1155Controller(erc1155Controller).optionTokenTotalSupplyBatch(
-                optionTokenIds
-            );
+        uint256[] memory totalSupplies = IERC1155Controller(erc1155Controller)
+            .optionTokenTotalSupplyBatch(optionTokenIds);
 
         // Emit event
         emit CollateralClaimed(
@@ -1079,6 +1110,7 @@ contract SeriesController is
         external
         override
         whenNotPaused
+        nonReentrant
     {
         require(
             state(_seriesId) == SeriesState.OPEN,
@@ -1103,12 +1135,16 @@ contract SeriesController is
             optionTokenAmounts
         );
 
-        uint256 collateralAmount =
-            getCollateralPerOptionToken(_seriesId, _optionTokenAmount);
+        uint256 collateralAmount = getCollateralPerOptionToken(
+            _seriesId,
+            _optionTokenAmount
+        );
 
         // Calculate the claim Fee and move it if it is valid
-        uint256 feeAmount =
-            calculateFee(collateralAmount, fees.closeFeeBasisPoints);
+        uint256 feeAmount = calculateFee(
+            collateralAmount,
+            fees.closeFeeBasisPoints
+        );
         if (feeAmount > 0) {
             // First set the collateral amount that will be left over to send out
             collateralAmount -= feeAmount;
@@ -1130,10 +1166,8 @@ contract SeriesController is
         transferERC20Out(_seriesId, redeemer, collateralAmount);
 
         // get the option token total supplies for the event
-        uint256[] memory totalSupplies =
-            IERC1155Controller(erc1155Controller).optionTokenTotalSupplyBatch(
-                optionTokenIds
-            );
+        uint256[] memory totalSupplies = IERC1155Controller(erc1155Controller)
+            .optionTokenTotalSupplyBatch(optionTokenIds);
 
         // Emit the Closed Event
         emit OptionClosed(
