@@ -484,9 +484,9 @@ export async function setUpUniswap(
   const token3 =
     userToken.address === token1Address ? intermediateToken : userToken
 
-  var minutesToAdd = 10
+  var minutesToAdd = 1000000
   var currentDate = new Date()
-  let deadline = new Date(currentDate.getTime() + minutesToAdd * 600000)
+  let deadline = new Date(currentDate.getTime() + minutesToAdd * 60000)
 
   await token0.approve(uniswapV2Router.address, 10000)
   await token1.approve(uniswapV2Router.address, 10000)
