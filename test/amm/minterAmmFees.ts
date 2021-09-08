@@ -39,6 +39,7 @@ contract("AMM Fees", (accounts) => {
       deployedAmm,
       deployedERC1155Controller,
       deployedSeriesController,
+      expiration,
       seriesId,
       underlyingToken,
     } = await setupAllTestContracts({}))
