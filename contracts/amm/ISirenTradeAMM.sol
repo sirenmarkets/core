@@ -6,6 +6,8 @@ pragma solidity >=0.6.6 <=0.8.0;
  * wTokens and bTokens
  */
 interface ISirenTradeAMM {
+    function collateralToken() external view returns (address);
+
     function bTokenBuy(
         uint64 seriesId,
         uint256 bTokenAmount,

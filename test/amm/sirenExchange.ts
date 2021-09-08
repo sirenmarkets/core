@@ -71,7 +71,7 @@ contract("Siren Exchange Verification", (accounts) => {
       ({ uniswapV2RouterAddress, deployedSirenExchange, UniswapRouterPair } =
         await setUpUniswap(collateralToken, deployedERC1155Controller))
 
-    //Below we provide capitol for our AMMs so we can do trading on them
+    //Below we provide capital for our AMMs so we can do trading on them
     tokenA = UniswapRouterPair[0]
     tokenB = UniswapRouterPair[1]
 

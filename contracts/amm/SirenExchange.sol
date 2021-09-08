@@ -23,36 +23,60 @@ import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
 contract SirenExchange is ERC1155Holder {
     IERC1155 public immutable erc1155Controller;
 
-    constructor(IERC1155 erc1155Controller_) public {
-        erc1155Controller = erc1155Controller_;
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
+
+    uint256 private _status;
+
+    constructor(IERC1155 _erc1155Controller) public {
+        erc1155Controller = _erc1155Controller;
     }
 
     event BTokenBuy(
         uint256[] amounts,
         address[] path,
         address indexed sirenAmmAddress,
-        uint256 bTokenAmount,
+        uint256 optionTokenAmount,
         uint64 indexed seriesId,
-        address buyer
+        address trader
     );
 
     event BTokenSell(
         uint256[] amounts,
         address[] path,
         address indexed sirenAmmAddress,
-        uint256 bTokenAmount,
+        uint256 optionTokenAmount,
         uint64 indexed seriesId,
-        address seller
+        address trader
     );
 
     event WTokenSell(
         uint256[] amounts,
         address[] path,
         address indexed sirenAmmAddress,
-        uint256 wTokenAmount,
+        uint256 optionTokenAmount,
         uint64 indexed seriesId,
-        address seller
+        address trader
     );
+
+    /// @dev Prevents a contract from calling itself, directly or indirectly.
+    /// Calling a `nonReentrant` function from another `nonReentrant`
+    /// function is not supported. It is possible to prevent this from happening
+    /// by making the `nonReentrant` function external, and make it call a
+    /// `private` function that does the actual work.
+    modifier nonReentrant() {
+        // On the first call to nonReentrant, _notEntered will be true
+        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
+
+        // Any calls to nonReentrant after this point will fail
+        _status = _ENTERED;
+
+        _;
+
+        // By storing the original value once again, a refund is triggered (see
+        // https://eips.ethereum.org/EIPS/eip-2200)
+        _status = _NOT_ENTERED;
+    }
 
     /// @dev Returns bytes to be used in safeTransferFrom ( prevents stack to deep error )
     function dataReturn() public returns (bytes memory data) {
@@ -79,31 +103,36 @@ contract SirenExchange is ERC1155Holder {
         address sirenAmmAddress,
         uint256 deadline,
         address _router
-    ) external returns (uint256[] memory amounts) {
-        //Calculate the amount of underlying collateral we need to provide to get the desired bTokens
+    ) external nonReentrant returns (uint256[] memory amounts) {
+        require(
+            path[path.length - 1] ==
+                ISirenTradeAMM(sirenAmmAddress).collateralToken(),
+            "SirenExchange: Path does not route to collateral Token"
+        );
+
+        // Calculate the amount of underlying collateral we need to provide to get the desired bTokens
         uint256 collateralPremium = ISirenTradeAMM(sirenAmmAddress)
             .bTokenGetCollateralIn(seriesId, bTokenAmount);
 
-        //Calculate the amount of token we need to provide to the router so we can get the needed underlying collateral
+        // Calculate the amount of token we need to provide to the router so we can get the needed underlying collateral
         uint256[] memory amountsIn = IUniswapV2Router02(_router).getAmountsIn(
             collateralPremium,
             path
         );
 
-        require(amountsIn[0] <= tokenAmountInMaximum, "Not Enough tokens sent");
+        require(
+            amountsIn[0] <= tokenAmountInMaximum,
+            "SirenExchange: Not Enough tokens sent"
+        );
 
-        //Transfer the tokens from user to the contract
+        // Transfer the tokens from user to the contract
         TransferHelper.safeTransferFrom(
             path[0],
             msg.sender,
             address(this),
             amountsIn[0]
         );
-        TransferHelper.safeApprove(
-            path[0],
-            address(IUniswapV2Router02(_router)),
-            amountsIn[0]
-        );
+        TransferHelper.safeApprove(path[0], _router, amountsIn[0]);
 
         // Executes the swap giving the needed collateral amount to the siren exchange
         amounts = IUniswapV2Router02(_router).swapTokensForExactTokens(
@@ -120,14 +149,14 @@ contract SirenExchange is ERC1155Holder {
             collateralPremium
         );
 
-        //Call MinterAmm bTokenBuy contract
+        // Call MinterAmm bTokenBuy contract
         ISirenTradeAMM(sirenAmmAddress).bTokenBuy(
             seriesId,
             bTokenAmount,
             collateralPremium
         );
 
-        //Transfer the btokens to the correct address ( caller of this contract)
+        // Transfer the btokens to the correct address ( caller of this contract)
         erc1155Controller.safeTransferFrom(
             address(this),
             msg.sender,
@@ -165,24 +194,28 @@ contract SirenExchange is ERC1155Holder {
         address sirenAmmAddress,
         uint256 deadline,
         address _router
-    ) external returns (uint256[] memory amounts) {
-        //Calculate the amount of collateral we will receive from our provided bTokens on the amm
-        //The naming is reversed because its from the routers perspective
-        uint256 collateralAmountIn = ISirenTradeAMM(sirenAmmAddress)
+    ) external nonReentrant returns (uint256[] memory amounts) {
+        require(
+            path[0] == ISirenTradeAMM(sirenAmmAddress).collateralToken(),
+            "SirenExchange: Path does not begin at collateral Token"
+        );
+        // Calculate the amount of collateral we will receive from our provided bTokens on the amm
+        // The naming is reversed because its from the routers perspective
+        uint256 bTokenSellCollateral = ISirenTradeAMM(sirenAmmAddress)
             .bTokenGetCollateralOut(seriesId, bTokenAmount);
 
-        //Calculate the amount of token we will receive for the collateral we are providing from the amm
+        // Calculate the amount of token we will receive for the collateral we are providing from the amm
         uint256[] memory amountsOut = IUniswapV2Router02(_router).getAmountsOut(
-            collateralAmountIn,
+            bTokenSellCollateral,
             path
         );
 
         require(
             amountsOut[amountsOut.length - 1] >= tokenAmountOutMinimum,
-            "Minimum token ammunt out not met"
+            "SirenExchange: Minimum token amount out not met"
         );
 
-        //Transfer bToken from the user to the exchange contract
+        // Transfer bToken from the user to the exchange contract
         erc1155Controller.safeTransferFrom(
             msg.sender,
             address(this),
@@ -191,24 +224,20 @@ contract SirenExchange is ERC1155Holder {
             dataReturn()
         );
 
-        erc1155Controller.setApprovalForAll(address(sirenAmmAddress), true);
+        erc1155Controller.setApprovalForAll(sirenAmmAddress, true);
 
-        //Sell the bTokens back to the Amm
+        // Sell the bTokens back to the Amm
         ISirenTradeAMM(sirenAmmAddress).bTokenSell(
             seriesId,
             bTokenAmount,
-            collateralAmountIn
+            bTokenSellCollateral
         );
 
-        TransferHelper.safeApprove(
-            path[0],
-            address(IUniswapV2Router02(_router)),
-            amountsOut[0]
-        );
+        TransferHelper.safeApprove(path[0], _router, amountsOut[0]);
 
         // Executes the swap returning the desired collateral directly back to the sender
         amounts = IUniswapV2Router02(_router).swapExactTokensForTokens(
-            collateralAmountIn,
+            bTokenSellCollateral,
             amountsOut[amountsOut.length - 1],
             path,
             msg.sender,
@@ -223,6 +252,9 @@ contract SirenExchange is ERC1155Holder {
             seriesId,
             msg.sender
         );
+
+        erc1155Controller.setApprovalForAll(sirenAmmAddress, false);
+
         return amounts;
     }
 
@@ -243,25 +275,29 @@ contract SirenExchange is ERC1155Holder {
         address sirenAmmAddress,
         uint256 deadline,
         address _router
-    ) external returns (uint256[] memory amounts) {
-        //Calculate the amount of collateral we will receive from our provided wTokens on the amm
-        //The naming is reversed because its from the routers perspective
-        uint256 collateralAmountIn = ISirenTradeAMM(sirenAmmAddress)
+    ) external nonReentrant returns (uint256[] memory amounts) {
+        require(
+            path[0] == ISirenTradeAMM(sirenAmmAddress).collateralToken(),
+            "SirenExchange: Path does not begin at collateral Token"
+        );
+        // Calculate the amount of collateral we will receive from our provided wTokens on the amm
+        // The naming is reversed because its from the routers perspective
+        uint256 wTokenSaleCollateral = ISirenTradeAMM(sirenAmmAddress)
             .wTokenGetCollateralOut(seriesId, wTokenAmount);
 
-        //Calculate the amount of token we will receive for the collateral we are providing from the amm
+        // Calculate the amount of token we will receive for the collateral we are providing from the amm
         uint256[] memory amountsOut = IUniswapV2Router02(_router).getAmountsOut(
-            collateralAmountIn,
+            wTokenSaleCollateral,
             path
         );
 
-        //Check to make sure our amountsOut is larger or equal to our min requested
+        // Check to make sure our amountsOut is larger or equal to our min requested
         require(
             amountsOut[amountsOut.length - 1] >= tokenAmountOutMinimum,
-            "Minimum token ammunt out not met"
+            "SirenExchange: Minimum token amount out not met"
         );
 
-        //Transfer wTokens from the user to the exchange
+        // Transfer wTokens from the user to the exchange
         erc1155Controller.safeTransferFrom(
             msg.sender,
             address(this),
@@ -270,24 +306,20 @@ contract SirenExchange is ERC1155Holder {
             dataReturn()
         );
 
-        erc1155Controller.setApprovalForAll(address(sirenAmmAddress), true);
+        erc1155Controller.setApprovalForAll(sirenAmmAddress, true);
 
-        //Sell the wTokens back to the Amm
+        // Sell the wTokens back to the Amm
         ISirenTradeAMM(sirenAmmAddress).wTokenSell(
             seriesId,
             wTokenAmount,
-            collateralAmountIn
+            wTokenSaleCollateral
         );
 
-        TransferHelper.safeApprove(
-            path[0],
-            address(IUniswapV2Router02(_router)),
-            amountsOut[0]
-        );
+        TransferHelper.safeApprove(path[0], _router, amountsOut[0]);
 
         // Executes the swap returning the desired collateral directly back to the sender
         amounts = IUniswapV2Router02(_router).swapExactTokensForTokens(
-            collateralAmountIn,
+            wTokenSaleCollateral,
             amountsOut[amountsOut.length - 1],
             path,
             msg.sender,
@@ -302,6 +334,8 @@ contract SirenExchange is ERC1155Holder {
             seriesId,
             msg.sender
         );
+
+        erc1155Controller.setApprovalForAll(sirenAmmAddress, false);
 
         return amounts;
     }
