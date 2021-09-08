@@ -122,6 +122,14 @@ contract("Siren Exchange Verification", (accounts) => {
         "Trader should have no BTokens",
       )
 
+      await deployedERC1155Controller.setApprovalForAll(
+        deployedSirenExchange.address,
+        true,
+        {
+          from: aliceAccount,
+        },
+      )
+
       let amounts = await deployedSirenExchange.bTokenBuy(
         seriesId,
         bTokenBuyAmount,
