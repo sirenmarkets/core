@@ -138,3 +138,6 @@ cache/
 
 # Typechain
 typechain/
+
+# Ignore vs code settings
+.vscode/

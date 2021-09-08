@@ -59,7 +59,7 @@ contract SirenExchange is ERC1155Holder {
         return data;
     }
 
-    /// @notice Sell the wToken of a given series to the AMM in exchange for collateral token
+    /// @notice Buy the bToken of a given series to the AMM in exchange for collateral token
     /// @param seriesId The ID of the Series to buy wToken on
     /// @param bTokenAmount The amount of bToken to buy (bToken has the same decimals as the underlying)
     /// @param path The path of the collateral token we supply to the collateral the series wishes to receive
