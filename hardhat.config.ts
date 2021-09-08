@@ -82,6 +82,7 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       allowUnlimitedContractSize: false,
+      gasPrice: 150000000000,
     },
     rinkeby: {
       url: `https://rinkeby.infura.io/v3/${env.INFURA_API_KEY}`,
@@ -92,10 +93,12 @@ const config: HardhatUserConfig = {
     mumbai: {
       url: "https://rpc-mumbai.maticvigil.com",
       accounts: [env.DEPLOY_PRIVATE_KEY],
+      gasPrice: "auto",
     },
     matic: {
       url: "https://rpc-mainnet.maticvigil.com",
       accounts: [env.DEPLOY_PRIVATE_KEY],
+      gasPrice: "auto",
     },
   },
   etherscan: {

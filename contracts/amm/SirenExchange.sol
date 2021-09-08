@@ -7,11 +7,11 @@ import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
 
-/// This is an implementation of exchanging collateral tokens for different collateral tokens that represent the underlying asset for series in SirenMarkets
+/// This is an implementation of exchanging user tokens for collateral tokens in SirenMarkets
 /// this then allows you to Buy and Sell bTokens as well as to Sell wTokens using MinterAmm.sol
 ///
 /// For example, a sender could use WETH to trade on WBTC/USDC strikes of WBTC/USDC calls/puts using
-/// WETH as the collateral instead of needing to have either WETH or USDC for call and puts.
+/// WETH as the user token instead of needing to have either WETH or USDC for call and puts.
 /// This allows senders to trade multiple tokens for call or put options without needing to exchange these tokens outside of siren
 ///
 /// This is accomplished using UniswapV2Router02 interface https://docs.uniswap.org/protocol/V2/reference/smart-contracts/router-02
@@ -83,17 +83,17 @@ contract SirenExchange is ERC1155Holder {
         return data;
     }
 
-    /// @notice Buy the bToken of a given series to the AMM in exchange for collateral token
+    /// @notice Buy the bToken of a given series to the AMM in exchange for user tokens
     /// @param seriesId The ID of the Series to buy wToken on
-    /// @param bTokenAmount The amount of bToken to buy (bToken has the same decimals as the underlying)
-    /// @param path The path of the collateral token we supply to the collateral the series wishes to receive
-    /// @param tokenAmountInMaximum The largest amount of collateral the caller is willing to pay for the bTokens
+    /// @param bTokenAmount The amount of bToken to buy
+    /// @param path The path of the user token we supply to the collateral token the series wishes to receive
+    /// @param tokenAmountInMaximum The largest amount of user tokens the caller is willing to pay for the bTokens
     /// @param sirenAmmAddress address of the amm that we wish to call
     /// @param deadline deadline the transaction must be completed by
     /// @param _router address of the router we wish to use ( QuickSwap or SushiSwap )
-    /// @dev Exchange collateral for bToken for a given series.
-    /// We supply a collateral that is not the underlying token of this series and then find the route
-    /// Of the collateral provided to the underlying token using Uniswap router the addresses provided are currently from QuickSwap and SushiSwap.
+    /// @dev Exchange user tokens for bToken for a given series.
+    /// We supply a user token that is not the collateral token of this series and then find the route
+    /// Of the user token provided to the collateral token using Uniswap router the addresses provided are currently from QuickSwap and SushiSwap.
     /// We then call bTokenBuy in MinterAMM to buy the bTokens and then send the bought bTokens to the user
     function bTokenBuy(
         uint64 seriesId,
@@ -114,7 +114,7 @@ contract SirenExchange is ERC1155Holder {
         uint256 collateralPremium = ISirenTradeAMM(sirenAmmAddress)
             .bTokenGetCollateralIn(seriesId, bTokenAmount);
 
-        // Calculate the amount of token we need to provide to the router so we can get the needed underlying collateral
+        // Calculate the amount of token we need to provide to the router so we can get the needed collateral
         uint256[] memory amountsIn = IUniswapV2Router02(_router).getAmountsIn(
             collateralPremium,
             path
@@ -134,7 +134,7 @@ contract SirenExchange is ERC1155Holder {
         );
         TransferHelper.safeApprove(path[0], _router, amountsIn[0]);
 
-        // Executes the swap giving the needed collateral amount to the siren exchange
+        // Executes the swap giving the needed user token amount to the siren exchange for the appropriate collateral to pay for the btokens
         amounts = IUniswapV2Router02(_router).swapTokensForExactTokens(
             collateralPremium,
             amountsIn[0],
@@ -177,15 +177,15 @@ contract SirenExchange is ERC1155Holder {
         return amounts;
     }
 
-    /// @notice Sell the wToken of a given series to the AMM in exchange for collateral token
-    /// @param seriesId The ID of the Series to buy wToken on
-    /// @param bTokenAmount The amount of bToken to sell (bToken has the same decimals as the underlying)
-    /// @param path The path of the collateral token of the series to the collateral the caller wishes to receive
-    /// @param tokenAmountOutMinimum The lowest amount of collateral the caller is willing to receive as payment
+    /// @notice Sell the bToken of a given series to the AMM in exchange for user tokens
+    /// @param seriesId The ID of the Series to buy bToken on
+    /// @param bTokenAmount The amount of bToken to sell
+    /// @param path The path of the collateral token of the series to the user token the caller wishes to receive
+    /// @param tokenAmountOutMinimum The lowest amount of user token the caller is willing to receive as payment
     /// @param sirenAmmAddress address of the amm that we wish to call
     /// @param deadline deadline the transaction must be completed by
     /// @param _router address of the router we wish to use ( QuickSwap or SushiSwap )
-    /// We supply a bToken and then select which collateral we wish to receive as our payment ( if it isnt the underlying asset )
+    /// We supply a bToken and then select which user token we wish to receive as our payment ( if it isnt the underlying asset )
     function bTokenSell(
         uint64 seriesId,
         uint256 bTokenAmount,
@@ -199,7 +199,7 @@ contract SirenExchange is ERC1155Holder {
             path[0] == ISirenTradeAMM(sirenAmmAddress).collateralToken(),
             "SirenExchange: Path does not begin at collateral Token"
         );
-        // Calculate the amount of collateral we will receive from our provided bTokens on the amm
+        // Calculate the amount of user tokens we will receive from our provided bTokens on the amm
         // The naming is reversed because its from the routers perspective
         uint256 bTokenSellCollateral = ISirenTradeAMM(sirenAmmAddress)
             .bTokenGetCollateralOut(seriesId, bTokenAmount);
@@ -235,7 +235,7 @@ contract SirenExchange is ERC1155Holder {
 
         TransferHelper.safeApprove(path[0], _router, amountsOut[0]);
 
-        // Executes the swap returning the desired collateral directly back to the sender
+        // Executes the swap returning the desired user tokens directly back to the sender
         amounts = IUniswapV2Router02(_router).swapExactTokensForTokens(
             bTokenSellCollateral,
             amountsOut[amountsOut.length - 1],
@@ -258,15 +258,15 @@ contract SirenExchange is ERC1155Holder {
         return amounts;
     }
 
-    /// @notice Sell the wToken of a given series to the AMM in exchange for collateral token
+    /// @notice Sell the wToken of a given series to the AMM in exchange for user tokens
     /// @param seriesId The ID of the Series to buy wToken on
-    /// @param wTokenAmount The amount of wToken to sell (wToken has the same decimals as the underlying)
-    /// @param path The path of the collateral token of the series to the collateral the caller wishes to receive
-    /// @param tokenAmountOutMinimum The lowest amount of collateral the caller is willing to receive as payment
+    /// @param wTokenAmount The amount of wToken to sell
+    /// @param path The path of the collateral token of the series to the user tokens the caller wishes to receive
+    /// @param tokenAmountOutMinimum The lowest amount of user tokens the caller is willing to receive as payment
     /// @param sirenAmmAddress address of the amm that we wish to call
     /// @param deadline deadline the transaction must be completed by
     /// @param _router address of the router we wish to use ( QuickSwap or SushiSwap )
-    /// We supply a wToken and then select which collateral we wish to receive as our payment ( if it isnt the underlying asset )
+    /// We supply a wToken and then select which user tokens we wish to receive as our payment
     function wTokenSell(
         uint64 seriesId,
         uint256 wTokenAmount,
@@ -317,7 +317,7 @@ contract SirenExchange is ERC1155Holder {
 
         TransferHelper.safeApprove(path[0], _router, amountsOut[0]);
 
-        // Executes the swap returning the desired collateral directly back to the sender
+        // Executes the swap returning the desired user tokens directly back to the sender
         amounts = IUniswapV2Router02(_router).swapExactTokensForTokens(
             wTokenSaleCollateral,
             amountsOut[amountsOut.length - 1],
