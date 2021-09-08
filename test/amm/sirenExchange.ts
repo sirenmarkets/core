@@ -23,16 +23,16 @@ let seriesId: string
 
 let deployedERC1155Controller: ERC1155ControllerInstance
 
-let UniswapRouterPair: Array<string>
+let uniswapRouterPath: Array<string>
 
 let deployedSeriesController: SeriesControllerInstance
 
 let uniswapV2RouterAddress: string
 
 const ERROR_MESSAGES = {
-  NOT_ENOUGH_TOKENS_IN_ACCOUNT: "Not Enough tokens sent",
-  NOT_ENOUGH_TOKENS_SENT: "Not Enough tokens sent",
-  MINIMUM_TOKENS_TO_HIGH: "Minimum token ammunt out not met",
+  NOT_ENOUGH_TOKENS_IN_ACCOUNT: "SirenExchange: Not Enough tokens sent",
+  NOT_ENOUGH_TOKENS_SENT: "SirenExchange: Not Enough tokens sent",
+  MINIMUM_TOKENS_TO_HIGH: "SirenExchange: Minimum token amount out not met",
   NOT_ENOUGH_BTOKENS_SENT: "ERC1155: insufficient balance for transfer",
 }
 
@@ -44,17 +44,17 @@ contract("Siren Exchange Verification", (accounts) => {
   const aliceAccount = accounts[1]
 
   const tokenAmountInMaximum = 10000
-  let tokenA
-  let erc20A
-  let tokenB
-  let erc20B
+  let userTokenAddress
+  let userToken
+  let intermediateTokenAddress
+  let intermediateToken
   let collateralTokenPair
   let bTokenIndex
   var currentDate = new Date()
   var minutesToAdd = 10
   let deadline = new Date(currentDate.getTime() + minutesToAdd * 60000)
   let aliceATokenPreAmount
-  let SellUniswapRouterPair2
+  let sellUniswapRouterPath2
   let erc20CollateralToken
 
   beforeEach(async () => {
@@ -68,27 +68,31 @@ contract("Siren Exchange Verification", (accounts) => {
       strikePrice: STRIKE_PRICE.toString(),
       oraclePrice: BTC_ORACLE_PRICE,
     })),
-      ({ uniswapV2RouterAddress, deployedSirenExchange, UniswapRouterPair } =
+      ({ uniswapV2RouterAddress, deployedSirenExchange, uniswapRouterPath } =
         await setUpUniswap(collateralToken, deployedERC1155Controller))
 
     //Below we provide capital for our AMMs so we can do trading on them
-    tokenA = UniswapRouterPair[0]
-    tokenB = UniswapRouterPair[1]
+    userTokenAddress = uniswapRouterPath[0]
+    intermediateTokenAddress = uniswapRouterPath[1]
 
-    erc20A = await SimpleToken.at(tokenA)
-    erc20B = await SimpleToken.at(tokenB)
-    await erc20A.approve(deployedSirenExchange.address, tokenAmountInMaximum, {
-      from: aliceAccount,
-    })
+    userToken = await SimpleToken.at(userTokenAddress)
+    intermediateToken = await SimpleToken.at(intermediateTokenAddress)
+    await userToken.approve(
+      deployedSirenExchange.address,
+      tokenAmountInMaximum,
+      {
+        from: aliceAccount,
+      },
+    )
 
     //We reverse the route we created so we can test selling as well as buying.
-    SellUniswapRouterPair2 = [
-      UniswapRouterPair[2],
-      UniswapRouterPair[1],
-      UniswapRouterPair[0],
+    sellUniswapRouterPath2 = [
+      uniswapRouterPath[2],
+      uniswapRouterPath[1],
+      uniswapRouterPath[0],
     ]
 
-    collateralTokenPair = UniswapRouterPair[2]
+    collateralTokenPair = uniswapRouterPath[2]
 
     erc20CollateralToken = await SimpleToken.at(collateralTokenPair)
     await erc20CollateralToken.approve(deployedAmm.address, 1000000, {
@@ -105,7 +109,7 @@ contract("Siren Exchange Verification", (accounts) => {
 
     bTokenIndex = await deployedSeriesController.bTokenIndex(seriesId)
 
-    aliceATokenPreAmount = (await erc20A.balanceOf(aliceAccount)).toNumber()
+    aliceATokenPreAmount = (await userToken.balanceOf(aliceAccount)).toNumber()
   })
   describe("Successes", async () => {
     //Successful BtokenBuy
@@ -121,7 +125,7 @@ contract("Siren Exchange Verification", (accounts) => {
       let amounts = await deployedSirenExchange.bTokenBuy(
         seriesId,
         bTokenBuyAmount,
-        UniswapRouterPair,
+        uniswapRouterPath,
         tokenAmountInMaximum,
         deployedAmm.address,
         deadline.getTime(),
@@ -140,13 +144,13 @@ contract("Siren Exchange Verification", (accounts) => {
 
       assertBNEq(
         aliceATokenPreAmount >
-          (await erc20A.balanceOf(aliceAccount)).toNumber(),
+          (await userToken.balanceOf(aliceAccount)).toNumber(),
         true,
         "Trader should have a less Payment Token than before",
       )
 
       expectEvent(amounts, "BTokenBuy", {
-        buyer: aliceAccount,
+        trader: aliceAccount,
       })
     })
 
@@ -155,7 +159,7 @@ contract("Siren Exchange Verification", (accounts) => {
       await deployedSirenExchange.bTokenBuy(
         seriesId,
         10000,
-        UniswapRouterPair,
+        uniswapRouterPath,
         tokenAmountInMaximum,
         deployedAmm.address,
         deadline.getTime(),
@@ -180,21 +184,14 @@ contract("Siren Exchange Verification", (accounts) => {
           from: aliceAccount,
         },
       )
-      await deployedERC1155Controller.setApprovalForAll(
-        deployedAmm.address,
-        true,
-        {
-          from: aliceAccount,
-        },
-      )
 
       const aliceATokenPreSell = (
-        await erc20A.balanceOf(aliceAccount)
+        await userToken.balanceOf(aliceAccount)
       ).toNumber()
       await deployedSirenExchange.bTokenSell(
         seriesId,
         bTokenSellAmount,
-        SellUniswapRouterPair2,
+        sellUniswapRouterPath2,
         0,
         deployedAmm.address,
         deadline.getTime(),
@@ -211,7 +208,8 @@ contract("Siren Exchange Verification", (accounts) => {
       )
 
       assertBNEq(
-        aliceATokenPreSell < (await erc20A.balanceOf(aliceAccount)).toNumber(),
+        aliceATokenPreSell <
+          (await userToken.balanceOf(aliceAccount)).toNumber(),
         true,
         "Trader should have a more Payment Token than before",
       )
@@ -220,13 +218,13 @@ contract("Siren Exchange Verification", (accounts) => {
     //Successful WTokenSell
     it("Executes a WTokenSell Exchange: Expect Successful Transaction", async () => {
       let aliceATokenPreWTokenSell = (
-        await erc20A.balanceOf(aliceAccount)
+        await userToken.balanceOf(aliceAccount)
       ).toNumber()
 
       await deployedSirenExchange.bTokenBuy(
         seriesId,
         10000,
-        UniswapRouterPair,
+        uniswapRouterPath,
         tokenAmountInMaximum,
         deployedAmm.address,
         deadline.getTime(),
@@ -245,22 +243,10 @@ contract("Siren Exchange Verification", (accounts) => {
           from: aliceAccount,
         },
       )
-      await deployedERC1155Controller.setApprovalForAll(
-        deployedAmm.address,
-        true,
-        {
-          from: aliceAccount,
-        },
-      )
 
       await deployedAmm.withdrawCapital(100000, false, 100, {
         from: aliceAccount,
       })
-
-      await deployedERC1155Controller.setApprovalForAll(
-        deployedSirenExchange.address,
-        true,
-      )
 
       const wTokenIndex = await deployedSeriesController.wTokenIndex(seriesId)
 
@@ -271,7 +257,7 @@ contract("Siren Exchange Verification", (accounts) => {
       await deployedSirenExchange.wTokenSell(
         seriesId,
         wTokenSellAmount,
-        SellUniswapRouterPair2,
+        sellUniswapRouterPath2,
         0,
         deployedAmm.address,
         deadline.getTime(),
@@ -289,7 +275,7 @@ contract("Siren Exchange Verification", (accounts) => {
 
       assertBNEq(
         aliceATokenPreWTokenSell <
-          (await erc20A.balanceOf(aliceAccount)).toNumber(),
+          (await userToken.balanceOf(aliceAccount)).toNumber(),
         true,
         "Trader should have a more AToken than before",
       )
@@ -306,7 +292,7 @@ contract("Siren Exchange Verification", (accounts) => {
         deployedSirenExchange.bTokenBuy(
           seriesId,
           bTokenBuyAmount,
-          UniswapRouterPair,
+          uniswapRouterPath,
           100,
           deployedAmm.address,
           deadline.getTime(),
@@ -326,7 +312,7 @@ contract("Siren Exchange Verification", (accounts) => {
         "Trader should have no bTokens",
       )
       assertBNEq(
-        (await erc20A.balanceOf(aliceAccount)).toNumber(),
+        (await userToken.balanceOf(aliceAccount)).toNumber(),
         aliceATokenPreAmount,
         "Trader should have the same amount of collateral Token as before",
       )
@@ -336,7 +322,7 @@ contract("Siren Exchange Verification", (accounts) => {
       await deployedSirenExchange.bTokenBuy(
         seriesId,
         10000,
-        UniswapRouterPair,
+        uniswapRouterPath,
         tokenAmountInMaximum,
         deployedAmm.address,
         deadline.getTime(),
@@ -367,19 +353,12 @@ contract("Siren Exchange Verification", (accounts) => {
           from: aliceAccount,
         },
       )
-      await deployedERC1155Controller.setApprovalForAll(
-        deployedAmm.address,
-        true,
-        {
-          from: aliceAccount,
-        },
-      )
 
       await expectRevert(
         deployedSirenExchange.bTokenSell(
           seriesId,
           bTokenSellAmount,
-          SellUniswapRouterPair2,
+          sellUniswapRouterPath2,
           bTokenSellAmount,
           deployedAmm.address,
           deadline.getTime(),
@@ -395,7 +374,7 @@ contract("Siren Exchange Verification", (accounts) => {
         deployedSirenExchange.bTokenSell(
           seriesId,
           1000,
-          SellUniswapRouterPair2,
+          sellUniswapRouterPath2,
           10000,
           deployedAmm.address,
           deadline.getTime(),
@@ -411,7 +390,7 @@ contract("Siren Exchange Verification", (accounts) => {
         deployedSirenExchange.bTokenSell(
           seriesId,
           bTokenSellAmount,
-          SellUniswapRouterPair2,
+          sellUniswapRouterPath2,
           0,
           deployedAmm.address,
           deadline.getTime(),

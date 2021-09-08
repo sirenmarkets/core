@@ -401,29 +401,25 @@ export async function setUpUniswap(
 ) {
   const SimpleTokenFactory = await ethers.getContractFactory("SimpleToken")
 
-  const tokenA = await SimpleTokenFactory.deploy()
-  await tokenA.deployed()
-  await (await tokenA.initialize("token A", "TKA", 8)).wait()
+  const userToken = await SimpleTokenFactory.deploy()
+  await userToken.deployed()
+  await (await userToken.initialize("token A", "TKA", 8)).wait()
 
-  const tokenB = await SimpleTokenFactory.deploy()
-  await tokenB.deployed()
-  await (await tokenB.initialize("token B", "TKB", 8)).wait()
+  const intermediateToken = await SimpleTokenFactory.deploy()
+  await intermediateToken.deployed()
+  await (await intermediateToken.initialize("token B", "TKB", 8)).wait()
 
   const weth = await SimpleTokenFactory.deploy()
   await weth.deployed()
   await (await weth.initialize("Wrapped ETH", "WETH", 18)).wait()
 
-  const WETHPartner = await SimpleTokenFactory.deploy()
-  await WETHPartner.deployed()
-  await (await WETHPartner.initialize("Wrapped ETHPatner", "WETHP", 18)).wait()
-
   const [owner] = await ethers.getSigners()
 
-  await tokenA.mint(owner.address, 10000000000 * 10)
-  await tokenB.mint(owner.address, 10000000000 * 10)
+  await userToken.mint(owner.address, 10000000000 * 10)
+  await intermediateToken.mint(owner.address, 10000000000 * 10)
   await collateralToken.mint(owner.address, 10000000000 * 10)
 
-  await tokenA.mint(aliceAccount, 1000000000 * 10)
+  await userToken.mint(aliceAccount, 1000000000 * 10)
   await collateralToken.mint(aliceAccount, 1000000000 * 10)
 
   const factory = await new ethers.ContractFactory(
@@ -443,9 +439,12 @@ export async function setUpUniswap(
     weth.address,
   )
 
-  await uniSwapV2Factory.createPair(tokenB.address, collateralToken.address)
+  await uniSwapV2Factory.createPair(
+    intermediateToken.address,
+    collateralToken.address,
+  )
   const pairAddress = await uniSwapV2Factory.getPair(
-    tokenB.address,
+    intermediateToken.address,
     collateralToken.address,
   )
 
@@ -455,10 +454,13 @@ export async function setUpUniswap(
     owner,
   ).connect(owner)
 
-  await uniSwapV2Factory.createPair(tokenA.address, tokenB.address)
+  await uniSwapV2Factory.createPair(
+    userToken.address,
+    intermediateToken.address,
+  )
   const pairAddress2 = await uniSwapV2Factory.getPair(
-    tokenA.address,
-    tokenB.address,
+    userToken.address,
+    intermediateToken.address,
   )
   const pair2 = new ethers.Contract(
     pairAddress2,
@@ -467,14 +469,20 @@ export async function setUpUniswap(
   ).connect(owner)
 
   const token0Address = await pair.token0()
-  const token0 = tokenB.address === token0Address ? tokenB : collateralToken
-  const token1 = tokenB.address === token0Address ? collateralToken : tokenB
+  const token0 =
+    intermediateToken.address === token0Address
+      ? intermediateToken
+      : collateralToken
+  const token1 =
+    intermediateToken.address === token0Address
+      ? collateralToken
+      : intermediateToken
 
   const token1Address = await pair2.token1()
-  const token2 = tokenA.address === token1Address ? tokenA : tokenB
-  const token3 = tokenA.address === token1Address ? tokenB : tokenA
-
-  await uniSwapV2Factory.createPair(weth.address, WETHPartner.address)
+  const token2 =
+    userToken.address === token1Address ? userToken : intermediateToken
+  const token3 =
+    userToken.address === token1Address ? intermediateToken : userToken
 
   var minutesToAdd = 10
   var currentDate = new Date()
@@ -491,7 +499,7 @@ export async function setUpUniswap(
     0,
     0,
     owner.address,
-    deadline.getTime(),
+    Math.floor(deadline.getTime() / 1000),
   )
 
   await token2.approve(uniswapV2Router.address, 10000)
@@ -505,12 +513,12 @@ export async function setUpUniswap(
     0,
     0,
     owner.address,
-    deadline.getTime(),
+    Math.floor(deadline.getTime() / 1000),
   )
 
-  const UniswapRouterPair = [
-    tokenA.address,
-    tokenB.address,
+  const uniswapRouterPath = [
+    userToken.address,
+    intermediateToken.address,
     collateralToken.address,
   ]
 
@@ -522,7 +530,7 @@ export async function setUpUniswap(
   return {
     uniswapV2RouterAddress,
     deployedSirenExchange,
-    UniswapRouterPair,
+    uniswapRouterPath,
   }
 }
 
