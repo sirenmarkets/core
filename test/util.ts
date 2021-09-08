@@ -486,7 +486,7 @@ export async function setUpUniswap(
 
   var minutesToAdd = 10
   var currentDate = new Date()
-  let deadline = new Date(currentDate.getTime() + minutesToAdd * 60000)
+  let deadline = new Date(currentDate.getTime() + minutesToAdd * 600000)
 
   await token0.approve(uniswapV2Router.address, 10000)
   await token1.approve(uniswapV2Router.address, 10000)
