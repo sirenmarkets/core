@@ -160,6 +160,20 @@ contract("Siren Exchange Verification", (accounts) => {
       expectEvent(amounts, "BTokenBuy", {
         trader: aliceAccount,
       })
+
+      //Siren Exchange should not hold tokens in the contract at all
+      assertBNEq(
+        0,
+        (await userToken.balanceOf(deployedSirenExchange.address)).toNumber(),
+        "SirenExchange should have a balance of 0 userTokens",
+      )
+      assertBNEq(
+        0,
+        (
+          await collateralToken.balanceOf(deployedSirenExchange.address)
+        ).toNumber(),
+        "SirenExchange should have a balance of 0 collateralToken",
+      )
     })
 
     //Successful BtokenSell
@@ -220,6 +234,20 @@ contract("Siren Exchange Verification", (accounts) => {
           (await userToken.balanceOf(aliceAccount)).toNumber(),
         true,
         "Trader should have a more Payment Token than before",
+      )
+
+      //Siren Exchange should not hold tokens in the contract at all
+      assertBNEq(
+        0,
+        (await userToken.balanceOf(deployedSirenExchange.address)).toNumber(),
+        "SirenExchange should have a balance of 0 userTokens",
+      )
+      assertBNEq(
+        0,
+        (
+          await collateralToken.balanceOf(deployedSirenExchange.address)
+        ).toNumber(),
+        "SirenExchange should have a balance of 0 collateralToken",
       )
     })
 
@@ -324,6 +352,19 @@ contract("Siren Exchange Verification", (accounts) => {
         aliceATokenPreAmount,
         "Trader should have the same amount of collateral Token as before",
       )
+      //Siren Exchange should not hold tokens in the contract at all
+      assertBNEq(
+        0,
+        (await userToken.balanceOf(deployedSirenExchange.address)).toNumber(),
+        "SirenExchange should have a balance of 0 userTokens",
+      )
+      assertBNEq(
+        0,
+        (
+          await collateralToken.balanceOf(deployedSirenExchange.address)
+        ).toNumber(),
+        "SirenExchange should have a balance of 0 collateralToken",
+      )
     })
 
     it("Execute a BTokenSell With Not Enough BTokens: Expect a revert", async () => {
@@ -408,6 +449,19 @@ contract("Siren Exchange Verification", (accounts) => {
           },
         ),
         ERROR_MESSAGES.NOT_ENOUGH_BTOKENS_SENT,
+      )
+      //Siren Exchange should not hold tokens in the contract at all
+      assertBNEq(
+        0,
+        (await userToken.balanceOf(deployedSirenExchange.address)).toNumber(),
+        "SirenExchange should have a balance of 0 userTokens",
+      )
+      assertBNEq(
+        0,
+        (
+          await collateralToken.balanceOf(deployedSirenExchange.address)
+        ).toNumber(),
+        "SirenExchange should have a balance of 0 collateralToken",
       )
     })
   })
