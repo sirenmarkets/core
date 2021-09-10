@@ -12,7 +12,7 @@ import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
 ///
 /// For example, a sender could use WETH to trade on WBTC/USDC strikes of WBTC/USDC calls/puts using
 /// WETH as the user token instead of needing to have either WETH or USDC for call and puts.
-/// This allows senders to trade multiple tokens for call or put options without needing to exchange these tokens outside of siren
+/// This allows senders to trade multiple tokens for call or put options without needing to exchange these tokens outside of siren.
 ///
 /// This is accomplished using UniswapV2Router02 interface https://docs.uniswap.org/protocol/V2/reference/smart-contracts/router-02
 /// Since SirenMarkets is deployed on polygon so the routers used are supplied by:
