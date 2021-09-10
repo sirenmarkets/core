@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /// This is an implementation of exchanging user tokens for collateral tokens in SirenMarkets
 /// this then allows you to Buy and Sell bTokens as well as to Sell wTokens using MinterAmm.sol
@@ -20,11 +21,8 @@ import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
 ///                                                                               SusiSwap: https://dev.sushi.com/sushiswap/contracts
 ///
 /// We take the router address in as a variable so we can choose which router has a better reserve at the time of the exchange.
-contract SirenExchange is ERC1155Holder {
+contract SirenExchange is ERC1155Holder, ReentrancyGuard {
     IERC1155 public immutable erc1155Controller;
-
-    uint256 private constant _NOT_ENTERED = 1;
-    uint256 private constant _ENTERED = 2;
 
     uint256 private _status;
 
@@ -58,25 +56,6 @@ contract SirenExchange is ERC1155Holder {
         uint64 indexed seriesId,
         address trader
     );
-
-    /// @dev Prevents a contract from calling itself, directly or indirectly.
-    /// Calling a `nonReentrant` function from another `nonReentrant`
-    /// function is not supported. It is possible to prevent this from happening
-    /// by making the `nonReentrant` function external, and make it call a
-    /// `private` function that does the actual work.
-    modifier nonReentrant() {
-        // On the first call to nonReentrant, _notEntered will be true
-        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
-
-        // Any calls to nonReentrant after this point will fail
-        _status = _ENTERED;
-
-        _;
-
-        // By storing the original value once again, a refund is triggered (see
-        // https://eips.ethereum.org/EIPS/eip-2200)
-        _status = _NOT_ENTERED;
-    }
 
     /// @dev Returns bytes to be used in safeTransferFrom ( prevents stack to deep error )
     function dataReturn() public returns (bytes memory data) {
