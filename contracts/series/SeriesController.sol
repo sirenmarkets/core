@@ -74,6 +74,11 @@ contract SeriesController is
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
+
+    uint256 private _status;
+
     ///////////////////// MODIFIER FUNCTIONS /////////////////////
 
     /// @notice Check if the msg.sender is the privileged DEFAULT_ADMIN_ROLE holder
@@ -84,6 +89,25 @@ contract SeriesController is
         );
 
         _;
+    }
+
+    /// @dev Prevents a contract from calling itself, directly or indirectly.
+    /// Calling a `nonReentrant` function from another `nonReentrant`
+    /// function is not supported. It is possible to prevent this from happening
+    /// by making the `nonReentrant` function external, and make it call a
+    /// `private` function that does the actual work.
+    modifier nonReentrant() {
+        // On the first call to nonReentrant, _notEntered will be true
+        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
+
+        // Any calls to nonReentrant after this point will fail
+        _status = _ENTERED;
+
+        _;
+
+        // By storing the original value once again, a refund is triggered (see
+        // https://eips.ethereum.org/EIPS/eip-2200)
+        _status = _NOT_ENTERED;
     }
 
     ///////////////////// VIEW/PURE FUNCTIONS /////////////////////
@@ -868,6 +892,7 @@ contract SeriesController is
         external
         override
         whenNotPaused
+        nonReentrant
     {
         // NOTE: this assumes that values in the allSeries array are never removed,
         // which is fine because there's currently no way to remove Series
@@ -938,7 +963,7 @@ contract SeriesController is
         uint64 _seriesId,
         uint256 _bTokenAmount,
         bool _revertOtm
-    ) external override whenNotPaused {
+    ) external override whenNotPaused nonReentrant {
         // We support only European style options so we exercise only after expiry, and only using
         // the settlement price set at expiration
         require(
@@ -1017,6 +1042,7 @@ contract SeriesController is
         external
         override
         whenNotPaused
+        nonReentrant
     {
         require(
             state(_seriesId) == SeriesState.EXPIRED,
@@ -1084,6 +1110,7 @@ contract SeriesController is
         external
         override
         whenNotPaused
+        nonReentrant
     {
         require(
             state(_seriesId) == SeriesState.OPEN,

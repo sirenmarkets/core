@@ -118,6 +118,11 @@ contract MinterAmm is
     /// removing series)
     EnumerableSet.UintSet private openSeries;
 
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
+
+    uint256 private _status;
+
     /// @dev Max fee basis points on the value of the option
     uint16 public maxOptionFeeBasisPoints;
 
@@ -219,6 +224,25 @@ contract MinterAmm is
             "Buy/Sell amount below min size"
         );
         _;
+    }
+
+    /// @dev Prevents a contract from calling itself, directly or indirectly.
+    /// Calling a `nonReentrant` function from another `nonReentrant`
+    /// function is not supported. It is possible to prevent this from happening
+    /// by making the `nonReentrant` function external, and make it call a
+    /// `private` function that does the actual work.
+    modifier nonReentrant() {
+        // On the first call to nonReentrant, _notEntered will be true
+        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
+
+        // Any calls to nonReentrant after this point will fail
+        _status = _ENTERED;
+
+        _;
+
+        // By storing the original value once again, a refund is triggered (see
+        // https://eips.ethereum.org/EIPS/eip-2200)
+        _status = _NOT_ENTERED;
     }
 
     /// Initialize the contract, and create an lpToken to track ownership
@@ -350,6 +374,7 @@ contract MinterAmm is
     /// The amount of lpTokens is calculated based on total pool value
     function provideCapital(uint256 collateralAmount, uint256 lpTokenMinimum)
         external
+        nonReentrant
     {
         // Move collateral into this contract
         collateralToken.safeTransferFrom(
@@ -405,7 +430,7 @@ contract MinterAmm is
         uint256 lpTokenAmount,
         bool sellTokens,
         uint256 collateralMinimum
-    ) public {
+    ) public nonReentrant {
         require(!sellTokens || collateralMinimum > 0, "E12");
         // First get starting numbers
         uint256 redeemerCollateralBalance = collateralToken.balanceOf(
@@ -784,7 +809,7 @@ contract MinterAmm is
         uint64 seriesId,
         uint256 bTokenAmount,
         uint256 collateralMaximum
-    ) external minTradeSize(bTokenAmount) returns (uint256) {
+    ) external minTradeSize(bTokenAmount) nonReentrant returns (uint256) {
         require(openSeries.contains(seriesId), "E13");
 
         require(
@@ -874,7 +899,7 @@ contract MinterAmm is
         uint64 seriesId,
         uint256 bTokenAmount,
         uint256 collateralMinimum
-    ) external minTradeSize(bTokenAmount) returns (uint256) {
+    ) external minTradeSize(bTokenAmount) nonReentrant returns (uint256) {
         require(openSeries.contains(seriesId), "E13");
 
         require(
@@ -1047,7 +1072,7 @@ contract MinterAmm is
         uint64 seriesId,
         uint256 wTokenAmount,
         uint256 collateralMinimum
-    ) external minTradeSize(wTokenAmount) returns (uint256) {
+    ) external minTradeSize(wTokenAmount) nonReentrant returns (uint256) {
         require(openSeries.contains(seriesId), "E13");
 
         require(
