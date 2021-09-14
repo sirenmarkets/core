@@ -5,17 +5,21 @@ import {
   SimpleTokenContract,
   SeriesControllerContract,
   SeriesVaultContract,
-  ERC1155ControllerInstance,
   ERC1155ControllerContract,
   AmmDataProviderContract,
-  AmmDataProviderInstance,
   MockPriceOracleContract,
   ProxyContract,
   AmmFactoryContract,
   MinterAmmContract,
+  ERC1155ControllerInstance,
+  SirenExchangeContract,
 } from "../typechain"
-import { artifacts, assert } from "hardhat"
+import { artifacts, assert, ethers } from "hardhat"
 import { time, expectEvent, BN } from "@openzeppelin/test-helpers"
+
+import UniswapV2Factory from "@uniswap/v2-core/build/UniswapV2Factory.json"
+import UniswapV2Router from "@uniswap/v2-periphery/build/UniswapV2Router02.json"
+import IUniswapV2Pair from "@uniswap/v2-core/build/IUniswapV2Pair.json"
 
 // these are the deterministic accounts given to use by the Hardhat network. They are
 // deterministic because Hardhat always uses the account mnemonic:
@@ -36,6 +40,7 @@ const Proxy: ProxyContract = artifacts.require("Proxy")
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
 
 const AmmFactory: AmmFactoryContract = artifacts.require("AmmFactory")
+const SirenExchange: SirenExchangeContract = artifacts.require("SirenExchange")
 const MinterAmm: MinterAmmContract = artifacts.require("MinterAmm")
 const AmmDataProvider: AmmDataProviderContract =
   artifacts.require("AmmDataProvider")
@@ -387,6 +392,145 @@ export async function setupSingletonTestContracts(
     closeFee,
     claimFee,
     erc1155URI,
+  }
+}
+
+export async function setUpUniswap(
+  collateralToken: SimpleTokenInstance,
+  deployedERC1155Controller: ERC1155ControllerInstance,
+) {
+  const SimpleTokenFactory = await ethers.getContractFactory("SimpleToken")
+
+  const userToken = await SimpleTokenFactory.deploy()
+  await userToken.deployed()
+  await (await userToken.initialize("token A", "TKA", 8)).wait()
+
+  const intermediateToken = await SimpleTokenFactory.deploy()
+  await intermediateToken.deployed()
+  await (await intermediateToken.initialize("token B", "TKB", 8)).wait()
+
+  const weth = await SimpleTokenFactory.deploy()
+  await weth.deployed()
+  await (await weth.initialize("Wrapped ETH", "WETH", 18)).wait()
+
+  const [owner] = await ethers.getSigners()
+
+  await userToken.mint(owner.address, 10000000000 * 10)
+  await intermediateToken.mint(owner.address, 10000000000 * 10)
+  await collateralToken.mint(owner.address, 10000000000 * 10)
+
+  await userToken.mint(aliceAccount, 1000000000 * 10)
+  await collateralToken.mint(aliceAccount, 1000000000 * 10)
+
+  const factory = await new ethers.ContractFactory(
+    UniswapV2Factory.abi,
+    UniswapV2Factory.bytecode,
+    owner,
+  )
+  const uniSwapV2Factory = await factory.deploy(owner.address)
+
+  const router = await new ethers.ContractFactory(
+    UniswapV2Router.abi,
+    UniswapV2Router.bytecode,
+    owner,
+  )
+  const uniswapV2Router = await router.deploy(
+    uniSwapV2Factory.address,
+    weth.address,
+  )
+
+  await uniSwapV2Factory.createPair(
+    intermediateToken.address,
+    collateralToken.address,
+  )
+  const pairAddress = await uniSwapV2Factory.getPair(
+    intermediateToken.address,
+    collateralToken.address,
+  )
+
+  const pair = new ethers.Contract(
+    pairAddress,
+    JSON.stringify(IUniswapV2Pair.abi),
+    owner,
+  ).connect(owner)
+
+  await uniSwapV2Factory.createPair(
+    userToken.address,
+    intermediateToken.address,
+  )
+  const pairAddress2 = await uniSwapV2Factory.getPair(
+    userToken.address,
+    intermediateToken.address,
+  )
+  const pair2 = new ethers.Contract(
+    pairAddress2,
+    JSON.stringify(IUniswapV2Pair.abi),
+    owner,
+  ).connect(owner)
+
+  const token0Address = await pair.token0()
+  const token0 =
+    intermediateToken.address === token0Address
+      ? intermediateToken
+      : collateralToken
+  const token1 =
+    intermediateToken.address === token0Address
+      ? collateralToken
+      : intermediateToken
+
+  const token1Address = await pair2.token1()
+  const token2 =
+    userToken.address === token1Address ? userToken : intermediateToken
+  const token3 =
+    userToken.address === token1Address ? intermediateToken : userToken
+
+  var minutesToAdd = 1000000
+  var currentDate = new Date()
+  let deadline = new Date(currentDate.getTime() + minutesToAdd * 60000)
+
+  await token0.approve(uniswapV2Router.address, 10000)
+  await token1.approve(uniswapV2Router.address, 10000)
+
+  await uniswapV2Router.addLiquidity(
+    token0.address,
+    token1.address,
+    10000,
+    10000,
+    0,
+    0,
+    owner.address,
+    Math.floor(deadline.getTime() / 1000),
+  )
+
+  await token2.approve(uniswapV2Router.address, 10000)
+  await token3.approve(uniswapV2Router.address, 10000)
+
+  await uniswapV2Router.addLiquidity(
+    token2.address,
+    token3.address,
+    10000,
+    10000,
+    0,
+    0,
+    owner.address,
+    Math.floor(deadline.getTime() / 1000),
+  )
+
+  const uniswapRouterPath = [
+    userToken.address,
+    intermediateToken.address,
+    collateralToken.address,
+  ]
+
+  const deployedSirenExchange = await SirenExchange.new(
+    deployedERC1155Controller.address,
+  )
+  const uniswapV2RouterAddress = uniswapV2Router.address
+
+  return {
+    uniswapV2RouterAddress,
+    deployedSirenExchange,
+    uniswapRouterPath,
   }
 }
 
