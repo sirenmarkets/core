@@ -301,11 +301,6 @@ export async function setupSingletonTestContracts(
     deployedSeriesController.address,
   )
 
-  const deployedAmmDataProvider = await AmmDataProvider.new(
-    deployedSeriesController.address,
-    deployedERC1155Controller.address,
-  )
-
   // create mock price oracle
   const deployedMockPriceOracle = await MockPriceOracle.new(
     await underlyingToken.decimals(),
@@ -335,6 +330,13 @@ export async function setupSingletonTestContracts(
     priceToken.address,
     deployedMockPriceOracle.address,
   )
+
+  const deployedAmmDataProvider = await AmmDataProvider.new(
+    deployedSeriesController.address,
+    deployedERC1155Controller.address,
+    deployedPriceOracle.address,
+  )
+
   const controllerInitResp =
     await deployedSeriesController.__SeriesController_init(
       deployedPriceOracle.address,

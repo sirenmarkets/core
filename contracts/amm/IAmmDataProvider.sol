@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+
 pragma solidity 0.8.0;
 
 interface IAmmDataProvider {
@@ -31,5 +33,32 @@ interface IAmmDataProvider {
         uint256 collateralTokenBalance,
         uint256 bTokenPrice,
         bool isBToken
+    ) external view returns (uint256);
+
+    function getCollateralValueOfAllExpiredOptionTokens(
+        uint64[] memory openSeries,
+        address ammAddress
+    ) external view returns (uint256);
+
+    function getOptionTokensSaleValue(
+        uint256 lpTokenAmount,
+        uint256 lpTokenSupply,
+        uint64[] memory openSeries,
+        address ammAddress,
+        uint256 collateralTokenBalance,
+        uint256 impliedVolatility
+    ) external view returns (uint256);
+
+    function getPriceForExpiredSeries(uint64 seriesId, uint256 volatilityFactor)
+        external
+        view
+        returns (uint256);
+
+    function getTotalPoolValue(
+        bool includeUnclaimed,
+        uint64[] memory openSeries,
+        uint256 collateralBalance,
+        address ammAddress,
+        uint256 impliedVolatility
     ) external view returns (uint256);
 }
