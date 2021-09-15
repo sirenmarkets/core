@@ -577,9 +577,3 @@ rule verify_getCurrentPrice() {
   assert p_before == p_after, "price changed by viewing";
 }
 
-// method specs ////////////////////////////////////////////////////////////////
-
-rule method_specs_todo () {
-  assert false, "TODO: rule not implemented";
-}
-
