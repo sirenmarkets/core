@@ -3,6 +3,9 @@
 These instructions detail the process for running CVT on the SirenMarkets series
 management contracts.
 
+Documentation for CVT and the specification language are available
+[here](https://certora.atlassian.net/wiki/spaces/CPD/overview)
+
 ## Running the verification
 
 Due to current time and space limitations in the tool, many of the rules need to
