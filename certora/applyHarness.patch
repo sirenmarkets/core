@@ -1,12 +1,12 @@
-diff -x stamp -ruN .gitignore .gitignore
+diff -x stamp -x '*.orig' -x '*.rej' -ruN .gitignore .gitignore
 --- .gitignore	1969-12-31 19:00:00.000000000 -0500
-+++ .gitignore	2021-09-10 10:41:29.386265089 -0400
++++ .gitignore	2021-09-15 14:55:55.462045913 -0400
 @@ -0,0 +1,2 @@
 +*
 +!.gitignore
-diff -x stamp -ruN series/ERC1155Controller.sol series/ERC1155Controller.sol
---- series/ERC1155Controller.sol	2021-08-10 15:21:01.467789131 -0400
-+++ series/ERC1155Controller.sol	2021-09-10 10:41:29.386265089 -0400
+diff -x stamp -x '*.orig' -x '*.rej' -ruN series/ERC1155Controller.sol series/ERC1155Controller.sol
+--- series/ERC1155Controller.sol	2021-09-15 13:50:46.675871691 -0400
++++ series/ERC1155Controller.sol	2021-09-15 14:55:55.466045737 -0400
 @@ -22,7 +22,7 @@
  
      /// @dev The address of the SeriesController contract which will be allowed to call
@@ -16,9 +16,9 @@ diff -x stamp -ruN series/ERC1155Controller.sol series/ERC1155Controller.sol
  
      /// @notice ERC1155 doesn't have the concept of totalSupply onchain
      /// so we must store that ourselves
-diff -x stamp -ruN series/ISeriesController.sol series/ISeriesController.sol
---- series/ISeriesController.sol	2021-08-10 17:17:21.141863378 -0400
-+++ series/ISeriesController.sol	2021-09-10 10:41:29.390264986 -0400
+diff -x stamp -x '*.orig' -x '*.rej' -ruN series/ISeriesController.sol series/ISeriesController.sol
+--- series/ISeriesController.sol	2021-09-15 13:50:46.675871691 -0400
++++ series/ISeriesController.sol	2021-09-15 14:55:55.466045737 -0400
 @@ -20,9 +20,9 @@
      }
  
@@ -30,9 +30,9 @@ diff -x stamp -ruN series/ISeriesController.sol series/ISeriesController.sol
      }
  
      /// @notice All data pertaining to an individual series
-diff -x stamp -ruN series/ISeriesVault.sol series/ISeriesVault.sol
---- series/ISeriesVault.sol	2021-08-09 16:43:12.853844173 -0400
-+++ series/ISeriesVault.sol	2021-09-10 10:41:29.390264986 -0400
+diff -x stamp -x '*.orig' -x '*.rej' -ruN series/ISeriesVault.sol series/ISeriesVault.sol
+--- series/ISeriesVault.sol	2021-09-15 13:50:46.675871691 -0400
++++ series/ISeriesVault.sol	2021-09-15 14:55:55.466045737 -0400
 @@ -25,6 +25,7 @@
      /// @dev Can only be called by the seriesController
      /// @dev The ERC1155 tokens will be minted and burned by the ERC1155Controller contract
@@ -43,9 +43,9 @@ diff -x stamp -ruN series/ISeriesVault.sol series/ISeriesVault.sol
 +        // HARNESS/TODO: this function doesn't return anything
 +        // returns (bool);
  }
-diff -x stamp -ruN series/PriceOracle.sol series/PriceOracle.sol
---- series/PriceOracle.sol	2021-08-26 12:38:56.928353332 -0400
-+++ series/PriceOracle.sol	2021-09-10 10:41:29.390264986 -0400
+diff -x stamp -x '*.orig' -x '*.rej' -ruN series/PriceOracle.sol series/PriceOracle.sol
+--- series/PriceOracle.sol	2021-09-15 13:50:46.675871691 -0400
++++ series/PriceOracle.sol	2021-09-15 14:55:55.466045737 -0400
 @@ -19,16 +19,16 @@
      /// @dev Stores the price for a given <underlyingToken>-<priceToken>-<settlementDate> triplet
      /// @dev All prices are normalized to 8 decimals
@@ -66,7 +66,7 @@ diff -x stamp -ruN series/PriceOracle.sol series/PriceOracle.sol
  
      event SettlementPriceSet(
          address underlyingToken,
-@@ -247,7 +247,7 @@
+@@ -250,7 +250,7 @@
  
      /// @notice update the PriceOracle's logic contract
      /// @param newPriceOracleImpl the address of the new price oracle implementation contract
@@ -75,9 +75,9 @@ diff -x stamp -ruN series/PriceOracle.sol series/PriceOracle.sol
          external
          onlyOwner
      {
-diff -x stamp -ruN series/SeriesController.sol series/SeriesController.sol
---- series/SeriesController.sol	2021-08-26 12:38:56.932353307 -0400
-+++ series/SeriesController.sol	2021-09-10 10:43:23.815360440 -0400
+diff -x stamp -x '*.orig' -x '*.rej' -ruN series/SeriesController.sol series/SeriesController.sol
+--- series/SeriesController.sol	2021-09-15 13:50:46.675871691 -0400
++++ series/SeriesController.sol	2021-09-15 14:57:02.671258930 -0400
 @@ -122,6 +122,7 @@
      /// @dev A Basis Point is 1 / 100 of a percent. e.g. 10 basis points (e.g. 0.1%) on 5000 is 5000 * 0.001 => 5
      function calculateFee(uint256 amount, uint16 basisPoints)
@@ -94,7 +94,7 @@ diff -x stamp -ruN series/SeriesController.sol series/SeriesController.sol
          internal
          view
          returns (uint256, uint256)
-@@ -425,7 +427,7 @@
+@@ -429,7 +431,7 @@
          uint64 _seriesId,
          uint256 _optionTokenAmount,
          uint256 _price
@@ -103,7 +103,7 @@ diff -x stamp -ruN series/SeriesController.sol series/SeriesController.sol
          Series memory series = allSeries[_seriesId];
  
          // is it a call option?
-@@ -450,6 +452,7 @@
+@@ -454,6 +456,7 @@
      /// @return true if the settlement price has been set (i.e. is nonzero), false otherwise
      function getSettlementPrice(uint64 _seriesId)
          public
@@ -111,7 +111,7 @@ diff -x stamp -ruN series/SeriesController.sol series/SeriesController.sol
          view
          returns (bool, uint256)
      {
-@@ -465,7 +468,7 @@
+@@ -469,7 +472,7 @@
  
      /// @dev Returns the current price for this Series' underlyingToken
      /// in units of priceToken
@@ -120,7 +120,7 @@ diff -x stamp -ruN series/SeriesController.sol series/SeriesController.sol
          Series memory series = allSeries[_seriesId];
  
          return
-@@ -490,7 +493,7 @@
+@@ -494,7 +497,7 @@
          uint256 _strikePrice,
          uint40 _expirationDate,
          bool _isPutOption
@@ -128,8 +128,8 @@ diff -x stamp -ruN series/SeriesController.sol series/SeriesController.sol
 +    ) internal virtual view returns (string memory) { // HARNESS: made virtual
          // convert the expirationDate from a uint256 to a string of the form 20210108 (<year><month><day>)
          // This logic is taken from bokkypoobah's BokkyPooBahsDateTimeLibrary, the timestampToDate function
-         (uint256 year, uint256 month, uint256 day) =
-@@ -534,7 +537,7 @@
+         (uint256 year, uint256 month, uint256 day) = _timestampToDate(
+@@ -539,7 +542,7 @@
      /// year = 100 * (N - 49) + year + L
      /// ------------------------------------------------------------------------
      function _timestampToDate(uint40 _timestamp)
@@ -138,7 +138,7 @@ diff -x stamp -ruN series/SeriesController.sol series/SeriesController.sol
          pure
          returns (
              uint256 year,
-@@ -565,7 +568,7 @@
+@@ -570,7 +573,7 @@
      /// are padded with a leading zero
      /// @dev This function only expects
      function _dateComponentToString(uint256 dateComponent)
@@ -147,7 +147,7 @@ diff -x stamp -ruN series/SeriesController.sol series/SeriesController.sol
          pure
          returns (string memory)
      {
-@@ -662,12 +665,12 @@
+@@ -667,12 +670,12 @@
          address _sender,
          uint64 _seriesId,
          uint256 _amount
@@ -162,7 +162,7 @@ diff -x stamp -ruN series/SeriesController.sol series/SeriesController.sol
              _sender,
              vault,
              _amount
-@@ -684,13 +687,13 @@
+@@ -689,13 +692,13 @@
          uint64 _seriesId,
          address _recipient,
          uint256 _amount
@@ -178,7 +178,7 @@ diff -x stamp -ruN series/SeriesController.sol series/SeriesController.sol
              vault,
              _recipient,
              _amount
-@@ -797,22 +800,22 @@
+@@ -802,22 +805,22 @@
                  _isPutOption
              );
  
@@ -217,7 +217,7 @@ diff -x stamp -ruN series/SeriesController.sol series/SeriesController.sol
  
              // don't forget to increment our series index
              _latestIndex = _latestIndex + 1;
-@@ -828,7 +831,7 @@
+@@ -833,7 +836,7 @@
          bool _isPutOption,
          ISeriesController.Tokens calldata _tokens,
          uint256 _strikePrice
@@ -226,16 +226,15 @@ diff -x stamp -ruN series/SeriesController.sol series/SeriesController.sol
          // validate price and expiration
          require(
              _strikePrice != 0,
-@@ -909,7 +912,7 @@
+@@ -916,6 +919,7 @@
          // transfer this collateral to the vault for storage
          transferERC20In(msg.sender, _seriesId, collateralAmount);
  
--        uint256[] memory totalSupplies =
-+/*        uint256[] memory totalSupplies =
-             IERC1155Controller(erc1155Controller).optionTokenTotalSupplyBatch(
-                 optionTokenIds
-             );
-@@ -921,7 +924,7 @@
++        /*
+         uint256[] memory totalSupplies = IERC1155Controller(erc1155Controller)
+             .optionTokenTotalSupplyBatch(optionTokenIds);
+ 
+@@ -926,7 +930,7 @@
              _optionTokenAmount,
              totalSupplies[0],
              totalSupplies[1]
@@ -244,7 +243,7 @@ diff -x stamp -ruN series/SeriesController.sol series/SeriesController.sol
      }
  
      /// @notice Exercise bToken for the given Series at _seriesId
-@@ -985,7 +988,7 @@
+@@ -992,7 +996,7 @@
          }
  
          // get the option token total supplies
@@ -252,8 +251,8 @@ diff -x stamp -ruN series/SeriesController.sol series/SeriesController.sol
 +     /*   uint256[] memory optionTokenIds = new uint256[](2);
          optionTokenIds[0] = SeriesLibrary.wTokenIndex(_seriesId);
          optionTokenIds[1] = SeriesLibrary.bTokenIndex(_seriesId);
-         uint256[] memory totalSupplies =
-@@ -1001,7 +1004,7 @@
+         uint256[] memory totalSupplies = IERC1155Controller(erc1155Controller)
+@@ -1006,7 +1010,7 @@
              totalSupplies[0],
              totalSupplies[1],
              collateralAmount
@@ -262,7 +261,7 @@ diff -x stamp -ruN series/SeriesController.sol series/SeriesController.sol
      }
  
      /// @notice Redeem the wToken for collateral token for the given Series
-@@ -1052,7 +1055,7 @@
+@@ -1059,7 +1063,7 @@
          transferERC20Out(_seriesId, redeemer, collateralAmount);
  
          // get the option token total supplies
@@ -270,8 +269,8 @@ diff -x stamp -ruN series/SeriesController.sol series/SeriesController.sol
 +       /* uint256[] memory optionTokenIds = new uint256[](2);
          optionTokenIds[0] = SeriesLibrary.wTokenIndex(_seriesId);
          optionTokenIds[1] = SeriesLibrary.bTokenIndex(_seriesId);
-         uint256[] memory totalSupplies =
-@@ -1068,7 +1071,7 @@
+         uint256[] memory totalSupplies = IERC1155Controller(erc1155Controller)
+@@ -1073,7 +1077,7 @@
              totalSupplies[0],
              totalSupplies[1],
              collateralAmount
@@ -280,16 +279,15 @@ diff -x stamp -ruN series/SeriesController.sol series/SeriesController.sol
      }
  
      /// @notice Close the position and take back collateral for the given Series
-@@ -1130,7 +1133,7 @@
+@@ -1139,6 +1143,7 @@
          transferERC20Out(_seriesId, redeemer, collateralAmount);
  
          // get the option token total supplies for the event
--        uint256[] memory totalSupplies =
-+      /*  uint256[] memory totalSupplies =
-             IERC1155Controller(erc1155Controller).optionTokenTotalSupplyBatch(
-                 optionTokenIds
-             );
-@@ -1143,7 +1146,7 @@
++        /*
+         uint256[] memory totalSupplies = IERC1155Controller(erc1155Controller)
+             .optionTokenTotalSupplyBatch(optionTokenIds);
+ 
+@@ -1150,7 +1155,7 @@
              totalSupplies[0],
              totalSupplies[1],
              collateralAmount
@@ -298,9 +296,11 @@ diff -x stamp -ruN series/SeriesController.sol series/SeriesController.sol
      }
  
      /// @notice update the logic contract for this proxy contract
-diff -x stamp -ruN series/SeriesVault.sol series/SeriesVault.sol
---- series/SeriesVault.sol	2021-08-09 16:43:12.853844173 -0400
-+++ series/SeriesVault.sol	2021-09-10 10:41:29.394264884 -0400
+Binary files series/.SeriesController.sol.rej.swp and series/.SeriesController.sol.rej.swp differ
+Binary files series/.SeriesController.sol.swp and series/.SeriesController.sol.swp differ
+diff -x stamp -x '*.orig' -x '*.rej' -ruN series/SeriesVault.sol series/SeriesVault.sol
+--- series/SeriesVault.sol	2021-09-15 13:50:46.675871691 -0400
++++ series/SeriesVault.sol	2021-09-15 14:55:55.466045737 -0400
 @@ -30,7 +30,7 @@
  
      /// @dev The addresses of the SeriesController contract which will be approved
