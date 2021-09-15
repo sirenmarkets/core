@@ -450,7 +450,6 @@ rule price_bounded_past (method f) {
 
 // if a price is set, there is either a price set before that price or no price after set (indicating it is the first price)
 // the first price is set by addTokenPair so this function is not relevant
-// TODO: review
 rule price_t0_constant (method f) filtered {f -> (f.selector != addTokenPair(address, address, address).selector)}{
   uint256 t1; uint256 t;
   require t1 > t;
@@ -470,7 +469,6 @@ rule price_t0_constant (method f) filtered {f -> (f.selector != addTokenPair(add
       - setSettlementPrice
       - setSettlementPriceForDate
       - addTokenPair
-      // TODO: review
 */
 rule price_authorized_only (method f) {
   env e; calldataarg args;
