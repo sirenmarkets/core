@@ -1,0 +1,322 @@
+diff -x stamp -ruN .gitignore .gitignore
+--- .gitignore	1969-12-31 19:00:00.000000000 -0500
++++ .gitignore	2021-09-10 10:41:29.386265089 -0400
+@@ -0,0 +1,2 @@
++*
++!.gitignore
+diff -x stamp -ruN series/ERC1155Controller.sol series/ERC1155Controller.sol
+--- series/ERC1155Controller.sol	2021-08-10 15:21:01.467789131 -0400
++++ series/ERC1155Controller.sol	2021-09-10 10:41:29.386265089 -0400
+@@ -22,7 +22,7 @@
+ 
+     /// @dev The address of the SeriesController contract which will be allowed to call
+     /// the mint* and burn* functions
+-    address internal controller;
++    address public controller; // HARNESS: changed to public
+ 
+     /// @notice ERC1155 doesn't have the concept of totalSupply onchain
+     /// so we must store that ourselves
+diff -x stamp -ruN series/ISeriesController.sol series/ISeriesController.sol
+--- series/ISeriesController.sol	2021-08-10 17:17:21.141863378 -0400
++++ series/ISeriesController.sol	2021-09-10 10:41:29.390264986 -0400
+@@ -20,9 +20,9 @@
+     }
+ 
+     struct Tokens {
++        address collateralToken; // HARNESS: moved to first field
+         address underlyingToken;
+         address priceToken;
+-        address collateralToken;
+     }
+ 
+     /// @notice All data pertaining to an individual series
+diff -x stamp -ruN series/ISeriesVault.sol series/ISeriesVault.sol
+--- series/ISeriesVault.sol	2021-08-09 16:43:12.853844173 -0400
++++ series/ISeriesVault.sol	2021-09-10 10:41:29.390264986 -0400
+@@ -25,6 +25,7 @@
+     /// @dev Can only be called by the seriesController
+     /// @dev The ERC1155 tokens will be minted and burned by the ERC1155Controller contract
+     function setERC1155ApprovalForController(address erc1155Contract)
+-        external
+-        returns (bool);
++        external;
++        // HARNESS/TODO: this function doesn't return anything
++        // returns (bool);
+ }
+diff -x stamp -ruN series/PriceOracle.sol series/PriceOracle.sol
+--- series/PriceOracle.sol	2021-08-26 12:38:56.928353332 -0400
++++ series/PriceOracle.sol	2021-09-10 10:41:29.390264986 -0400
+@@ -19,16 +19,16 @@
+     /// @dev Stores the price for a given <underlyingToken>-<priceToken>-<settlementDate> triplet
+     /// @dev All prices are normalized to 8 decimals
+     mapping(address => mapping(address => mapping(uint256 => uint256)))
+-        internal settlementPrices;
++        public settlementPrices; // HARNESS: changed to public
+ 
+     /// @dev Stores the oracle address to use when looking for the price of a given token
+     /// @dev oracles are keyed by the pair of underlyingToken-priceToken, so for a BTCUSD oracle
+     /// returning a price of $14_000, the pair would be the addresses corresponding to WBTC and USDC
+-    mapping(address => mapping(address => address)) internal oracles;
++    mapping(address => mapping(address => address)) public oracles; // HARNESS: changed to public
+ 
+     /// @dev the time length in seconds between successive settlement dates. Must
+     /// be either 1 day or 1 week
+-    uint256 internal dateOffset;
++    uint256 public dateOffset; // HARNESS: changed to public
+ 
+     event SettlementPriceSet(
+         address underlyingToken,
+@@ -247,7 +247,7 @@
+ 
+     /// @notice update the PriceOracle's logic contract
+     /// @param newPriceOracleImpl the address of the new price oracle implementation contract
+-    function updateImplementation(address newPriceOracleImpl)
++    function updateImplementation(address newPriceOracleImpl) virtual // HARNESS: virtual
+         external
+         onlyOwner
+     {
+diff -x stamp -ruN series/SeriesController.sol series/SeriesController.sol
+--- series/SeriesController.sol	2021-08-26 12:38:56.932353307 -0400
++++ series/SeriesController.sol	2021-09-10 10:43:23.815360440 -0400
+@@ -122,6 +122,7 @@
+     /// @dev A Basis Point is 1 / 100 of a percent. e.g. 10 basis points (e.g. 0.1%) on 5000 is 5000 * 0.001 => 5
+     function calculateFee(uint256 amount, uint16 basisPoints)
+         public
++        virtual // HARNESS: made virtual
+         pure
+         override
+         returns (uint256)
+@@ -144,6 +145,7 @@
+     /// @return A tuple of uint256's, where the first is the bToken holder's share of the locked collateral
+     /// and the second is the wToken holder's share of the locked collateral
+     function getSettlementAmounts(uint64 _seriesId, uint256 _optionTokenAmount)
++        virtual // HARNESS: made virtual
+         internal
+         view
+         returns (uint256, uint256)
+@@ -425,7 +427,7 @@
+         uint64 _seriesId,
+         uint256 _optionTokenAmount,
+         uint256 _price
+-    ) internal view returns (uint256) {
++    ) internal virtual view returns (uint256) { // HARNESS: made virtual
+         Series memory series = allSeries[_seriesId];
+ 
+         // is it a call option?
+@@ -450,6 +452,7 @@
+     /// @return true if the settlement price has been set (i.e. is nonzero), false otherwise
+     function getSettlementPrice(uint64 _seriesId)
+         public
++        virtual // HARNESS: made virtual
+         view
+         returns (bool, uint256)
+     {
+@@ -465,7 +468,7 @@
+ 
+     /// @dev Returns the current price for this Series' underlyingToken
+     /// in units of priceToken
+-    function getCurrentPrice(uint64 _seriesId) internal view returns (uint256) {
++    function getCurrentPrice(uint64 _seriesId) internal virtual view returns (uint256) { // HARNESS: made virtual
+         Series memory series = allSeries[_seriesId];
+ 
+         return
+@@ -490,7 +493,7 @@
+         uint256 _strikePrice,
+         uint40 _expirationDate,
+         bool _isPutOption
+-    ) private view returns (string memory) {
++    ) internal virtual view returns (string memory) { // HARNESS: made virtual
+         // convert the expirationDate from a uint256 to a string of the form 20210108 (<year><month><day>)
+         // This logic is taken from bokkypoobah's BokkyPooBahsDateTimeLibrary, the timestampToDate function
+         (uint256 year, uint256 month, uint256 day) =
+@@ -534,7 +537,7 @@
+     /// year = 100 * (N - 49) + year + L
+     /// ------------------------------------------------------------------------
+     function _timestampToDate(uint40 _timestamp)
+-        private
++        internal // HARNESS: made internal
+         pure
+         returns (
+             uint256 year,
+@@ -565,7 +568,7 @@
+     /// are padded with a leading zero
+     /// @dev This function only expects
+     function _dateComponentToString(uint256 dateComponent)
+-        private
++        internal // HARNESS: made internal
+         pure
+         returns (string memory)
+     {
+@@ -662,12 +665,12 @@
+         address _sender,
+         uint64 _seriesId,
+         uint256 _amount
+-    ) private {
++    ) internal {
+         // update the balances state
+         seriesBalances[_seriesId] += _amount;
+ 
+         // pull the ERC20 token from the SeriesController
+-        IERC20(allSeries[_seriesId].tokens.collateralToken).safeTransferFrom(
++        IERC20(allSeries[_seriesId].tokens.collateralToken).transferFrom( // HARNESS: replaced safeTransferFrom
+             _sender,
+             vault,
+             _amount
+@@ -684,13 +687,13 @@
+         uint64 _seriesId,
+         address _recipient,
+         uint256 _amount
+-    ) private {
++    ) internal {
+         // update the balances state.
+         // If not enough balance this will revert due to SafeMath, no need for additional 'require'
+         seriesBalances[_seriesId] -= _amount;
+ 
+         // pull the ERC20 token from the SeriesController
+-        IERC20(allSeries[_seriesId].tokens.collateralToken).safeTransferFrom(
++        IERC20(allSeries[_seriesId].tokens.collateralToken).transferFrom( // HARNESS: replaced safeTransferFrom
+             vault,
+             _recipient,
+             _amount
+@@ -797,22 +800,22 @@
+                 _isPutOption
+             );
+ 
+-            for (uint256 j = 0; j < _restrictedMinters.length; j++) {
+-                // if the restricted minter is a Amm contract, then make sure we make the Amm aware of
+-                // this Series. The only case where a restricted minter would not be an AMM is in our
+-                // automated tests, where it's much easier to test the SeriesController when we can use an
+-                // EOA (externally owned account) to mint options
+-                if (
+-                    ERC165Checker.supportsInterface(
+-                        _restrictedMinters[j],
+-                        IAddSeriesToAmm.addSeries.selector
+-                    )
+-                ) {
+-                    IAddSeriesToAmm(_restrictedMinters[j]).addSeries(
+-                        _latestIndex
+-                    );
+-                }
+-            }
++            // for (uint256 j = 0; j < _restrictedMinters.length; j++) {
++            //     // if the restricted minter is a Amm contract, then make sure we make the Amm aware of
++            //     // this Series. The only case where a restricted minter would not be an AMM is in our
++            //     // automated tests, where it's much easier to test the SeriesController when we can use an
++            //     // EOA (externally owned account) to mint options
++            //     if (
++            //         ERC165Checker.supportsInterface(
++            //             _restrictedMinters[j],
++            //             IAddSeriesToAmm.addSeries.selector
++            //         )
++            //     ) {
++            //         IAddSeriesToAmm(_restrictedMinters[j]).addSeries(
++            //             _latestIndex
++            //         );
++            //     }
++            // }
+ 
+             // don't forget to increment our series index
+             _latestIndex = _latestIndex + 1;
+@@ -828,7 +831,7 @@
+         bool _isPutOption,
+         ISeriesController.Tokens calldata _tokens,
+         uint256 _strikePrice
+-    ) private view returns (Series memory) {
++    ) internal virtual view returns (Series memory) {
+         // validate price and expiration
+         require(
+             _strikePrice != 0,
+@@ -909,7 +912,7 @@
+         // transfer this collateral to the vault for storage
+         transferERC20In(msg.sender, _seriesId, collateralAmount);
+ 
+-        uint256[] memory totalSupplies =
++/*        uint256[] memory totalSupplies =
+             IERC1155Controller(erc1155Controller).optionTokenTotalSupplyBatch(
+                 optionTokenIds
+             );
+@@ -921,7 +924,7 @@
+             _optionTokenAmount,
+             totalSupplies[0],
+             totalSupplies[1]
+-        );
++        );  HARNESS: removed */
+     }
+ 
+     /// @notice Exercise bToken for the given Series at _seriesId
+@@ -985,7 +988,7 @@
+         }
+ 
+         // get the option token total supplies
+-        uint256[] memory optionTokenIds = new uint256[](2);
++     /*   uint256[] memory optionTokenIds = new uint256[](2);
+         optionTokenIds[0] = SeriesLibrary.wTokenIndex(_seriesId);
+         optionTokenIds[1] = SeriesLibrary.bTokenIndex(_seriesId);
+         uint256[] memory totalSupplies =
+@@ -1001,7 +1004,7 @@
+             totalSupplies[0],
+             totalSupplies[1],
+             collateralAmount
+-        );
++        ); HARNESS: removed */
+     }
+ 
+     /// @notice Redeem the wToken for collateral token for the given Series
+@@ -1052,7 +1055,7 @@
+         transferERC20Out(_seriesId, redeemer, collateralAmount);
+ 
+         // get the option token total supplies
+-        uint256[] memory optionTokenIds = new uint256[](2);
++       /* uint256[] memory optionTokenIds = new uint256[](2);
+         optionTokenIds[0] = SeriesLibrary.wTokenIndex(_seriesId);
+         optionTokenIds[1] = SeriesLibrary.bTokenIndex(_seriesId);
+         uint256[] memory totalSupplies =
+@@ -1068,7 +1071,7 @@
+             totalSupplies[0],
+             totalSupplies[1],
+             collateralAmount
+-        );
++        ); HARNESS: removed */
+     }
+ 
+     /// @notice Close the position and take back collateral for the given Series
+@@ -1130,7 +1133,7 @@
+         transferERC20Out(_seriesId, redeemer, collateralAmount);
+ 
+         // get the option token total supplies for the event
+-        uint256[] memory totalSupplies =
++      /*  uint256[] memory totalSupplies =
+             IERC1155Controller(erc1155Controller).optionTokenTotalSupplyBatch(
+                 optionTokenIds
+             );
+@@ -1143,7 +1146,7 @@
+             totalSupplies[0],
+             totalSupplies[1],
+             collateralAmount
+-        );
++        ); HARNESS: removed */
+     }
+ 
+     /// @notice update the logic contract for this proxy contract
+diff -x stamp -ruN series/SeriesVault.sol series/SeriesVault.sol
+--- series/SeriesVault.sol	2021-08-09 16:43:12.853844173 -0400
++++ series/SeriesVault.sol	2021-09-10 10:41:29.394264884 -0400
+@@ -30,7 +30,7 @@
+ 
+     /// @dev The addresses of the SeriesController contract which will be approved
+     /// with an allowance of MAX_UINT for all tokens held in the SeriesVault
+-    address internal controller;
++    address public controller;
+ 
+     ///////////////////// EVENTS /////////////////////
+ 
+@@ -92,7 +92,8 @@
+         external
+         override
+         onlySeriesController
+-        returns (bool)
++        // TODO: this function doesn't return anything
++        //returns (bool)
+     {
+         IERC1155Upgradeable(erc1155Contract).setApprovalForAll(
+             controller,

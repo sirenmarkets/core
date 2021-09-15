@@ -127,6 +127,7 @@ GitHub.sublime-settings
 
 # Certora
 .certora*
+.last_confs
 certora_*
 
 # MacOS
