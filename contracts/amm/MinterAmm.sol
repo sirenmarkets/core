@@ -118,9 +118,18 @@ contract MinterAmm is
     /// removing series)
     EnumerableSet.UintSet private openSeries;
 
+    /// @dev These contract variables, as well as the `nonReentrant` modifier further down below,
+    /// are copied from OpenZeppelin's ReentrancyGuard contract. We chose to copy ReentrancyGuard instead of
+    /// having MinterAmm inherit it because we intend use this MinterAmm contract to upgrade already-deployed
+    /// MinterAmm contracts. If The MinterAmm were to inherit from ReentrancyGuard, the ReentrancyGuard's
+    /// contract storage variables would overwrite existing storage variables on the contract and it would
+    /// break the contract. So by manually implementing ReentrancyGuard's logic we have full control over
+    /// the position of the variable in the contract's storage, and we can ensure the MinterAmm's contract
+    /// storage variables are only ever appended to. See this OpenZeppelin article about contract upgradeability
+    /// for more info on the contract storage variable requirement:
+    /// https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable#modifying-your-contracts
     uint256 private constant _NOT_ENTERED = 1;
     uint256 private constant _ENTERED = 2;
-
     uint256 private _status;
 
     /// @dev Max fee basis points on the value of the option

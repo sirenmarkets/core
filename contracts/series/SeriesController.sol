@@ -74,9 +74,18 @@ contract SeriesController is
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
+    /// @dev These contract variables, as well as the `nonReentrant` modifier further down below,
+    /// are copied from OpenZeppelin's ReentrancyGuard contract. We chose to copy ReentrancyGuard instead of
+    /// having SeriesController inherit it because we intend use this SeriesController contract to upgrade already-deployed
+    /// SeriesController contracts. If the SeriesController were to inherit from ReentrancyGuard, the ReentrancyGuard's
+    /// contract storage variables would overwrite existing storage variables on the contract and it would
+    /// break the contract. So by manually implementing ReentrancyGuard's logic we have full control over
+    /// the position of the variable in the contract's storage, and we can ensure the SeriesController's contract
+    /// storage variables are only ever appended to. See this OpenZeppelin article about contract upgradeability
+    /// for more info on the contract storage variable requirement:
+    /// https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable#modifying-your-contracts
     uint256 private constant _NOT_ENTERED = 1;
     uint256 private constant _ENTERED = 2;
-
     uint256 private _status;
 
     ///////////////////// MODIFIER FUNCTIONS /////////////////////
