@@ -3,6 +3,7 @@ import "@nomiclabs/hardhat-ethers"
 import "@typechain/hardhat"
 import "solidity-coverage"
 import "hardhat-log-remover"
+import "uniswap-v3-deploy-plugin"
 import "hardhat-contract-sizer"
 import "@nomiclabs/hardhat-etherscan"
 
@@ -48,6 +49,33 @@ const config: HardhatUserConfig = {
           },
         },
       },
+      {
+        version: "0.6.2",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1,
+          },
+        },
+      },
+      {
+        version: "0.6.6",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1,
+          },
+        },
+      },
+      {
+        version: "0.5.0",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1,
+          },
+        },
+      },
     ],
   },
   defaultNetwork: "hardhat",
@@ -64,10 +92,12 @@ const config: HardhatUserConfig = {
     mumbai: {
       url: "https://rpc-mumbai.maticvigil.com",
       accounts: [env.DEPLOY_PRIVATE_KEY],
+      gasPrice: "auto",
     },
     matic: {
       url: "https://rpc-mainnet.maticvigil.com",
       accounts: [env.DEPLOY_PRIVATE_KEY],
+      gasPrice: "auto",
     },
   },
   etherscan: {

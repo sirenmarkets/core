@@ -288,7 +288,7 @@ contract AmmDataProvider is IAmmDataProvider {
         uint64 seriesId,
         uint256 wTokenBalance,
         uint256 bTokenBalance
-    ) private view returns (uint256) {
+    ) public view override returns (uint256) {
         uint256 unredeemedCollateral = 0;
         if (wTokenBalance > 0) {
             (uint256 unclaimedCollateral, ) = seriesController.getClaimAmount(
