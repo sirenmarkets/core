@@ -93,6 +93,7 @@ export async function deploySingletonContracts(
   const ammDataProvider = await AmmDataProvider.deploy(
     seriesController.address,
     erc1155Controller.address,
+    priceOracle.address,
   )
   console.log(
     "AmmDataProvider deployed to:         ",

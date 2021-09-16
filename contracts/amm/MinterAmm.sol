@@ -178,6 +178,9 @@ contract MinterAmm is
     /// Emitted when a new sirenPriceOracle gets set on an upgraded AMM
     event NewSirenPriceOracle(address newSirenPriceOracle);
 
+    /// Emitted when a new ammDataProviders gets set on an upgraded AMM
+    event NewAmmDataProvider(address newAmmDataProvider);
+
     /// @notice Emitted when an expired series has been removed
     event SeriesEvicted(uint64 seriesId);
 
@@ -338,6 +341,8 @@ contract MinterAmm is
         require(_newAmmDataProvider != address(0x0), "E14");
 
         ammDataProvider = _newAmmDataProvider;
+
+        emit NewAmmDataProvider(_newAmmDataProvider);
     }
 
     /// LP allows collateral to be used to mint new options
@@ -601,71 +606,14 @@ contract MinterAmm is
         view
         returns (uint256)
     {
-        // Note! This function assumes the price obtained from the onchain oracle
-        // in getCurrentUnderlyingPrice is a valid series price in units of
-        // collateralToken/paymentToken. If the onchain price oracle's value
-        // were to drift from the true series price, then the bToken price
-        // we calculate here would also drift, and will result in undefined
-        // behavior for any functions which call getTotalPoolValue
-        uint256 underlyingPrice = getCurrentUnderlyingPrice();
-        // First, determine the value of all residual b/wTokens
-        uint256 activeTokensValue = 0;
-        uint256 expiredTokensValue = 0;
-        for (uint256 i = 0; i < openSeries.length(); i++) {
-            uint64 seriesId = uint64(openSeries.at(i));
-            ISeriesController.Series memory series = seriesController.series(
-                seriesId
-            );
-
-            uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-            uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
-
-            uint256 bTokenBalance = erc1155Controller.balanceOf(
+        return
+            IAmmDataProvider(ammDataProvider).getTotalPoolValue(
+                includeUnclaimed,
+                getAllSeries(),
+                collateralToken.balanceOf(address(this)),
                 address(this),
-                bTokenIndex
+                volatilityFactor
             );
-            uint256 wTokenBalance = erc1155Controller.balanceOf(
-                address(this),
-                wTokenIndex
-            );
-
-            if (
-                seriesController.state(seriesId) ==
-                ISeriesController.SeriesState.OPEN
-            ) {
-                // value all active bTokens and wTokens at current prices
-                uint256 bPrice = getPriceForSeriesInternal(
-                    series,
-                    underlyingPrice
-                );
-                // wPrice = 1 - bPrice
-                uint256 wPrice = uint256(1e18) - bPrice;
-
-                uint256 tokensValueCollateral = seriesController
-                    .getCollateralPerOptionToken(
-                        seriesId,
-                        (bTokenBalance * bPrice + wTokenBalance * wPrice) / 1e18
-                    );
-
-                activeTokensValue += tokensValueCollateral;
-            } else if (
-                includeUnclaimed &&
-                seriesController.state(seriesId) ==
-                ISeriesController.SeriesState.EXPIRED
-            ) {
-                // Get collateral token locked in the series
-                expiredTokensValue += getRedeemableCollateral(
-                    seriesId,
-                    wTokenBalance,
-                    bTokenBalance
-                );
-            }
-        }
-
-        // Add collateral value
-        uint256 collateralBalance = collateralToken.balanceOf(address(this));
-
-        return activeTokensValue + expiredTokensValue + collateralBalance;
     }
 
     /// @notice List the Series ids this AMM trades
@@ -674,7 +622,7 @@ contract MinterAmm is
     /// point the indexes of a particular Series may change, so do not rely on
     /// the indexes obtained from this function
     /// @return an array of all the series IDs
-    function getAllSeries() external view returns (uint64[] memory) {
+    function getAllSeries() public view returns (uint64[] memory) {
         uint64[] memory series = new uint64[](openSeries.length());
         for (uint256 i = 0; i < openSeries.length(); i++) {
             series[i] = uint64(openSeries.at(i));
@@ -743,9 +691,9 @@ contract MinterAmm is
         require(openSeries.contains(seriesId), "E13");
 
         return
-            getPriceForSeriesInternal(
-                seriesController.series(seriesId),
-                getCurrentUnderlyingPrice()
+            IAmmDataProvider(ammDataProvider).getPriceForExpiredSeries(
+                seriesId,
+                volatilityFactor
             );
     }
 
@@ -1202,39 +1150,12 @@ contract MinterAmm is
         view
         returns (uint256)
     {
-        uint256 unredeemedCollateral = 0;
-
-        for (uint256 i = 0; i < openSeries.length(); i++) {
-            uint64 seriesId = uint64(openSeries.at(i));
-
-            if (
-                seriesController.state(seriesId) ==
-                ISeriesController.SeriesState.EXPIRED
-            ) {
-                uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-                uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
-
-                // Get the pool's option token balances
-                uint256 bTokenBalance = erc1155Controller.balanceOf(
-                    address(this),
-                    bTokenIndex
+        return
+            IAmmDataProvider(ammDataProvider)
+                .getCollateralValueOfAllExpiredOptionTokens(
+                    getAllSeries(),
+                    address(this)
                 );
-                uint256 wTokenBalance = erc1155Controller.balanceOf(
-                    address(this),
-                    wTokenIndex
-                );
-
-                // calculate the amount of collateral The AMM would receive by
-                // redeeming this Series' bTokens and wTokens
-                unredeemedCollateral += getRedeemableCollateral(
-                    seriesId,
-                    wTokenBalance,
-                    bTokenBalance
-                );
-            }
-        }
-
-        return unredeemedCollateral;
     }
 
     /// @notice Calculate sale value of pro-rata LP b/wTokens in units of collateral token
@@ -1243,88 +1164,17 @@ contract MinterAmm is
         view
         returns (uint256)
     {
-        if (lpTokenAmount == 0) return 0;
-
         uint256 lpTokenSupply = IERC20Lib(address(lpToken)).totalSupply();
-        if (lpTokenSupply == 0) return 0;
 
-        // Calculate the amount of collateral receivable by redeeming all the expired option tokens
-        uint256 expiredOptionTokenCollateral = getCollateralValueOfAllExpiredOptionTokens();
-
-        // Calculate amount of collateral left in the pool to sell tokens to
-        uint256 totalCollateral = expiredOptionTokenCollateral +
-            collateralToken.balanceOf(address(this));
-
-        // Subtract pro-rata collateral amount to be withdrawn
-        totalCollateral =
-            (totalCollateral * (lpTokenSupply - lpTokenAmount)) /
-            lpTokenSupply;
-
-        // Given remaining collateral calculate how much all tokens can be sold for
-        uint256 collateralLeft = totalCollateral;
-        for (uint256 i = 0; i < openSeries.length(); i++) {
-            uint64 seriesId = uint64(openSeries.at(i));
-
-            if (
-                seriesController.state(seriesId) ==
-                ISeriesController.SeriesState.OPEN
-            ) {
-                uint256 bTokenToSell = (erc1155Controller.balanceOf(
-                    address(this),
-                    SeriesLibrary.bTokenIndex(seriesId)
-                ) * lpTokenAmount) / lpTokenSupply;
-                uint256 wTokenToSell = (erc1155Controller.balanceOf(
-                    address(this),
-                    SeriesLibrary.wTokenIndex(seriesId)
-                ) * lpTokenAmount) / lpTokenSupply;
-
-                uint256 collateralAmountB = optionTokenGetCollateralOutInternal(
-                    seriesId,
-                    bTokenToSell,
-                    collateralLeft,
-                    true
-                );
-                collateralLeft -= collateralAmountB;
-
-                uint256 collateralAmountW = optionTokenGetCollateralOutInternal(
-                    seriesId,
-                    wTokenToSell,
-                    collateralLeft,
-                    false
-                );
-                collateralLeft -= collateralAmountW;
-            }
-        }
-
-        return totalCollateral - collateralLeft;
-    }
-
-    /// @dev Calculate the collateral amount receivable by redeeming the given
-    /// Series' bTokens and wToken
-    /// @param seriesId The index of the Series
-    /// @param wTokenBalance The wToken balance for this Series owned by this AMM
-    /// @param bTokenBalance The bToken balance for this Series owned by this AMM
-    /// @return The total amount of collateral receivable by redeeming the Series' option tokens
-    function getRedeemableCollateral(
-        uint64 seriesId,
-        uint256 wTokenBalance,
-        uint256 bTokenBalance
-    ) private view returns (uint256) {
-        uint256 unredeemedCollateral = 0;
-        if (wTokenBalance > 0) {
-            (uint256 unclaimedCollateral, ) = seriesController.getClaimAmount(
-                seriesId,
-                wTokenBalance
+        return
+            IAmmDataProvider(ammDataProvider).getOptionTokensSaleValue(
+                lpTokenAmount,
+                lpTokenSupply,
+                getAllSeries(),
+                address(this),
+                collateralToken.balanceOf(address(this)),
+                volatilityFactor
             );
-            unredeemedCollateral += unclaimedCollateral;
-        }
-        if (bTokenBalance > 0) {
-            (uint256 unexercisedCollateral, ) = seriesController
-                .getExerciseAmount(seriesId, bTokenBalance);
-            unredeemedCollateral += unexercisedCollateral;
-        }
-
-        return unredeemedCollateral;
     }
 
     /// @notice Adds the address of series to the amm
