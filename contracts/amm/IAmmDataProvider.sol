@@ -61,4 +61,10 @@ interface IAmmDataProvider {
         address ammAddress,
         uint256 impliedVolatility
     ) external view returns (uint256);
+
+    function getRedeemableCollateral(
+        uint64 seriesId,
+        uint256 wTokenBalance,
+        uint256 bTokenBalance
+    ) external view returns (uint256);
 }
