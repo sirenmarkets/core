@@ -91,11 +91,13 @@ const config: HardhatUserConfig = {
     },
     mumbai: {
       url: "https://rpc-mumbai.maticvigil.com",
+      chainId: 80001,
       accounts: [env.DEPLOY_PRIVATE_KEY],
       gasPrice: "auto",
     },
     matic: {
       url: "https://rpc-mainnet.maticvigil.com",
+      chainId: 137,
       accounts: [env.DEPLOY_PRIVATE_KEY],
       gasPrice: "auto",
     },
