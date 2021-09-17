@@ -58,7 +58,7 @@
     "ganache-cli": "^6.9.1",
     "graphql": "^15.4.0",
     "graphql-request": "^3.3.0",
-    "hardhat": "^2.4.1",
+    "hardhat": "^2.6.2",
     "hardhat-contract-sizer": "^2.0.3",
     "hardhat-log-remover": "^2.0.0",
     "hardhat-preprocessor": "^0.1.2",
