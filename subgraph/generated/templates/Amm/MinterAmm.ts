@@ -166,6 +166,24 @@ export class LpTokensMinted__Params {
   }
 }
 
+export class NewAmmDataProvider extends ethereum.Event {
+  get params(): NewAmmDataProvider__Params {
+    return new NewAmmDataProvider__Params(this);
+  }
+}
+
+export class NewAmmDataProvider__Params {
+  _event: NewAmmDataProvider;
+
+  constructor(event: NewAmmDataProvider) {
+    this._event = event;
+  }
+
+  get newAmmDataProvider(): Address {
+    return this._event.parameters[0].value.toAddress();
+  }
+}
+
 export class NewSirenPriceOracle extends ethereum.Event {
   get params(): NewSirenPriceOracle__Params {
     return new NewSirenPriceOracle__Params(this);
@@ -221,6 +239,54 @@ export class SeriesEvicted__Params {
 
   get seriesId(): BigInt {
     return this._event.parameters[0].value.toBigInt();
+  }
+}
+
+export class TradeFeesPaid extends ethereum.Event {
+  get params(): TradeFeesPaid__Params {
+    return new TradeFeesPaid__Params(this);
+  }
+}
+
+export class TradeFeesPaid__Params {
+  _event: TradeFeesPaid;
+
+  constructor(event: TradeFeesPaid) {
+    this._event = event;
+  }
+
+  get feePaidTo(): Address {
+    return this._event.parameters[0].value.toAddress();
+  }
+
+  get feeAmount(): BigInt {
+    return this._event.parameters[1].value.toBigInt();
+  }
+}
+
+export class TradeFeesUpdated extends ethereum.Event {
+  get params(): TradeFeesUpdated__Params {
+    return new TradeFeesUpdated__Params(this);
+  }
+}
+
+export class TradeFeesUpdated__Params {
+  _event: TradeFeesUpdated;
+
+  constructor(event: TradeFeesUpdated) {
+    this._event = event;
+  }
+
+  get newTradeFeeBasisPoints(): i32 {
+    return this._event.parameters[0].value.toI32();
+  }
+
+  get newMaxOptionFeeBasisPoints(): i32 {
+    return this._event.parameters[1].value.toI32();
+  }
+
+  get newFeeDestinationAddress(): Address {
+    return this._event.parameters[2].value.toAddress();
   }
 }
 
@@ -349,6 +415,29 @@ export class MinterAmm extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(value[0].toBigInt());
   }
 
+  ammDataProvider(): Address {
+    let result = super.call(
+      "ammDataProvider",
+      "ammDataProvider():(address)",
+      []
+    );
+
+    return result[0].toAddress();
+  }
+
+  try_ammDataProvider(): ethereum.CallResult<Address> {
+    let result = super.tryCall(
+      "ammDataProvider",
+      "ammDataProvider():(address)",
+      []
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toAddress());
+  }
+
   bTokenBuy(
     seriesId: BigInt,
     bTokenAmount: BigInt,
@@ -420,6 +509,41 @@ export class MinterAmm extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(value[0].toBigInt());
   }
 
+  bTokenGetCollateralInWithoutFees(
+    seriesId: BigInt,
+    bTokenAmount: BigInt
+  ): BigInt {
+    let result = super.call(
+      "bTokenGetCollateralInWithoutFees",
+      "bTokenGetCollateralInWithoutFees(uint64,uint256):(uint256)",
+      [
+        ethereum.Value.fromUnsignedBigInt(seriesId),
+        ethereum.Value.fromUnsignedBigInt(bTokenAmount)
+      ]
+    );
+
+    return result[0].toBigInt();
+  }
+
+  try_bTokenGetCollateralInWithoutFees(
+    seriesId: BigInt,
+    bTokenAmount: BigInt
+  ): ethereum.CallResult<BigInt> {
+    let result = super.tryCall(
+      "bTokenGetCollateralInWithoutFees",
+      "bTokenGetCollateralInWithoutFees(uint64,uint256):(uint256)",
+      [
+        ethereum.Value.fromUnsignedBigInt(seriesId),
+        ethereum.Value.fromUnsignedBigInt(bTokenAmount)
+      ]
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBigInt());
+  }
+
   bTokenGetCollateralOut(seriesId: BigInt, bTokenAmount: BigInt): BigInt {
     let result = super.call(
       "bTokenGetCollateralOut",
@@ -440,6 +564,41 @@ export class MinterAmm extends ethereum.SmartContract {
     let result = super.tryCall(
       "bTokenGetCollateralOut",
       "bTokenGetCollateralOut(uint64,uint256):(uint256)",
+      [
+        ethereum.Value.fromUnsignedBigInt(seriesId),
+        ethereum.Value.fromUnsignedBigInt(bTokenAmount)
+      ]
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBigInt());
+  }
+
+  bTokenGetCollateralOutWithoutFees(
+    seriesId: BigInt,
+    bTokenAmount: BigInt
+  ): BigInt {
+    let result = super.call(
+      "bTokenGetCollateralOutWithoutFees",
+      "bTokenGetCollateralOutWithoutFees(uint64,uint256):(uint256)",
+      [
+        ethereum.Value.fromUnsignedBigInt(seriesId),
+        ethereum.Value.fromUnsignedBigInt(bTokenAmount)
+      ]
+    );
+
+    return result[0].toBigInt();
+  }
+
+  try_bTokenGetCollateralOutWithoutFees(
+    seriesId: BigInt,
+    bTokenAmount: BigInt
+  ): ethereum.CallResult<BigInt> {
+    let result = super.tryCall(
+      "bTokenGetCollateralOutWithoutFees",
+      "bTokenGetCollateralOutWithoutFees(uint64,uint256):(uint256)",
       [
         ethereum.Value.fromUnsignedBigInt(seriesId),
         ethereum.Value.fromUnsignedBigInt(bTokenAmount)
@@ -538,6 +697,38 @@ export class MinterAmm extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(value[0].toBigInt());
   }
 
+  calculateFees(bTokenAmount: BigInt, collateralAmount: BigInt): BigInt {
+    let result = super.call(
+      "calculateFees",
+      "calculateFees(uint256,uint256):(uint256)",
+      [
+        ethereum.Value.fromUnsignedBigInt(bTokenAmount),
+        ethereum.Value.fromUnsignedBigInt(collateralAmount)
+      ]
+    );
+
+    return result[0].toBigInt();
+  }
+
+  try_calculateFees(
+    bTokenAmount: BigInt,
+    collateralAmount: BigInt
+  ): ethereum.CallResult<BigInt> {
+    let result = super.tryCall(
+      "calculateFees",
+      "calculateFees(uint256,uint256):(uint256)",
+      [
+        ethereum.Value.fromUnsignedBigInt(bTokenAmount),
+        ethereum.Value.fromUnsignedBigInt(collateralAmount)
+      ]
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBigInt());
+  }
+
   collateralToken(): Address {
     let result = super.call(
       "collateralToken",
@@ -575,6 +766,29 @@ export class MinterAmm extends ethereum.SmartContract {
     let result = super.tryCall(
       "erc1155Controller",
       "erc1155Controller():(address)",
+      []
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toAddress());
+  }
+
+  feeDestinationAddress(): Address {
+    let result = super.call(
+      "feeDestinationAddress",
+      "feeDestinationAddress():(address)",
+      []
+    );
+
+    return result[0].toAddress();
+  }
+
+  try_feeDestinationAddress(): ethereum.CallResult<Address> {
+    let result = super.tryCall(
+      "feeDestinationAddress",
+      "feeDestinationAddress():(address)",
       []
     );
     if (result.reverted) {
@@ -793,6 +1007,29 @@ export class MinterAmm extends ethereum.SmartContract {
     }
     let value = result.value;
     return ethereum.CallResult.fromValue(value[0].toAddress());
+  }
+
+  maxOptionFeeBasisPoints(): i32 {
+    let result = super.call(
+      "maxOptionFeeBasisPoints",
+      "maxOptionFeeBasisPoints():(uint16)",
+      []
+    );
+
+    return result[0].toI32();
+  }
+
+  try_maxOptionFeeBasisPoints(): ethereum.CallResult<i32> {
+    let result = super.tryCall(
+      "maxOptionFeeBasisPoints",
+      "maxOptionFeeBasisPoints():(uint16)",
+      []
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toI32());
   }
 
   onERC1155BatchReceived(
@@ -1320,24 +1557,28 @@ export class InitializeCall__Inputs {
     return this._call.inputValues[1].value.toAddress();
   }
 
-  get _underlyingToken(): Address {
+  get _ammDataProvider(): Address {
     return this._call.inputValues[2].value.toAddress();
   }
 
-  get _priceToken(): Address {
+  get _underlyingToken(): Address {
     return this._call.inputValues[3].value.toAddress();
   }
 
-  get _collateralToken(): Address {
+  get _priceToken(): Address {
     return this._call.inputValues[4].value.toAddress();
   }
 
-  get _tokenImplementation(): Address {
+  get _collateralToken(): Address {
     return this._call.inputValues[5].value.toAddress();
   }
 
+  get _tokenImplementation(): Address {
+    return this._call.inputValues[6].value.toAddress();
+  }
+
   get _tradeFeeBasisPoints(): i32 {
-    return this._call.inputValues[6].value.toI32();
+    return this._call.inputValues[7].value.toI32();
   }
 }
 
@@ -1509,6 +1750,44 @@ export class RenounceOwnershipCall__Outputs {
   }
 }
 
+export class SetTradingFeeParamsCall extends ethereum.Call {
+  get inputs(): SetTradingFeeParamsCall__Inputs {
+    return new SetTradingFeeParamsCall__Inputs(this);
+  }
+
+  get outputs(): SetTradingFeeParamsCall__Outputs {
+    return new SetTradingFeeParamsCall__Outputs(this);
+  }
+}
+
+export class SetTradingFeeParamsCall__Inputs {
+  _call: SetTradingFeeParamsCall;
+
+  constructor(call: SetTradingFeeParamsCall) {
+    this._call = call;
+  }
+
+  get _tradeFeeBasisPoints(): i32 {
+    return this._call.inputValues[0].value.toI32();
+  }
+
+  get _maxOptionFeeBasisPoints(): i32 {
+    return this._call.inputValues[1].value.toI32();
+  }
+
+  get _feeDestinationAddress(): Address {
+    return this._call.inputValues[2].value.toAddress();
+  }
+}
+
+export class SetTradingFeeParamsCall__Outputs {
+  _call: SetTradingFeeParamsCall;
+
+  constructor(call: SetTradingFeeParamsCall) {
+    this._call = call;
+  }
+}
+
 export class SetVolatilityFactorCall extends ethereum.Call {
   get inputs(): SetVolatilityFactorCall__Inputs {
     return new SetVolatilityFactorCall__Inputs(this);
@@ -1565,6 +1844,36 @@ export class TransferOwnershipCall__Outputs {
   _call: TransferOwnershipCall;
 
   constructor(call: TransferOwnershipCall) {
+    this._call = call;
+  }
+}
+
+export class UpdateAmmDataProviderCall extends ethereum.Call {
+  get inputs(): UpdateAmmDataProviderCall__Inputs {
+    return new UpdateAmmDataProviderCall__Inputs(this);
+  }
+
+  get outputs(): UpdateAmmDataProviderCall__Outputs {
+    return new UpdateAmmDataProviderCall__Outputs(this);
+  }
+}
+
+export class UpdateAmmDataProviderCall__Inputs {
+  _call: UpdateAmmDataProviderCall;
+
+  constructor(call: UpdateAmmDataProviderCall) {
+    this._call = call;
+  }
+
+  get _newAmmDataProvider(): Address {
+    return this._call.inputValues[0].value.toAddress();
+  }
+}
+
+export class UpdateAmmDataProviderCall__Outputs {
+  _call: UpdateAmmDataProviderCall;
+
+  constructor(call: UpdateAmmDataProviderCall) {
     this._call = call;
   }
 }

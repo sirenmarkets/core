@@ -77,6 +77,7 @@ export function handleLpTokensMinted(event: LpTokensMinted): void {
   lpTokenMinted.block = event.block.number
   lpTokenMinted.timestamp = event.block.timestamp
   lpTokenMinted.poolValueSnapshot = poolValueSnapShot.id
+  lpTokenMinted.transaction = event.transaction.hash.toHex()
 
   lpTokenMinted.save()
 }
@@ -94,6 +95,7 @@ export function handleLpTokensBurned(event: LpTokensBurned): void {
   lpTokenBurned.block = event.block.number
   lpTokenBurned.timestamp = event.block.timestamp
   lpTokenBurned.poolValueSnapshot = poolValueSnapShot.id
+  lpTokenBurned.transaction = event.transaction.hash.toHex()
 
   lpTokenBurned.save()
 
@@ -113,6 +115,7 @@ export function handleBTokensBought(event: BTokensBought): void {
   bTokenBought.timestamp = event.block.timestamp
   bTokenBought.poolValueSnapshot = poolValueSnapShot.id
   bTokenBought.seriesId = event.params.seriesId.toI32()
+  bTokenBought.transaction = event.transaction.hash.toHex()
 
   bTokenBought.save()
 }
@@ -132,6 +135,7 @@ export function handleBTokensSold(event: BTokensSold): void {
   bTokenSold.timestamp = event.block.timestamp
   bTokenSold.poolValueSnapshot = poolValueSnapShot.id
   bTokenSold.seriesId = event.params.seriesId.toI32()
+  bTokenSold.transaction = event.transaction.hash.toHex()
 
   bTokenSold.save()
 }
@@ -151,13 +155,14 @@ export function handleWTokensSold(event: WTokensSold): void {
   wTokenSold.timestamp = event.block.timestamp
   wTokenSold.poolValueSnapshot = poolValueSnapShot.id
   wTokenSold.seriesId = event.params.seriesId.toI32()
+  wTokenSold.transaction = event.transaction.hash.toHex()
 
   wTokenSold.save()
 }
 
 function takePoolValueSnapshot(event: ethereum.Event): PoolValueSnapshot {
   let poolValueSnapshot = new PoolValueSnapshot(getId(event))
- 
+
   let ammContract = AmmContract.bind(event.address)
   let lpTokenContract = SimpleTokenContract.bind(ammContract.lpToken())
 
