@@ -92,12 +92,27 @@ definition ARRAY_MAX_LENGTH() returns uint256 = 5;
 //
 //
 
-invariant controller_initialized()
-    initialized() => controller() != 0
-{ preserved {
-    requireInvariant noninitializing();
-}}
+// converted to a rule to filter out init
+//invariant controller_initialized()
+//    initialized() => controller() != 0
+//{
+//    preserved { requireInvariant noninitializing(); }
+//}
 
+rule controller_initialized(method f)
+filtered {f ->
+    f.selector != __ERC1155Controller_init(string,address).selector
+ && f.selector != initialize(string).selector }
+{
+    requireInvariant noninitializing();
+    require initialized() => controller() != 0;
+
+    env e; calldataarg args;
+    f(e,args);
+
+    assert initialized() => controller() != 0,
+        "initialized ERC1155Controller has uninitialized SeriesController";
+}
 
 // // tokens available are always equal to the supply
 //
@@ -356,6 +371,7 @@ rule transferOwnership_onlyOwner() {
     assert !owner => reverted, "nonOwner allowed to transfer ownership";
 }
 
+/*
 rule initialization_single_call() {
     env e; 
     calldataarg args;
@@ -366,6 +382,7 @@ rule initialization_single_call() {
 
     assert lastReverted, "double initialization allowed";
 }
+*/
 
 
 
