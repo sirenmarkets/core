@@ -78,6 +78,27 @@ contract("PriceOracle verification", (accounts) => {
       )
     })
 
+    it("should fail if the oracle returns a 0 value when adding a token pair", async () => {
+      // Create a new token so the oracle can be set
+      let firstToken = await SimpleToken.new()
+      await firstToken.initialize("USD Coin", "USDC", 6)
+
+      let secondToken = await SimpleToken.new()
+      await secondToken.initialize("USD Coin", "USDC", 6)
+
+      // Set the next price to 0
+      await deployedMockPriceOracle.setLatestAnswer(0)
+
+      await expectRevert(
+        deployedPriceOracle.addTokenPair(
+          secondToken.address,
+          firstToken.address,
+          deployedMockPriceOracle.address,
+        ),
+        "price oracle must start with a valid price feed",
+      )
+    })
+
     it("should fail to set settlement price before setting an oracle", async () => {
       const priceOracleLogic = await PriceOracle.new()
       const proxyContract = await Proxy.new(priceOracleLogic.address)
