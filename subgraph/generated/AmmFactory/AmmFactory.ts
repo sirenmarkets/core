@@ -276,20 +276,24 @@ export class CreateAmmCall__Inputs {
     return this._call.inputValues[0].value.toAddress();
   }
 
-  get _underlyingToken(): Address {
+  get _ammDataProvider(): Address {
     return this._call.inputValues[1].value.toAddress();
   }
 
-  get _priceToken(): Address {
+  get _underlyingToken(): Address {
     return this._call.inputValues[2].value.toAddress();
   }
 
-  get _collateralToken(): Address {
+  get _priceToken(): Address {
     return this._call.inputValues[3].value.toAddress();
   }
 
+  get _collateralToken(): Address {
+    return this._call.inputValues[4].value.toAddress();
+  }
+
   get _tradeFeeBasisPoints(): i32 {
-    return this._call.inputValues[4].value.toI32();
+    return this._call.inputValues[5].value.toI32();
   }
 }
 

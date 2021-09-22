@@ -16,6 +16,20 @@ npm run build
 npm run deploy-<THE_TESTNET_NETWORK_NAME>
 ```
 
+#### Testing Locally with Real Data
+
+If you want to test the subgraph locally with real data, you can run ganache locally forked from mumbai testnet (polygon)
+
+```
+ganache-cli --fork https://polygon-mumbai.infura.io/v3/INFURA_KEY
+```
+
+Once this is running you can deploy the subgraph locally. The only other thing you need to do is copy the params from `./config/mumbai` to `./config/local.json` and leave the network as `mainnet`.
+
+Then deploy it as normal with `npm run deploy-local`
+
+The data from the testnet chain will get processed and scan after some time and you should be able to query the subgraph.
+
 #### View Subgraph Indexing Status
 
 To view the progress of your subgraph's deploy, and see any errors that may occur while it's indexing, you can use a GraphQL client (such as [GraphiQL](https://graphql-dotnet.github.io/docs/getting-started/graphiql/)) to query the status of the deploy.
