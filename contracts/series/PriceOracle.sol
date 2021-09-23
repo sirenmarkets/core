@@ -227,7 +227,13 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
         // set the pair's oracle on the PriceOracle
         oracles[underlyingToken][priceToken] = oracle;
 
+        // Get the price and ensure it is valid
         uint256 currentPrice = getCurrentPrice(underlyingToken, priceToken);
+        require(
+            currentPrice > 0,
+            "price oracle must start with a valid price feed"
+        );
+
         // We need to initially set the price on some offset-aligned date prior to the current date, so that
         // in the loop in PriceOracle.setSettlementDate it will eventually stop looping when it finds a
         // non-zero price. If we do not add set this price, then the first call to PriceOracle.setSettlementDate the first
