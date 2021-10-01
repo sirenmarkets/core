@@ -1,6 +1,7 @@
 /* global artifacts contract it assert */
 import { time, expectEvent, expectRevert, BN } from "@openzeppelin/test-helpers"
-import { artifacts, contract } from "hardhat"
+import { artifacts, contract, ethers } from "hardhat"
+import { erf } from "mathjs"
 import {
   SimpleTokenInstance,
   MinterAmmInstance,
@@ -8,7 +9,6 @@ import {
   ERC1155ControllerInstance,
   SimpleTokenContract,
 } from "../../typechain"
-
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
 
 import { setupAllTestContracts, assertBNEq, ONE_WEEK_DURATION } from "../util"
@@ -269,6 +269,8 @@ contract("AMM Put Verification", (accounts) => {
     await collateralToken.mint(ownerAccount, capitalCollateral)
     await collateralToken.approve(deployedAmm.address, capitalCollateral)
 
+    // console.log("COLLATERLA DEIMCA:L:", (await collateralToken.decimals()).toString());
+
     // Provide capital
     let ret = await deployedAmm.provideCapital(capitalCollateral, 0)
 
@@ -305,7 +307,7 @@ contract("AMM Put Verification", (accounts) => {
     // Check that AMM calculates correct bToken price
     assertBNEq(
       (await deployedAmm.getPriceForSeries(seriesId)).toString(),
-      "99966666666666666", // 0.066 (instrinsic) + 0.033 (extrinsic)
+      "71428571428571428", // 0.066 (instrinsic) + 0.033 (extrinsic)
       "incorrect bToken price calculated by AMM",
     )
 
@@ -325,10 +327,10 @@ contract("AMM Put Verification", (accounts) => {
     )
     assertBNEq(
       (await collateralToken.balanceOf(aliceAccount)).toString(),
-      91217, // started with capitalCollateral, then paid 58783 USDC for 3000 tokens at (0.099 * 150) + slippage
+      107031, // started with capitalCollateral, then paid 58783 USDC for 3000 tokens at (0.099 * 150) + slippage
       "Trader should pay correct collateral amount",
     )
-    const bTokenPaymentAmount = aliceCollateral.toNumber() - 91217
+    const bTokenPaymentAmount = aliceCollateral.toNumber() - 107031
 
     // 3000 * 150
     const bTokenBuyCollateral =
@@ -363,7 +365,7 @@ contract("AMM Put Verification", (accounts) => {
     )
     assertBNEq(
       (await deployedAmm.getTotalPoolValue(true)).toString(),
-      1513783, // ammCollateralAmount + bTokenBuyCollateral * (1 - 0.099) (btw, 1513783 > 1500000 - LPs are making money!!!)
+      1510719, // ammCollateralAmount + bTokenBuyCollateral * (1 - 0.099) (btw, 1513783 > 1500000 - LPs are making money!!!)
       "Total assets value in the AMM should be correct",
     )
 
@@ -389,20 +391,20 @@ contract("AMM Put Verification", (accounts) => {
     expectEvent(ret, "LpTokensMinted", {
       minter: bobAccount,
       collateralAdded: bobCollateral,
-      lpTokensMinted: "148634",
+      lpTokensMinted: "148935",
     })
 
     assertBNEq(
       await lpToken.balanceOf(bobAccount),
-      148634,
+      148935,
       "lp tokens should have been minted",
     )
 
     // Now let's withdraw all Bobs tokens to make sure Bob doesn't make money by simply
     // depositing and withdrawing collateral
-    const bobCollateralWithdrawn = 149818
+    const bobCollateralWithdrawn = 149782
     ret = await deployedAmm.withdrawCapital(
-      148634,
+      148935,
       true,
       bobCollateralWithdrawn,
       {
@@ -414,7 +416,7 @@ contract("AMM Put Verification", (accounts) => {
     expectEvent(ret, "LpTokensBurned", {
       redeemer: bobAccount,
       collateralRemoved: bobCollateralWithdrawn.toString(),
-      lpTokensBurned: "148634",
+      lpTokensBurned: "148935",
     })
     assertBNEq(
       await collateralToken.balanceOf(bobAccount),

@@ -7,6 +7,7 @@ import {
   SeriesVaultContract,
   ERC1155ControllerContract,
   AmmDataProviderContract,
+  BlackScholesContract,
   MockPriceOracleContract,
   ProxyContract,
   AmmFactoryContract,
@@ -44,6 +45,8 @@ const SirenExchange: SirenExchangeContract = artifacts.require("SirenExchange")
 const MinterAmm: MinterAmmContract = artifacts.require("MinterAmm")
 const AmmDataProvider: AmmDataProviderContract =
   artifacts.require("AmmDataProvider")
+
+const BlackScholes: BlackScholesContract = artifacts.require("BlackScholes")
 
 const FEE_RECEIVER_ADDRESS = "0x000000000000000000000000000000000000dEaD"
 const ONE_DAY_DURATION = 24 * 60 * 60
@@ -310,6 +313,7 @@ export async function setupSingletonTestContracts(
     deployedSeriesController.address,
     deployedERC1155Controller.address,
   )
+  const deployedBlackScholes = await BlackScholes.new()
 
   // create mock price oracle
   const deployedMockPriceOracle = await MockPriceOracle.new(
@@ -386,6 +390,7 @@ export async function setupSingletonTestContracts(
     deployedMockPriceOracle,
     deployedAmmFactory,
     deployedAmmDataProvider,
+    deployedBlackScholes,
     oraclePrice,
     expiration,
     exerciseFee,
@@ -539,6 +544,7 @@ export async function setupAmm({
   deployedAmmFactory,
   deployedPriceOracle,
   deployedAmmDataProvider,
+  deployedBlackScholes,
   underlyingToken,
   priceToken,
   collateralToken,
@@ -547,6 +553,7 @@ export async function setupAmm({
   const createAmmResp = await deployedAmmFactory.createAmm(
     deployedPriceOracle.address,
     deployedAmmDataProvider.address,
+    deployedBlackScholes.address,
     underlyingToken.address,
     priceToken.address,
     collateralToken.address,
@@ -652,6 +659,7 @@ export async function setupAllTestContracts(
     deployedMockPriceOracle,
     deployedAmmFactory,
     deployedAmmDataProvider,
+    deployedBlackScholes,
     expiration,
     erc1155URI,
   } = await setupSingletonTestContracts({
@@ -673,6 +681,7 @@ export async function setupAllTestContracts(
     deployedAmmFactory,
     deployedPriceOracle,
     deployedAmmDataProvider,
+    deployedBlackScholes,
     underlyingToken,
     priceToken,
     collateralToken,
@@ -711,6 +720,7 @@ export async function setupAllTestContracts(
     deployedMockPriceOracle,
     deployedAmmFactory,
     deployedAmmDataProvider,
+    deployedBlackScholes,
     deployedAmm,
     oraclePrice,
     expiration,

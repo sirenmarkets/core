@@ -7,6 +7,7 @@ import "../token/ISimpleToken.sol";
 import "../series/ISeriesController.sol";
 import "../series/SeriesLibrary.sol";
 import "../libraries/Math.sol";
+import "hardhat/console.sol";
 
 contract AmmDataProvider is IAmmDataProvider {
     ISeriesController public seriesController;
@@ -120,55 +121,6 @@ contract AmmDataProvider is IAmmDataProvider {
         return (bTokenVirtualBalance, wTokenVirtualBalance);
     }
 
-    /// @dev Calculate price of bToken based on Black-Scholes approximation by Brennan-Subrahmanyam from their paper
-    /// "A Simple Formula to Compute the Implied Standard Deviation" (1988).
-    /// Formula: 0.4 * ImplVol * sqrt(timeUntilExpiry) * priceRatio
-    ///
-    /// Please note that the 0.4 is assumed to already be factored into the `volatility` argument. We do this to save
-    /// gas.
-    ///
-    /// Returns premium in units of percentage of collateral locked in a contract for both calls and puts
-    function calcPrice(
-        uint256 timeUntilExpiry,
-        uint256 strike,
-        uint256 currentPrice,
-        uint256 volatility,
-        bool isPutOption
-    ) external pure override returns (uint256) {
-        uint256 intrinsic = 0;
-        uint256 timeValue = 0;
-
-        if (isPutOption) {
-            if (currentPrice < strike) {
-                // ITM
-                intrinsic = ((strike - currentPrice) * 1e18) / strike;
-            }
-
-            timeValue =
-                (Math.sqrt(timeUntilExpiry) * volatility * strike) /
-                currentPrice;
-        } else {
-            if (currentPrice > strike) {
-                // ITM
-                intrinsic = ((currentPrice - strike) * 1e18) / currentPrice;
-            }
-
-            // use a Black-Scholes approximation to calculate the option price given the
-            // volatility, strike price, and the current series price
-            timeValue =
-                (Math.sqrt(timeUntilExpiry) * volatility * currentPrice) /
-                strike;
-        }
-
-        // Verify that 100% is the max that can be returned.
-        // A super deep In The Money option could return a higher value than 100% using the approximation formula
-        if (intrinsic + timeValue > 1e18) {
-            return 1e18;
-        }
-
-        return intrinsic + timeValue;
-    }
-
     /// @notice Calculate premium (i.e. the option price) to buy bTokenAmount bTokens for the
     /// given Series
     /// @notice The premium depends on the amount of collateral token in the pool, the reserves
@@ -233,6 +185,7 @@ contract AmmDataProvider is IAmmDataProvider {
         uint256 bTokenPrice,
         bool isBToken
     ) external view override returns (uint256) {
+        console.log("BTOKENPRICE", bTokenPrice);
         // Shortcut for 0 amount
         if (optionTokenAmount == 0) return 0;
 
@@ -247,6 +200,11 @@ contract AmmDataProvider is IAmmDataProvider {
             collateralTokenBalance,
             bTokenPrice
         );
+
+        console.log("wTokenBalance", wTokenBalance);
+        console.log("optionTokenAmount", optionTokenAmount);
+
+        console.log("bTokenBalance", bTokenBalance);
 
         uint256 balanceFactor;
         if (isBToken) {

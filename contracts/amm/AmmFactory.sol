@@ -141,6 +141,7 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
     function createAmm(
         address _sirenPriceOracle,
         address _ammDataProvider,
+        address _blackScholesController,
         IERC20 _underlyingToken,
         IERC20 _priceToken,
         IERC20 _collateralToken,
@@ -183,6 +184,7 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
             seriesController,
             _sirenPriceOracle,
             _ammDataProvider,
+            _blackScholesController,
             _underlyingToken,
             _priceToken,
             _collateralToken,

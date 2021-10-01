@@ -8,14 +8,6 @@ interface IAmmDataProvider {
         uint256 bTokenPrice
     ) external view returns (uint256, uint256);
 
-    function calcPrice(
-        uint256 timeUntilExpiry,
-        uint256 strike,
-        uint256 currentPrice,
-        uint256 volatility,
-        bool isPutOption
-    ) external pure returns (uint256);
-
     function bTokenGetCollateralIn(
         uint64 seriesId,
         address ammAddress,

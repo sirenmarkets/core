@@ -10,6 +10,7 @@ interface InitializeableAmm {
         ISeriesController _seriesController,
         address _priceOracle,
         address _ammDataProvider,
+        address _blackScholesController,
         IERC20 _underlyingToken,
         IERC20 _priceToken,
         IERC20 _collateralToken,

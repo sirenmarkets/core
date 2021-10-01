@@ -13,11 +13,13 @@ import "../libraries/Math.sol";
 import "./InitializeableAmm.sol";
 import "./IAmmDataProvider.sol";
 import "./IAddSeriesToAmm.sol";
+import "./IBlackScholes.sol";
 import "../series/IPriceOracle.sol";
 import "../token/ISimpleToken.sol";
 import "../token/IERC20Lib.sol";
 import "../oz/EnumerableSet.sol";
 import "../series/SeriesLibrary.sol";
+import "hardhat/console.sol";
 
 /// This is an implementation of a minting/redeeming AMM (Automated Market Maker) that trades a list of series with the same
 /// collateral token. For example, a single WBTC Call AMM contract can trade all strikes of WBTC calls using
@@ -127,6 +129,9 @@ contract MinterAmm is
     /// @dev The contract used to make pricing calculations for the MinterAmm
     address public ammDataProvider;
 
+    /// @dev The contract used to make pricing calculations for the MinterAmm
+    address public blackScholesController;
+
     /// Emitted when the amm is created
     event AMMInitialized(
         ISimpleToken lpToken,
@@ -223,6 +228,7 @@ contract MinterAmm is
         ISeriesController _seriesController,
         address _sirenPriceOracle,
         address _ammDataProvider,
+        address _blackScholesController,
         IERC20 _underlyingToken,
         IERC20 _priceToken,
         IERC20 _collateralToken,
@@ -244,6 +250,7 @@ contract MinterAmm is
         // Save off state variables
         seriesController = _seriesController;
         ammDataProvider = _ammDataProvider;
+        blackScholesController = _blackScholesController;
         erc1155Controller = IERC1155(_seriesController.erc1155Controller());
 
         // Approve seriesController to move tokens
@@ -444,7 +451,6 @@ contract MinterAmm is
 
         uint256 collateralTokenSent = collateralToken.balanceOf(msg.sender) -
             redeemerCollateralBalance;
-
         require(
             !sellTokens || collateralTokenSent >= collateralMinimum,
             "Slippage exceeded"
@@ -781,14 +787,21 @@ contract MinterAmm is
         uint256 volatility,
         bool isPutOption
     ) public view returns (uint256) {
-        return
-            IAmmDataProvider(ammDataProvider).calcPrice(
-                timeUntilExpiry,
-                strike,
-                currentPrice,
-                volatility,
-                isPutOption
-            );
+        uint256 put;
+        uint256 call;
+        (call, put) = IBlackScholes(blackScholesController).optionPrices(
+            timeUntilExpiry,
+            volatility,
+            currentPrice,
+            strike,
+            0
+        );
+        uint256 underlyingPrice = getCurrentUnderlyingPrice();
+        if (isPutOption == true) {
+            return ((put * 1e18) / underlyingPrice);
+        } else {
+            return ((call * 1e18) / underlyingPrice);
+        }
     }
 
     /// @dev Calculate the fee amount for a buy/sell
