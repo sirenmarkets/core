@@ -26,7 +26,7 @@ contract SirenExchange is ERC1155Holder, ReentrancyGuard {
 
     uint256 private _status;
 
-    constructor(IERC1155 _erc1155Controller) public {
+    constructor(IERC1155 _erc1155Controller) {
         erc1155Controller = _erc1155Controller;
     }
 
@@ -58,7 +58,7 @@ contract SirenExchange is ERC1155Holder, ReentrancyGuard {
     );
 
     /// @dev Returns bytes to be used in safeTransferFrom ( prevents stack to deep error )
-    function dataReturn() public returns (bytes memory data) {
+    function dataReturn() public pure returns (bytes memory data) {
         return data;
     }
 
