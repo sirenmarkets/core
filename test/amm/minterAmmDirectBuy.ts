@@ -33,7 +33,7 @@ let underlyingToken: SimpleTokenInstance
 /**
  * Testing MinterAmm volatility factor updates
  */
-contract("AMM Fees", (accounts) => {
+contract("AMM Direct Buy", (accounts) => {
   const ownerAccount = accounts[0]
   const bobAccount = accounts[2]
 
