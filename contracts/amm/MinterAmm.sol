@@ -18,6 +18,8 @@ import "../token/ISimpleToken.sol";
 import "../token/IERC20Lib.sol";
 import "../oz/EnumerableSet.sol";
 import "../series/SeriesLibrary.sol";
+import "../swap/ILight.sol";
+import "./MinterAmmStorage.sol";
 
 /// This is an implementation of a minting/redeeming AMM (Automated Market Maker) that trades a list of series with the same
 /// collateral token. For example, a single WBTC Call AMM contract can trade all strikes of WBTC calls using
@@ -76,7 +78,8 @@ contract MinterAmm is
     ERC1155HolderUpgradeable,
     IAddSeriesToAmm,
     OwnableUpgradeable,
-    Proxiable
+    Proxiable,
+    MinterAmmStorageV1
 {
     /// Use safe ERC20 functions for any token transfers since people don't follow the ERC20 standard */
     using SafeERC20 for IERC20;
@@ -208,6 +211,9 @@ contract MinterAmm is
     // Emitted when fees are paid
     event TradeFeesPaid(address indexed feePaidTo, uint256 feeAmount);
 
+    // Emitted when owner updates
+    event NewLightAirswapAddress(address newLightAirswapAddress);
+
     // Error codes. We only use error code because we need to reduce the size of this contract's deployed
     // bytecode in order for it to be deployable
 
@@ -225,6 +231,7 @@ contract MinterAmm is
     // E13: Series does not exist on this AMM
     // E14: Invalid _newAmmDataProvider
     // E15: Invalid _ammDataProvider
+    // E16: Invalid lightAirswapAddress
 
     /// @dev Require minimum trade size to prevent precision errors at low values
     modifier minTradeSize(uint256 tradeSize) {
@@ -376,6 +383,19 @@ contract MinterAmm is
         ammDataProvider = _newAmmDataProvider;
 
         emit NewAmmDataProvider(_newAmmDataProvider);
+    }
+
+    /// @notice update the address for the airswap lib used for direct buys
+    /// @param _lightAirswapAddress the new address to use
+    /// @dev only the admin address may call this function
+    /// @dev setting the address to 0x0 will disable this functionality
+    function updateLightAirswapAddress(address _lightAirswapAddress)
+        external
+        onlyOwner
+    {
+        lightAirswapAddress = _lightAirswapAddress;
+
+        emit NewLightAirswapAddress(_lightAirswapAddress);
     }
 
     /// LP allows collateral to be used to mint new options
@@ -808,6 +828,91 @@ contract MinterAmm is
 
         // Fees are not enabled
         return 0;
+    }
+
+    /// @dev Allows an owner to invoke a Direct Buy against the AMM
+    /// A direct buy allows a signer wallet to predetermine a number of option
+    ///     tokens to buy (senderAmount) with the specified number of collateral payment tokens (signerTokens).
+    /// The direct buy will first use the collateral in the AMM to mint the options and
+    ///     then execute a swap with the signer using Airswap protocol.
+    /// Only the owner should be allowed to execute a direct buy as this is a "guarded" call.
+    /// Sender address in the Airswap protocol will be this contract address.
+    function bTokenDirectBuy(
+        uint64 seriesId,
+        uint256 nonce, // Nonce on the airswap sig for the signer
+        uint256 expiry, // Date until swap is valid
+        address signerWallet, // Address of the buyer (signer)
+        uint256 signerAmount, // Amount of collateral that will be paid for options by the signer
+        uint256 senderAmount, // Amount of options to buy from the AMM
+        uint8 v, // Sig of signer wallet for Airswap
+        bytes32 r, // Sig of signer wallet for Airswap
+        bytes32 s // Sig of signer wallet for Airswap
+    ) external onlyOwner {
+        require(openSeries.contains(seriesId), "E13");
+        require(lightAirswapAddress != address(0x0), "E16");
+
+        // Get the bToken balance of the AMM
+        uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
+        uint256 bTokenBalance = erc1155Controller.balanceOf(
+            address(this),
+            bTokenIndex
+        );
+
+        // Mint required number of bTokens for the direct buy (if required)
+        if (bTokenBalance < senderAmount) {
+            // Approve the collateral to mint bTokenAmount of new options
+            uint256 bTokenCollateralAmount = seriesController
+                .getCollateralPerOptionToken(seriesId, senderAmount);
+
+            collateralToken.approve(
+                address(seriesController),
+                bTokenCollateralAmount
+            );
+
+            // If the AMM does not have enough collateral to mint tokens, expect revert.
+            seriesController.mintOptions(
+                seriesId,
+                senderAmount - bTokenBalance
+            );
+        }
+
+        // Approve the bTokens to be swapped
+        erc1155Controller.setApprovalForAll(lightAirswapAddress, true);
+
+        // Now that the contract has enough bTokens, swap with the buyer
+        ILight(lightAirswapAddress).swap(
+            nonce, // Signer's nonce
+            expiry, // Expiration date of swap
+            signerWallet, // Buyer of the options
+            address(collateralToken), // Payment made by buyer
+            signerAmount, // Amount of collateral paid for options
+            address(erc1155Controller), // Address of erc1155 contract
+            bTokenIndex, // Token ID for options
+            senderAmount, // Num options to sell
+            v,
+            r,
+            s
+        ); // Sig of signer for swap
+
+        // Remove approval
+        erc1155Controller.setApprovalForAll(lightAirswapAddress, false);
+
+        // Calculate trade fees if they are enabled with all params set
+        uint256 tradeFee = calculateFees(senderAmount, signerAmount);
+
+        // If fees were taken, move them to the destination
+        if (tradeFee > 0) {
+            collateralToken.safeTransfer(feeDestinationAddress, tradeFee);
+            emit TradeFeesPaid(feeDestinationAddress, tradeFee);
+        }
+
+        // Emit the event
+        emit BTokensBought(
+            signerWallet,
+            seriesId,
+            senderAmount,
+            signerAmount - tradeFee
+        );
     }
 
     /// @dev Buy bToken of a given series.
