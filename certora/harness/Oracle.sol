@@ -12,11 +12,11 @@ contract Oracle is AggregatorV3Interface {
         view
         override
         returns (
-            uint80 roundId,
-            int256 answer,
-            uint256 startedAt,
-            uint256 updatedAt,
-            uint80 answeredInRound
+            uint80,
+            int256,
+            uint256,
+            uint256,
+            uint80
         )
     {
         return (roundId, answer, startedAt, updatedAt, answeredInRound);

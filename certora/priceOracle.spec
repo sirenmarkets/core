@@ -70,6 +70,8 @@ methods {
     // external method specifications //////////////////////////////////////////
 
     latestRoundData() => DISPATCHER(true)
+    // latestRoundData() => NONDET
+    // latestRoundData() => ALWAYS(2)
 }
 
 //----------------------------- Ghosts -----------------------------------------
@@ -159,6 +161,7 @@ invariant owner_initialization()
     }
   }
 
+// add dateOffset_initialization()
 invariant price_initialization(address u, address c, uint256 t)
   uninitialized() => _price(u,c,t) == 0
   { preserved { requireInvariant noninitializing(); } }
