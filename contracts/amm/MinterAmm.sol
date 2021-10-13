@@ -862,7 +862,10 @@ contract MinterAmm is
         if (bTokenBalance < senderAmount) {
             // Approve the collateral to mint bTokenAmount of new options
             uint256 bTokenCollateralAmount = seriesController
-                .getCollateralPerOptionToken(seriesId, senderAmount);
+                .getCollateralPerOptionToken(
+                    seriesId,
+                    senderAmount - bTokenBalance
+                );
 
             collateralToken.approve(
                 address(seriesController),
@@ -967,7 +970,10 @@ contract MinterAmm is
         if (bTokenBalance < bTokenAmount) {
             // Approve the collateral to mint bTokenAmount of new options
             uint256 bTokenCollateralAmount = seriesController
-                .getCollateralPerOptionToken(seriesId, bTokenAmount);
+                .getCollateralPerOptionToken(
+                    seriesId,
+                    bTokenAmount - bTokenBalance
+                );
 
             collateralToken.approve(
                 address(seriesController),
