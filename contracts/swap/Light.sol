@@ -1,21 +1,20 @@
 // SPDX-License-Identifier: MIT
 
 /* solhint-disable var-name-mixedcase */
-pragma solidity 0.8.0;
+pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./ILight.sol";
 
 /**
  * @title AirSwap Light: Atomic Swap between Tokens
+ * Ported from Airswap to add support for sending ERC1155 tokens and removing fee logic.
  * @notice https://www.airswap.io/
- * @notice This is adapted from Airswap Light contract.  Functionality was added for ERC1155 support.
- *          Fee logic was removed as well.
- *          Changes to original source can be found here: https://github.com/sirenmarkets/airswap-protocols/pull/1
  */
-contract Light is ILight {
+contract Light is ILight, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
@@ -181,7 +180,7 @@ contract Light is ILight {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) public override {
+    ) public override nonReentrant {
         require(DOMAIN_CHAIN_ID == getChainId(), "CHAIN_ID_CHANGED");
 
         // Ensure the expiry is not passed
