@@ -847,7 +847,7 @@ contract MinterAmm is
         uint8 v, // Sig of signer wallet for Airswap
         bytes32 r, // Sig of signer wallet for Airswap
         bytes32 s // Sig of signer wallet for Airswap
-    ) external onlyOwner {
+    ) external onlyOwner nonReentrant {
         require(openSeries.contains(seriesId), "E13");
         require(lightAirswapAddress != address(0x0), "E16");
 
