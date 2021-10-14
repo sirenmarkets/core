@@ -315,7 +315,7 @@ contract("AMM Call Verification", (accounts) => {
     // Check that AMM calculates correct bToken price
     assertBNEq(
       await deployedAmm.getPriceForSeries(seriesId),
-      "29008000000000000", // 0.029 * 1e18
+      "2927196112142857", // 0.0029 * 1e18
       "AMM should calculate bToken price correctly",
     )
 
@@ -493,7 +493,7 @@ contract("AMM Call Verification", (accounts) => {
     // Check that AMM calculates correct bToken price
     assertBNEq(
       await deployedAmm.getPriceForSeries(seriesId),
-      "29008000000000000", // 0.029 * 1e18
+      "2927206551428571", // 0.0029 * 1e18
       "AMM should calculate bToken price correctly",
     )
 
@@ -622,7 +622,7 @@ contract("AMM Call Verification", (accounts) => {
     // Check that AMM calculates correct bToken price
     assertBNEq(
       await deployedAmm.getPriceForSeries.call(seriesId),
-      "29008000000000000", // 0.029 * 1e18
+      "2927176751428571", // 0.0029 * 1e18
       "AMM should calculate bToken price correctly",
     )
 
@@ -754,7 +754,7 @@ contract("AMM Call Verification", (accounts) => {
     // Check pool value before withdrawal
     assertBNEq(
       await deployedAmm.getTotalPoolValue(true),
-      "101232757101", // 1012e8 per 1000e8 LP tokens - looks right
+      "100143832487", // 1012e8 per 1000e8 LP tokens - looks right
       "Total assets value in the AMM should be correct",
     )
 
@@ -817,7 +817,7 @@ contract("AMM Call Verification", (accounts) => {
     })
 
     // Buy bTokens (26.8e8 collateral cost)
-    ret = await deployedAmm.bTokenBuy(seriesId, 500e8, 2683157101, {
+    ret = await deployedAmm.bTokenBuy(seriesId, 1000e8, 2683157101, {
       from: aliceAccount,
     })
 
@@ -996,7 +996,7 @@ contract("AMM Call Verification", (accounts) => {
     // Check that AMM calculates correct bToken price
     assertBNEq(
       await deployedAmm.getPriceForSeries(seriesId),
-      "29008000000000000", // 0.029 * 1e18
+      "2927225405000000", // 0.0029 * 1e18
       "AMM should calculate bToken price correctly",
     )
 

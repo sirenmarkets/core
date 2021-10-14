@@ -185,7 +185,6 @@ contract AmmDataProvider is IAmmDataProvider {
         uint256 bTokenPrice,
         bool isBToken
     ) external view override returns (uint256) {
-        console.log("BTOKENPRICE", bTokenPrice);
         // Shortcut for 0 amount
         if (optionTokenAmount == 0) return 0;
 

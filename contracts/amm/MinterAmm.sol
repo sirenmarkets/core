@@ -287,7 +287,7 @@ contract MinterAmm is
 
         // Set default volatility
         // 0.4 * volInSeconds * 1e18
-        volatilityFactor = 4000e10;
+        volatilityFactor = 4000e14;
 
         __Ownable_init();
 
@@ -759,45 +759,23 @@ contract MinterAmm is
         ISeriesController.Series memory series,
         uint256 underlyingPrice
     ) private view returns (uint256) {
-        return
-            // Note! This function assumes the price obtained from the onchain oracle
-            // in getCurrentUnderlyingPrice is a valid series price in units of
-            // underlyingToken/priceToken. If the onchain price oracle's value
-            // were to drift from the true series price, then the bToken price
-            // we calculate here would also drift, and will result in undefined
-            // behavior for any functions which call getPriceForSeries
-            calcPrice(
-                series.expirationDate - block.timestamp,
-                series.strikePrice,
-                underlyingPrice,
-                volatilityFactor,
-                series.isPutOption
-            );
-    }
+        // Note! This function assumes the price obtained from the onchain oracle
+        // in getCurrentUnderlyingPrice is a valid series price in units of
+        // underlyingToken/priceToken. If the onchain price oracle's value
+        // were to drift from the true series price, then the bToken price
+        // we calculate here would also drift, and will result in undefined
+        // behavior for any functions which call getPriceForSeries
 
-    /// @dev Calculate price of bToken based on Black-Scholes approximation by Brennan-Subrahmanyam from their paper
-    /// "A Simple Formula to Compute the Implied Standard Deviation" (1988).
-    /// Formula: 0.4 * ImplVol * sqrt(timeUntilExpiry) * priceRatio
-    ///
-    /// Returns premium in units of percentage of collateral locked in a contract for both calls and puts
-    function calcPrice(
-        uint256 timeUntilExpiry,
-        uint256 strike,
-        uint256 currentPrice,
-        uint256 volatility,
-        bool isPutOption
-    ) public view returns (uint256) {
         uint256 put;
         uint256 call;
         (call, put) = IBlackScholes(blackScholesController).optionPrices(
-            timeUntilExpiry,
-            volatility,
-            currentPrice,
-            strike,
+            series.expirationDate - block.timestamp,
+            volatilityFactor,
+            underlyingPrice,
+            series.strikePrice,
             0
         );
-        uint256 underlyingPrice = getCurrentUnderlyingPrice();
-        if (isPutOption == true) {
+        if (series.isPutOption == true) {
             return ((put * 1e18) / underlyingPrice);
         } else {
             return ((call * 1e18) / underlyingPrice);
