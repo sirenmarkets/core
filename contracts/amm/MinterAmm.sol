@@ -910,12 +910,7 @@ contract MinterAmm is
         }
 
         // Emit the event
-        emit BTokensBought(
-            signerWallet,
-            seriesId,
-            senderAmount,
-            signerAmount - tradeFee
-        );
+        emit BTokensBought(signerWallet, seriesId, senderAmount, signerAmount);
     }
 
     /// @dev Buy bToken of a given series.

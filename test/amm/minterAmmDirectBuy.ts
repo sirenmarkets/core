@@ -371,7 +371,7 @@ contract("AMM Direct Buy", (accounts) => {
       buyer: order.signerWallet,
       seriesId,
       bTokensBought: new BN(senderAmount),
-      collateralPaid: new BN(signerAmount - expectedFees),
+      collateralPaid: new BN(signerAmount),
     })
   })
 })
