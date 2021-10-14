@@ -2,7 +2,7 @@
 
 ## openZepplin
 
-Changed access modifiers for variables `_initialized` and `_initializing` from private to public in `Initializable.sol` contract.
+You should change access modifiers for variables `_initialized` and `_initializing` from private to public in `Initializable.sol` contract.
 
 The path of the file:
 
