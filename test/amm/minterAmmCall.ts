@@ -1145,4 +1145,58 @@ contract("AMM Call Verification", (accounts) => {
       "Total assets value in the AMM should be correct",
     )
   })
+
+  it("Verifies partial bToken minting", async () => {
+    await time.increaseTo(expiration - ONE_WEEK_DURATION) // use the same time, no matter when this test gets called
+
+    // Approve collateral
+    await underlyingToken.mint(ownerAccount, 10000)
+    await underlyingToken.approve(deployedAmm.address, 10000)
+
+    // Provide capital
+    let ret = await deployedAmm.provideCapital(10000, 0)
+
+    const bTokenIndex = await deployedSeriesController.bTokenIndex(seriesId)
+    const wTokenIndex = await deployedSeriesController.wTokenIndex(seriesId)
+    const lpToken = await SimpleToken.at(await deployedAmm.lpToken())
+
+    // Now let's do some trading from another account
+    await underlyingToken.mint(aliceAccount, 1000)
+    await underlyingToken.approve(deployedAmm.address, 1000, {
+      from: aliceAccount,
+    })
+
+    // Buy bTokens
+    ret = await deployedAmm.bTokenBuy(seriesId, 3000, 3000, {
+      from: aliceAccount,
+    })
+
+    // Move some bTokens into the AMM to simulate partial bToken minting
+    await deployedERC1155Controller.safeTransferFrom(
+      aliceAccount,
+      deployedAmm.address,
+      bTokenIndex,
+      500,
+      "0x0",
+      { from: aliceAccount },
+    )
+
+    // Now have Alice buy some more
+    await underlyingToken.mint(aliceAccount, 1000)
+    await underlyingToken.approve(deployedAmm.address, 1000, {
+      from: aliceAccount,
+    })
+
+    // Buy bTokens
+    ret = await deployedAmm.bTokenBuy(seriesId, 1000, 1000, {
+      from: aliceAccount,
+    })
+
+    // Verify there is no outstanding approval
+    const approval = await underlyingToken.allowance(
+      deployedAmm.address,
+      deployedSeriesController.address,
+    )
+    assertBNEq(approval, 0, "No left over approval should be there")
+  })
 })

@@ -1,4 +1,6 @@
 const ADDRESS_ZERO = "0x0000000000000000000000000000000000000000"
+const ZERO_BYTES32 =
+  "0x0000000000000000000000000000000000000000000000000000000000000000"
 
 /**
  * Ensure 2 address lists are the exact same list
@@ -20,5 +22,6 @@ const assertNonzeroAddressesMatch = (addrList1, addrList2) => {
 
 export default {
   ADDRESS_ZERO,
+  ZERO_BYTES32,
   assertNonzeroAddressesMatch,
 }
