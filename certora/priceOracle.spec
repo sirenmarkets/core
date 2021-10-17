@@ -68,6 +68,7 @@ methods {
 
     /* getters implemented by harness */
     getOracleAnswer(address, address) returns (int256) envfree
+    answer() returns (int256)  => DISPATCHER(true)
 
     // external method specifications //////////////////////////////////////////
 
@@ -170,7 +171,9 @@ invariant owner_initialization()
 // add dateOffset_initialization()
 invariant price_initialization(address u, address c, uint256 t)
   uninitialized() => _price(u,c,t) == 0
-  { preserved { requireInvariant noninitializing(); } }
+  { preserved { requireInvariant noninitializing(); 
+            requireInvariant dateOffset_initialization(); } }
+
 
 invariant oracles_initialization(address u, address c)
   uninitialized() => oracles(u,c) == 0
@@ -202,7 +205,7 @@ invariant price_domain(address u, address c, uint256 t)
 
 invariant price_spacing(address u, address c, uint256 t1, uint256 t2)
   _price(u,c,t1) != 0 && _price(u,c,t2) != 0 && t1 != t2 =>
-    t1 - t2 >= dateOffset() || t2 - t1 >= dateOffset()
+    ( t1 - t2 >= dateOffset() || t2 - t1 >= dateOffset() ) 
   { preserved {
     requireInitializationInvariants();
     requireInvariant price_initialization(u,c,t1);
@@ -550,7 +553,7 @@ rule verify_setSettlementPrice() {
   assert p_pre != p_post => p_post == price, "incorrect price set"; // price is updated accurately
   assert p_pre != p_post => p_pre == 0, "price overwritten"; // price is only updated if 0
   // if conditions are correct, a settlement price will be set
-  assert p_pre != 0 && oracles(u, c) != 0 && price != 0 => p_pre != p_post, "price not set";
+  assert p_pre == 0 && oracles(u, c) != 0 && price != 0 => p_pre != p_post, "price not set";
   // assert p_pre == p_post => lastReverted, "price set failure"; // if price isn't updated the function reverted 
 }
 
@@ -571,7 +574,7 @@ rule verify_setSettlementPriceForDate() {
   assert p_pre != p_post => t ==t_alligned, "price set but not alligned"; // price must be alligned
   assert p_pre != p_post => t <= e.block.timestamp, "future price set"; // past prices only
   // long rule to assert that if the the necessary conditions are met, the price is set
-  assert p_pre != 0 && oracles(u, c) != 0 && t == t_alligned && price != 0 => p_pre != p_post, "price not set";
+  assert p_pre == 0 && oracles(u, c) != 0 && t == t_alligned && price != 0 => p_pre != p_post, "price not set";
 }
 
 rule verify_getCurrentPrice() {
@@ -585,4 +588,10 @@ rule verify_getCurrentPrice() {
   assert oracles(u, c) == 0 => lastReverted, "did not revert on an unset oracle";
   assert p_before == p_after, "price changed by viewing";
 }
-
+/*
+rule sanity(method f) {
+  env e;
+  calldataarg args;
+  f(e,args);
+  assert false;
+}*/
