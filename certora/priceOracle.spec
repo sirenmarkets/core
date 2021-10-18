@@ -212,23 +212,40 @@ invariant price_domain(address u, address c, uint256 t)
 //   oracles(u,c) != 0 => (exists uint256 t. _price(u,c,t) != 0)
 
 // @MM - I think a stronger rule than the original will be that the t1-t2 = dateOffset()*const
-invariant price_spacing(address u, address c, uint256 t1, uint256 t2)//, uint256 const)
-  _price(u,c,t1) != 0 && _price(u,c,t2) != 0 && t1 > t2 =>
-  ( t1 - t2 >= dateOffset() || t2 - t1 >= dateOffset() ) 
-  //(dateOffset() != 0 && ((t1 - t2) % dateOffset()) == 0)//((t1 - t2) / dateOffset()) * dateOffset() == (t1 - t2))
+invariant price_spacing(address u, address c, uint256 t1, uint256 t2, uint256 const)
+  // (const > 0 && t1 > t2 && (t1 - t2 == dateOffset() * const || (_price(u,c,t1) == 0 || _price(u,c,t2) ==0))
+  ( const > 0 && t1 > t2  && t1 - t2 != dateOffset() * const ) =>
+  _price(u,c,t1) == 0 || _price(u,c,t2) == 0
+  //(dateOffset() != 0 && ((t1 - t2) % dateOffset()) == 0) //((t1 - t2) / dateOffset()) * dateOffset() == (t1 - t2))
   { preserved {
+    requireInvariant price_domain(u,c,t1);
+    requireInvariant price_domain(u,c,t2);
     requireInitializationInvariants();
     requireInvariant price_initialization(u,c,t1);
     requireInvariant price_initialization(u,c,t2); 
   } }
 
-/*
-rule price_space(address u, address c, uint256 t1, uint256 t2)
+rule price_space(address u, address c, uint256 t1, uint256 t2, uint256 const2, uint256 const3, method f)
 {
+  requireInvariant price_domain(u,c,t1);
+  requireInvariant price_domain(u,c,t2);
   requireInitializationInvariants();
-
+  requireInvariant price_initialization(u,c,t1);
+  requireInvariant price_initialization(u,c,t2);
+  require(const2 > 0 && const3 > 0 && t1 > t2);
+  uint256 date = dateOffset();
+  // require(t1 - t2 != date * const);
+  // require(_price(u,c,t1) == 0 || _price(u,c,t2) == 0, "require the prices are not correctly aligned");
+  require(t1 != date * const2 && _price(u,c,t1) == 0);
+  require(t2 != date * const3 && _price(u,c,t2) == 0);
+  env e;
+  calldataarg args;
+  f(e, args);
+  assert(t1 != date * const2 && _price(u,c,t1) == 0, "t1 prices are not correctly aligned");
+  assert(t2 != date * const3 && _price(u,c,t2) == 0, "t2 prices are not correctly aligned");
+  // assert(_price(u,c,t1) == 0 || _price(u,c,t2) == 0, "the prices are not correctly aligned");
 }
-*/
+
 
 // faiing in add token pair due to a combination of prize initialize to 0 bug and arbitrary state states being non-zero
 invariant price_compact_right(address u, address c, uint256 t0, uint256 t)
