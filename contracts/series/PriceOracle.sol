@@ -170,7 +170,7 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
         // able to set the price for the T + offset date. In order to prevent this we check to see if the prior
         // dateOffset-aligned date's price has been set, which by induction proves there are no gaps
         require(
-            settlementPrices[underlyingToken][priceToken][date - dateOffset] !=
+            settlementPrices[underlyingToken][priceToken][date - dateOffset] ==
                 0,
             "must use the earliest date without a price set"
         );
@@ -218,7 +218,7 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
         address underlyingToken,
         address priceToken,
         address oracle
-    ) external onlyOwner {
+    ) external override onlyOwner {
         require(
             oracles[underlyingToken][priceToken] == address(0x0),
             "PriceOracle: cannot set address for an existing oracle"

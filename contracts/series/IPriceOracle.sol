@@ -27,4 +27,10 @@ interface IPriceOracle {
         external
         view
         returns (uint256);
+
+    function addTokenPair(
+        address underlyingToken,
+        address priceToken,
+        address oracle
+    ) external;
 }
