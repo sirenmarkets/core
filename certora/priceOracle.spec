@@ -170,7 +170,10 @@ invariant price_domain(address u, address c, uint256 t)
 //---------------------------Owner transitions---------------------------------
 //
 
+// Checks that the new owner that is set is the sender + that it is only changed by initialize() func
 rule owner_initialize_only(method f) {
+  // @MM - V - Make sense - If owner changed we want to make sure that it happned only as a result of initialize
+  // also checks that the owner was set to msg.sender 
   env e; calldataarg args;
 
   address ownerBefore = owner();
@@ -186,7 +189,12 @@ rule owner_initialize_only(method f) {
     "owner is changed to the intialize(..) message sender";
 }
 
+
+// Checks that an owner change is occuring only when the state before is uninitialized
+// Q: Is the contract fine with owner change at all? if not why should we allow initialize func to run more than once?
 rule owner_single_definition(method f) {
+  // @MM - V - Make sense - if owner is changed then the state before changing was uninitialized.
+  // Q: A stronger demand will be that the initialized chnaged as well, as owner change has to come with initialization changes
   env e; calldataarg args;
 
   requireInitializationInvariants();
@@ -195,17 +203,19 @@ rule owner_single_definition(method f) {
   address ownerBefore = owner();
   f(e,args);
   address ownerAfter  = owner();
+  bool uninitAfter = uninitialized();
 
   assert ownerBefore != ownerAfter =>
-    uninitBefore,
+    uninitBefore && !uninitAfter,
     "owner can only be changed if uninitialized";
 }
 
 //---------------------------dateOffset transitions----------------------------
 //
-//
 
+// Checks that dateOffset only changes due to invokation of initialize func
 rule dateOffset_transition (method f) {
+  // @MM - V - Make sense - if the dateOffset changed it will raise error if the function that caused it is not initialize
   env e; calldataarg args;
 
   uint256 dateOffsetBefore = dateOffset();
@@ -219,7 +229,10 @@ rule dateOffset_transition (method f) {
   // NOTE: argument to initialize checked in rule dateOffset_transition_initialize below
 }
 
+
+// Checks that dateOffset is set correctly in the static var
 rule dateOffset_transition_initialize() {
+  // @MM - V - Make sense - Seems like an extremly fundamental - static var is set according to parameter value
   env e;
   uint256 date;
 
@@ -229,7 +242,10 @@ rule dateOffset_transition_initialize() {
     "dateOffset changed to d by initialize(d)";
 }
 
+
+// Checks that the dateOffset is being set only once
 rule dateOffset_single_definition(method f) {
+  // @MM - V - Make sense - if dateOffset changes that has to mean that it was set to 0 before the change.
   env e; calldataarg args;
 
   requireInitializationInvariants();
@@ -245,9 +261,10 @@ rule dateOffset_single_definition(method f) {
 
 //-------------------------Oracle Changes-----------------------------
 //
-//
 
+// Checks that an oracle of a coin pair cannot be changed unless addTokenPair is invoked
 rule oracle_valid_change (method f) {
+  // @MM - V - Make sense - an oracle should be incharge of a pair for eternity once it is set.
   env e;
   calldataarg arg;
 
@@ -263,23 +280,59 @@ rule oracle_valid_change (method f) {
     "only addTokenPair can change the oracle";
 }
 
+
+// Checks that addTokenPair does not change existing oracle that is assosiated with a coin pair
 rule oracle_transition_addTokenPair() {
+  // @MM - VX - Should we allow invocation of addTokenPair at all if oracle is already set?
   env e;
-  address underlying; address currency; address newOracle;
+  address underlying; address currency;
 
   address oracleBefore = oracles(underlying, currency);
 
-  address call_u; address call_c;
+  address call_u; address call_c; address newOracle;
   addTokenPair(e, call_u, call_c, newOracle);
 
-  address oracleAfter  = oracles(underlying, currency);
+  address oracleAfter = oracles(underlying, currency);
 
+  // @MM - if the oracle changed then the coin pairs has to be the same beofre, after and during invocation + the oracle after has to change to the newOracle
+  // oracleBefore and after not change if the u,c and u,c _call are'nt the same.
+  // if they are the same, a new oracle should be set so that oracleAfter == newOracle
   assert oracleAfter != oracleBefore =>
     underlying == call_u && currency == call_c && oracleAfter == newOracle,
     "addTokenPair may only change the oracle given by its arguments";
 }
 
+/*
+==============================================================================================
+-------------------------------EXAMPLE--------------------------------------------------------
+==============================================================================================
+// Checks that addTokenPair does not change existing oracle that is assosiated with a coin pair
+rule oracle_transition_addTokenPair() {
+  // @MM - VX - Should we allow invocation of addTokenPair at all if oracle is already set?
+  // What may happen here is that add token pair will function as update
+  env e;
+  address underlying=1; address currency=2;
+
+  address oracleBefore = 5;//oracles(underlying, currency);
+
+  address call_u=1; address call_c=2; address newOracle=0;
+  addTokenPair(e, call_u, call_c, newOracle);
+
+  address oracleAfter = oracles(underlying, currency);
+
+  // @MM - if the oracle changed then the coin pairs has to be the same beofre, after and during invocation + the oracle after has to change to the newOracle
+  // oracleBefore and after not change if the u,c and u,c _call are'nt the same.
+  // if they are the same, a new oracle should be set so that oracleAfter == newOracle
+  assert oracleAfter != oracleBefore =>
+    underlying == call_u && currency == call_c && oracleAfter == newOracle,
+    "addTokenPair may only change the oracle given by its arguments";
+}
+*/
+
+
+// Checks that the oracle changes only if the owner invoke the function
 rule oracle_owner_only (method f) {
+  // @MM - V - Make sense - if the oracle changes then the user who called the function must be the owner
   env e;
   calldataarg arg;
 
@@ -294,7 +347,11 @@ rule oracle_owner_only (method f) {
     "only the contract owner can change an oracle";
 }
 
+
+// Checks that the oracle changes only if before it was 0.
 rule oracle_single_definition (method f) {
+// @MM - VX - This rule is complete only if the oracle_transition is complete. At the moment it does not check single def.
+// without look at the implementation, it is possible to change the oracle of an existing coin pair to 0.
   env e;
   calldataarg arg;
 
@@ -309,8 +366,12 @@ rule oracle_single_definition (method f) {
     "oracle can only be changed once";
 }
 
-// creating an oracle implies that the most recent price is set and alligned
+
+// creating an oracle implies that the most recent price is set and aligned
 rule oracle_price_nontrivial(method f) {
+  // @MM - V - Make sense - This isn't what the contract says so we added a require(currentPrice != 0) in the addTokenPair func.
+  // The original contract allow retriving 0 value a valid rate.
+  // This make sense only because setSettelmentPrice and setSettelmentPriceForDate count on having some price set for a given coin pair.
   env e;
   address u; address c; address a;
   calldataarg args;
@@ -320,18 +381,18 @@ rule oracle_price_nontrivial(method f) {
   address oracle_after = oracles(u,c);
 
   uint256 t = get8amWeeklyOrDailyAligned(e.block.timestamp);
-  // _price is defined at the top. it is a getter of the exchage rate for a triplet in settelmentPrices.
   uint256 p = _price(u,c,t);
-  // if the oracle of a token pair is changed due to function invocation
+
   assert oracle_before != oracle_after => p != 0, "oracle defined with no initial price";
 }
 
 
 //---------------------------------Price Evolution------------------------------------
 //
-//
 
+// Checks that each price element is changed once - from 0.
 rule price_single_edit (method f) {
+  // @MM - V - Make sense - price cannot be changed unless it's value was 0.
   env e; calldataarg args;
   address u; address c; uint256 t;
 
@@ -347,21 +408,27 @@ rule price_single_edit (method f) {
 }
 
 
+// Checks that if the price changes, then it changes correctly to the answer retrieved from the oracle.s 
 rule price_accurate (method f) {
+  // @MM - V - Make sense - very fundamental rule, checks that the correct price is set in the mapping.
+  // Q: what's the purpose of the casting?
   env e; calldataarg args;
   address u; address c; uint256 t;
   requireInitializationInvariants();
   requireInvariant price_domain(u,c,t);
   uint256 priceBefore = _price(u,c,t);
   f(e, args);
-  uint256 priceAfter  = _price(u,c,t);
+  uint256 priceAfter = _price(u,c,t);
 
   assert priceAfter != priceBefore =>
     to_mathint(priceAfter) == to_mathint(getOracleAnswer(u,c)),
     "check priceAfter is the result of a call to correct oracle";
 }
 
+
+// Checks that a price is not updated in the future, i.e. later than block.timestamp
 rule price_bounded_past (method f) {
+  // @MM - V - Make sense - if the price changed due to a function, the time asossiated with that price must not be in the future.
   env e; calldataarg args;
   address u; address c; uint256 t;
 
@@ -477,16 +544,16 @@ rule verify_setSettlementPriceForDate() {
   setSettlementPrice(e, u, c);
   uint256 p_post = _price(u, c, t);
   uint256 price = getCurrentPrice(e, u, c);
-  uint256 t_alligned = get8amWeeklyOrDailyAligned(t);
+  uint256 t_aligned = get8amWeeklyOrDailyAligned(t);
 
   assert p_pre != p_post => oracles(u, c) != 0, "set for undefined oracle"; // oracles is defined
   assert p_pre != p_post => p_post == price, "incorrect price set"; // price is updated accurately
   assert p_pre != p_post => p_pre == 0, "price overwritten"; // price is only updated if 0
   // assert p_pre == p_post => lastReverted, "price set failure"; // if price isn't updated the function reverted 
-  assert p_pre != p_post => t ==t_alligned, "price set but not alligned"; // price must be alligned
+  assert p_pre != p_post => t ==t_aligned, "price set but not aligned"; // price must be aligned
   assert p_pre != p_post => t <= e.block.timestamp, "future price set"; // past prices only
   // long rule to assert that if the the necessary conditions are met, the price is set
-  assert p_pre == 0 && oracles(u, c) != 0 && t == t_alligned && price != 0 => p_pre != p_post, "price not set";
+  assert p_pre == 0 && oracles(u, c) != 0 && t == t_aligned && price != 0 => p_pre != p_post, "price not set";
 }
 
 rule verify_getCurrentPrice() {
@@ -514,16 +581,16 @@ rule sanity(method f) {
 // It proves by iduction - take any 2 arbitrary consequtive aligned dates and checks that there is no elemet between them (price = 0)
 rule price_space(address u, address c, uint256 t1, uint256 t2, uint256 t, method f){
     // This rule replaces the "price_spacing" invariant. added on review.      
-    uint256 allignedT1 = get8amWeeklyOrDailyAligned(t1);
-    uint256 allignedT2 = get8amWeeklyOrDailyAligned(t2);
+    uint256 alignedT1 = get8amWeeklyOrDailyAligned(t1);
+    uint256 alignedT2 = get8amWeeklyOrDailyAligned(t2);
     requireInitializationInvariants();
-    requireInvariant price_initialization(u,c,allignedT1);
-    requireInvariant price_initialization(u,c,allignedT2); 
+    requireInvariant price_initialization(u,c,alignedT1);
+    requireInvariant price_initialization(u,c,alignedT2); 
     requireInvariant dateOffset_value();
 
-    require( allignedT1 > allignedT2 && (allignedT1 - allignedT2 == dateOffset()) );
-    // require( _price(u, c, allignedT1) != 0 && _price(u, c, allignedT2) != 0 );
-    require( allignedT2 < t && t < allignedT1 );
+    require( alignedT1 > alignedT2 && (alignedT1 - alignedT2 == dateOffset()) );
+    // require( _price(u, c, alignedT1) != 0 && _price(u, c, alignedT2) != 0 );
+    require( alignedT2 < t && t < alignedT1 );
     require( _price(u, c, t) == 0 );
 
     env e;
@@ -533,10 +600,9 @@ rule price_space(address u, address c, uint256 t1, uint256 t2, uint256 t, method
     assert( _price(u, c, t) == 0, "Price in between is not 0" );
 }
 
-
-// failing in add token pair due to a combination of prize initialize to 0 bug and arbitrary state states being non-zero
+/*
 invariant price_compact_right(address u, address c, uint256 t0, uint256 t)
-  _price(u,c,t0) != 0 && _price(u,c, t0 + dateOffset()) == 0 =>
+  _price(u,c,t0) != 0 && _price(u,c, to_uint256(t0 + dateOffset())) == 0 =>
     (t > t0 => _price(u,c,t) == 0)
     { preserved {
         require(getOracleAnswer(u,c) != 0);
@@ -549,27 +615,31 @@ invariant price_compact_right(address u, address c, uint256 t0, uint256 t)
         require time_bounded(t);
         require time_bounded(t0);
     } }
+*/
 
-/*
+
 // checks that there is a final element in the list
 rule price_compact_right(address u, address c, uint256 t0, uint256 t, method f){
   // This rule replaces the "price_compact_right" invariant. added on review.      
 
-  uint256 allignedT0 = get8amWeeklyOrDailyAligned(t0);
+  uint256 alignedT0 = get8amWeeklyOrDailyAligned(t0);
 
   requireInitializationInvariants(); // it is not in initialization process, dateOffset is 0 iff uninitialized, owner is 0 iff uninitialized
   requireInvariant price_domain(u,c,t); // if there is a price there is an oracle assosiated
-  requireInvariant price_domain(u,c,allignedT0); // if there is a price there is an oracle assosiated
-  requireInvariant price_initialization(u,c,allignedT0); // if uninitialize then price is 0
+  requireInvariant price_domain(u,c,alignedT0); // if there is a price there is an oracle assosiated
+  requireInvariant price_initialization(u,c,alignedT0); // if uninitialize then price is 0
   requireInvariant price_initialization(u,c,t); // if uninitialize then price is 0
   requireInvariant dateOffset_value(); // dateoffset is either 0, 1day or 1week
   require time_bounded(t); // the time is bounded between timeoffset to max date
-  require time_bounded(allignedT0); // the time is bounded between timeoffset to max date
+  require time_bounded(alignedT0); // the time is bounded between timeoffset to max date
   
   env e;
 
-  require(_price(u,c,allignedT0) != 0 && _price(u,c, (allignedT0 + dateOffset())) == 0);
-  require(t > allignedT0 && _price(u,c,t) == 0);
+  require(_price(u,c,alignedT0) != 0);
+  // t!= (alignedT0 + dateOffset()) is passing setSettlementPrice even though we dont think it should.
+  require(t > alignedT0 && t != (alignedT0 + dateOffset()));
+  require(forall uint256 t2. t2 > alignedT0 => _price(u,c,t2) == 0);
+
 
   calldataarg args;
   f(e, args);
@@ -600,25 +670,25 @@ invariant price_compact_left(address u, address c, uint256 t0, uint256 t)
 rule price_compact_left(address u, address c, uint256 t0, uint256 t, method f){
   // This rule replaces the "price_compact_left" invariant. added on review.      
 
-  uint256 allignedT0 = get8amWeeklyOrDailyAligned(t0);
+  uint256 alignedT0 = get8amWeeklyOrDailyAligned(t0);
 
   requireInitializationInvariants(); // it is not in initialization process, dateOffset is 0 iff uninitialized, owner is 0 iff uninitialized
   requireInvariant price_domain(u, c, t); // if there is a price there is an oracle assosiated
-  requireInvariant price_domain(u, c, allignedT0); // if there is a price there is an oracle assosiated
-  requireInvariant price_initialization(u,c,allignedT0); // if uninitialize then price is 0
+  requireInvariant price_domain(u, c, alignedT0); // if there is a price there is an oracle assosiated
+  requireInvariant price_initialization(u,c,alignedT0); // if uninitialize then price is 0
   requireInvariant price_initialization(u,c,t); // if uninitialize then price is 0
   requireInvariant dateOffset_value(); // dateoffset is either 0, 1day or 1week
   require time_bounded(t); // the time is bounded between timeoffset to max date
-  require time_bounded(allignedT0); // the time is bounded between timeoffset to max date
+  require time_bounded(alignedT0); // the time is bounded between timeoffset to max date
   
   env e;
-  require(_price(u,c,allignedT0) != 0 && allignedT0 <= get8amWeeklyOrDailyAligned(e.block.timestamp)); // this last && should be changed to requireinvariant no_price_future
-  require(t < allignedT0);
+  require(_price(u,c,alignedT0) != 0 && alignedT0 <= get8amWeeklyOrDailyAligned(e.block.timestamp)); // this last && should be changed to requireinvariant no_price_future
+  require(t < alignedT0);
   
-  uint256 Pt2 = _price(u,c,t-dateOffset());
-  require(Pt2 == 0);
+  // uint256 Pt2 = _price(u,c,t-dateOffset());
+  // require(Pt2 == 0);
 
-  // require(forall uint256 t2. t2 < allignedT0 => _price(u,c,t2) == 0);
+  require(forall uint256 t2. t2 < alignedT0 => _price(u,c,t2) == 0);
 
   calldataarg args;
   f(e, args);
