@@ -441,9 +441,12 @@ rule price_bounded_past (method f) {
     "price only changed in the past";
 }
 
+
 // if a price is set, there is either a price set before that price or no price after set (indicating it is the first price)
 // the first price is set by addTokenPair so this function is not relevant
 rule price_t0_constant (method f) filtered {f -> (f.selector != addTokenPair(address, address, address).selector)}{
+  // @MM - V - Make sense - if the price changed it either changed at a point consequent to an existing price (not creating gaps)
+  // or any other point later than t are 0 (meaning this is the genesis date point).
   uint256 t1; uint256 t;
   require t1 > t;
 
@@ -464,6 +467,7 @@ rule price_t0_constant (method f) filtered {f -> (f.selector != addTokenPair(add
       - addTokenPair
 */
 rule price_authorized_only (method f) {
+  // @MM - V - Make sense - If price changed only one of the specified 3 functions are allowed to change it.
   env e; calldataarg args;
   address u; address c; uint256 t;
   
@@ -484,6 +488,9 @@ rule price_authorized_only (method f) {
 
 // get settlement price returns the accurate price, and returns t/f if nonzero/zero
 rule verify_getSettlementPrice() {
+  // @MM - V - Make sense - Checks the _price definition in the spec,
+  // the necessary relation between the bool and the price,
+  // and that the getter doesn't change the price in the mapping 
   env e;
   address u; address c; uint256 t;
 
@@ -494,9 +501,12 @@ rule verify_getSettlementPrice() {
   ret_bool, ret_int = getSettlementPrice(e, u,c,t);
 
   uint256 p_after = _price(u, c, t);
-
+  
+  // checks that the shorthand _price defenition works properly.
   assert ret_int == _price(u,c,t), "Returned Wrong Value";
+  // checks that the getter returns true iff the price is non-zero.
   assert ret_int != 0 <=> ret_bool, "boolean price mismatch";
+  // checks price haven't changed as a result of the getter invocation.
   assert p_before == p_after, "price altered by viewing";
 }
 
@@ -504,8 +514,11 @@ rule verify_getSettlementPrice() {
 // no other oracles are changed when addTokenPair is called?
 // if oracle(u, c) exists then add token pair will revert
 rule verify_addTokenPair() {
+  // @MM - V - Make sense - checks that the function obey only to owner, that the oracle changes only if the value before was 0,
+  // and that it changes the value correctly, i.e. update the oracle in the (u,c) pair and this pair alone.
   env e; 
   address u; address c; address o;
+  // dont bother show examples where o == 0
   require o > 0;
   address pre_val = oracles(u, c);
   address u1; address c1;
@@ -513,13 +526,21 @@ rule verify_addTokenPair() {
   addTokenPair(e, u, c, o);
 
   // assert !initialized() => lastReverted, "addTokenPair did not revert but was not initialized";
-  assert e.msg.sender != owner() => lastReverted, "caller other than owner did not revert";
-  assert pre_val == 0 => oracles(u , c) == o, "Oracle was changed to incorrect address";
+  assert e.msg.sender != owner() => lastReverted, "caller other than owner did revert";
+  // addTokenPair reverted if the oracle asossiated with (u,c) before the call != 0
   assert pre_val != 0 => lastReverted, "already defined oracle changed";
+  // addTokenPair changed the oracle asossiated with (u,c) if before the call the oracle was 0
+  assert pre_val == 0 => oracles(u , c) == o, "Oracle was changed to incorrect address";
+  // if the oracle of (u1,c1) changed then (u,c) == (u1,c1). if it fails the function has fundamental falw, 
+  // because it changes the wrong (u,c) pair
   assert pre_alt_val != oracles(u1, c1) => u1 == u && c1 == c, "oracle at incorrect value changed";
 }
 
+
+// Checks that the setSettlementPrice func is working properly - sets an oracle, sets correct retrived price,
+// is not overwritting a price value, and that if all of these hold it implies that the price is changed
 rule verify_setSettlementPrice() {
+  // @MM - V - Make sense
   env e; 
   address u; address c; 
   uint256 t = get8amWeeklyOrDailyAligned(e.block.timestamp);
@@ -528,35 +549,51 @@ rule verify_setSettlementPrice() {
   uint256 p_post = _price(u, c, t);
   uint256 price = getCurrentPrice(e, u, c);
 
+  // if the price at the aligned "now" is changed, then the oracle has to be set (!=0)
   assert p_pre != p_post => oracles(u, c) != 0, "set for undefined oracle"; // oracles is defined
+  // if the price at the aligned "now" is changed, then the price after the change has to be the price retrieved from the getCurrentPrice func.
   assert p_pre != p_post => p_post == price, "incorrect price set"; // price is updated accurately
+  // if the price at the aligned "now" is changed, then the price before the change has to be undefined (0)
   assert p_pre != p_post => p_pre == 0, "price overwritten"; // price is only updated if 0
   // if conditions are correct, a settlement price will be set
   assert p_pre == 0 && oracles(u, c) != 0 && price != 0 => p_pre != p_post, "price not set";
   // assert p_pre == p_post => lastReverted, "price set failure"; // if price isn't updated the function reverted 
 }
 
+
+// Checks that setSettlementPriceForDate works properly - 
 rule verify_setSettlementPriceForDate() {
+  // @MM - X - Does not invoke setSettlementPriceForDate func.
   env e; 
   address u; address c; 
   uint256 t;
   uint256 p_pre = _price(u, c, t);
-  setSettlementPrice(e, u, c);
+  // setSettlementPrice(e, u, c);
+  setSettlementPriceForDate(e, u, c, t);
   uint256 p_post = _price(u, c, t);
   uint256 price = getCurrentPrice(e, u, c);
   uint256 t_aligned = get8amWeeklyOrDailyAligned(t);
 
+  // if the price is changed, then the oracle has to be set (!=0)
   assert p_pre != p_post => oracles(u, c) != 0, "set for undefined oracle"; // oracles is defined
+  // if the price is changed, then the price after the change has to be the price retrieved from the getCurrentPrice func.
   assert p_pre != p_post => p_post == price, "incorrect price set"; // price is updated accurately
+  // if the price is changed, then the price before the change has to be undefined (0)
   assert p_pre != p_post => p_pre == 0, "price overwritten"; // price is only updated if 0
   // assert p_pre == p_post => lastReverted, "price set failure"; // if price isn't updated the function reverted 
-  assert p_pre != p_post => t ==t_aligned, "price set but not aligned"; // price must be aligned
+  // if the price is changed, then the time that has changed has to be an aligned time.
+  assert p_pre != p_post => t == t_aligned, "price set but not aligned"; // price must be aligned
+  // if the price is changed, then the time of the changed element must not be in the future.
   assert p_pre != p_post => t <= e.block.timestamp, "future price set"; // past prices only
   // long rule to assert that if the the necessary conditions are met, the price is set
   assert p_pre == 0 && oracles(u, c) != 0 && t == t_aligned && price != 0 => p_pre != p_post, "price not set";
 }
 
+
+// Checks that getCurrentPrice doesn't change the state of the system + that
+// if there is no oracle defined for the pair the system reverts
 rule verify_getCurrentPrice() {
+  // @MM - V - Make sense
   env e;
   address u; address c; uint256 t;
 
