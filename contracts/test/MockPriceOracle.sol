@@ -4,6 +4,8 @@ pragma solidity 0.6.12;
 
 import "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
 
+//Add chainlinkname at begining
+
 /**
  * The MockPriceOracle exists to ease testing the AMM's interaction with the onchain price feed oracle.
  * During tests, this contract should be deployed and passed to the AMM .initialize method, and for each

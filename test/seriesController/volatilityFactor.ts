@@ -22,11 +22,16 @@ import {
   SimpleTokenInstance,
   MockPriceOracleInstance,
   VolatilityOracleContract,
+  MockVolatilityPriceOracleContract,
 } from "../../typechain"
 
 let deployedVolatilityOracle
+
+const MockVolatilityPriceOracle: MockVolatilityPriceOracleContract =
+  artifacts.require("MockVolatilityPriceOracle")
 const MockPriceOracle: MockPriceOracleContract =
   artifacts.require("MockPriceOracle")
+
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
 const PriceOracle: PriceOracleContract = artifacts.require("PriceOracle")
 
