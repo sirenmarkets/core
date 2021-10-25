@@ -637,48 +637,48 @@ rule price_compact_right(address u, address c, uint256 t0, uint256 t, method f){
 }
 */
 
-
-invariant price_compact_left(address u, address c, uint256 t0, uint256 t1)
+/*
+invariant price_compact_left(address u, address c, uint256 t0, uint256 t)
   _price(u,c,t0) != 0 && _price(u,c,to_uint256(t0 - dateOffset())) == 0 =>
-    (t1 < t0 /* && (forall uint256 t. t < t0 => _price(u,c,t) == 0) */ => _price(u,c,t1) == 0)
+    (t < t0 => _price(u,c,t) == 0)
     { preserved {
         requireInitializationInvariants();         
-        requireInvariant price_domain(u, c, t1);
+        requireInvariant price_domain(u, c, t);
         requireInvariant price_domain(u, c, t0);
         requireInvariant price_initialization(u,c,t0);
-        requireInvariant price_initialization(u,c,t1);
+        requireInvariant price_initialization(u,c,t);
         requireInvariant dateOffset_value(); 
-        require time_bounded(t1);
+        require time_bounded(t);
         require time_bounded(t0);
     } }
+*/
 
 
-/*
-rule price_compact_left(address u, address c, uint256 t0, uint256 t, method f){
+rule price_compact_left(address u, address c, uint256 t0, uint256 t1, method f){
   // This rule replaces the "price_compact_left" invariant. added on review.      
 
   uint256 alignedT0 = get8amWeeklyOrDailyAligned(t0);
 
   requireInitializationInvariants(); // it is not in initialization process, dateOffset is 0 iff uninitialized, owner is 0 iff uninitialized
-  requireInvariant price_domain(u, c, t); // if there is a price there is an oracle assosiated
+  requireInvariant price_domain(u, c, t1); // if there is a price there is an oracle assosiated
   requireInvariant price_domain(u, c, alignedT0); // if there is a price there is an oracle assosiated
   requireInvariant price_initialization(u,c,alignedT0); // if uninitialize then price is 0
-  requireInvariant price_initialization(u,c,t); // if uninitialize then price is 0
+  requireInvariant price_initialization(u,c,t1); // if uninitialize then price is 0
   requireInvariant dateOffset_value(); // dateoffset is either 0, 1day or 1week
-  require time_bounded(t); // the time is bounded between timeoffset to max date
+  require time_bounded(t1); // the time is bounded between timeoffset to max date
   require time_bounded(alignedT0); // the time is bounded between timeoffset to max date
   
   env e;
   require(_price(u,c,alignedT0) != 0 && alignedT0 <= get8amWeeklyOrDailyAligned(e.block.timestamp)); // this last && should be changed to requireinvariant no_price_future
-  require(t < alignedT0);
-  require(forall uint256 t2. t2 < alignedT0 => _price(u,c,t2) == 0);
+  require(t1 < alignedT0);
+  require(forall uint256 t. t < alignedT0 => _price(u,c,t) == 0);
   
   calldataarg args;
   f(e, args);
   
-  assert(_price(u,c,t) == 0, "There is a price before t0");
+  assert(_price(u,c,t1) == 0, "There is a price before t0");
 }
-*/
+
 
 // These invariants are not checked because of timeouts, but
 // should be covered by the spacing and compactness requirements
