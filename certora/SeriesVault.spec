@@ -25,6 +25,10 @@ methods {
     setERC1155ApprovalForController(address)
     updateImplementation(address)
 
+    _initialized() returns (bool) envfree // fixed on review changed variable to public and added getter 
+    _initializing() returns (bool) envfree // fixed on review changed variable to public and added getter
+
+
 
     // EXTERNAL FUNCTIONS
     ERC20.allowance(address, address) returns uint256 envfree
@@ -36,56 +40,33 @@ methods {
     controller() returns address envfree
 }
 
-ghost initialized()  returns bool;
-ghost initializing() returns bool;
-
-hook Sstore _initialized uint256 newvalue STORAGE {
-  // NOTE: this logic is required because having a hook with type bool seems to not
-  //       currently work.  Similarly for other hooks below
-  // NOTE: optimization breaks this because _initialized shares a slot
-  uint normNewValue = newvalue & 0xff;
-  bool boolNewValue = normNewValue > 0;
-  havoc initialized assuming initialized@new() == boolNewValue;
-}
-
-hook Sload uint256 newvalue _initialized STORAGE {
-  require (newvalue & 0xff > 0) == initialized();
-}
-
-hook Sstore _initializing uint256 newvalue STORAGE {
-  uint normNewValue = newvalue & 0xff;
-  bool boolNewValue = normNewValue > 0;
-  havoc initializing assuming initializing@new() == boolNewValue;
-}
-
-hook Sload uint256 newvalue _initializing STORAGE {
-  require (newvalue & 0xff > 0) == initializing();
-}
-
 //---------------------------Definitions------------------------
 
-definition uninitialized() returns bool = !initialized();
+definition uninitialized() returns bool = !_initialized();
 
 //---------------------------Invariants-----------------------------
 //
 //
 
+// @MM - V
 invariant noninitializing() // this is a helper
-  !initializing()
+  !_initializing()
 
+// @MM - V
 invariant initialization_controller() 
-    initialized() <=> controller() != 0
+    _initialized() <=> controller() != 0
   { preserved {
     requireInvariant noninitializing();
   }}
 
+// @MM - Shouldn't we make 2 separte invariants for the 2 of them?
 // if an allowance is defined / token is approved for a given spender it must be the controller
 invariant controller_spender_only(address owner, address spender)
    ERC20.allowance(owner, spender) != 0 || ERC1155.isApprovedForAll(owner, spender) => spender == controller()
   { 
     preserved {
       require owner != 0 && spender != 0;
-      require initialized();
+      require _initialized();
       requireInvariant initialization_controller();
       requireInvariant noninitializing();
     }
@@ -94,6 +75,7 @@ invariant controller_spender_only(address owner, address spender)
 
 //----------------------------State Transitions-----------------------
 
+// @MM - V - complete the single def along with the init_only rule
 rule SeriesController_single_definition(method f) {
     env e; calldataarg args;
     
@@ -104,9 +86,11 @@ rule SeriesController_single_definition(method f) {
     f(e, args);
     address controller_post = controller();
 
+    // if the controller changed it only happend if the pre state state was 0.
     assert controller_pre != controller_post => controller_pre == 0, "controller double edit";
 }
 
+// @MM - V - complete the single def along with the single_def rule
 rule SeriesController_initialize_only(method f) {
     env e; calldataarg args;
 
@@ -114,10 +98,12 @@ rule SeriesController_initialize_only(method f) {
     f(e, args);
     address controller_post = controller();
 
+    // if the controller changed it only happend as a result of __SeriesVault_init.
     assert controller_pre != controller_post => f.selector == __SeriesVault_init(address).selector, 
         "controller set by un-authorized function";
 }
 
+// @MM - V - the allowance is changing by controller only (the msg.sender has to be a controller)
 rule Allowance_Altered_ControllerOnly(method f) {
     env e; calldataarg args;
     address token;
@@ -132,16 +118,18 @@ rule Allowance_Altered_ControllerOnly(method f) {
     f(e, args);
     uint256 allowance_post = ERC20.allowance(token, con);
 
+    // if the allowace changed it happned only if the msg.sender is the controller.
     assert allowance_pre != allowance_post => e.msg.sender == con, "token allowance edited by non controller";
 }
 
 //--------------------------------Unit Tets------------------------------------
 //
-//
 
+
+// @MM - V - Checks mainly the premission to use the function rather than the application of it.
 rule verify_setERC20ApprovalForController() {
     env e;
-    address c; 
+    address c;
 
     require e.msg.sender != 0;
     requireInvariant noninitializing();
@@ -150,11 +138,17 @@ rule verify_setERC20ApprovalForController() {
     setERC20ApprovalForController@withrevert(e, c);
     bool reverted = lastReverted;
 
-    assert !initialized() => reverted, "accepted without being initialized";
+    // The function verify_setERC20ApprovalForController is set as "onlySeriesController",
+    // which means that only a controller can call it.
+    // If the contract is uninitialized then a controller shouldn't be set, and hence it should revert
+    assert !_initialized() => reverted, "accepted without being initialized";
     // assert e.msg.sender == controller() => ERC20.allowance(c, controller()) != 0 || reverted, "token wasn't approved";
+    // controller has to be the msg.sender. if it isn't the system should be reverted.
     assert e.msg.sender != controller() => reverted, "accepted unauthorized controller";
 }
 
+
+// @MM - V - Checks exactly the same as previous rule - verify_setERC20ApprovalForController
 rule verify_setERC1155ApprovalForController() {
     env e; 
     address c; 
@@ -166,15 +160,18 @@ rule verify_setERC1155ApprovalForController() {
     setERC1155ApprovalForController@withrevert(e, c);
     bool reverted = lastReverted;
 
-    assert !initialized() => reverted, "accepted without being initialized";
+    assert !_initialized() => reverted, "accepted without being initialized";
     // assert e.msg.sender == controller() => ERC1155.isApprovedForAll(c, controller()) || reverted, "token wasn't approved";
     assert e.msg.sender != controller() => reverted, "accepted unauthorized controller";
 }
 
+
+// @MM - V - we apply the function twice. if it passes that means the it was reverted in the 2nd call
+// if it isn't passing then the init function did not revert, which means it was initialized twice. 
 rule initialization_single_call() {
-    env e; 
+    env e;
     address controller;
-    require controller != 0;
+    require controller != 0; // make sure the first invoke will not require, and the 2nd invoke will revert as a result of the initialization.
 
     __SeriesVault_init(e, controller);
     requireInvariant noninitializing();
