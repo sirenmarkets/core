@@ -19,7 +19,6 @@ import "../token/IERC20Lib.sol";
 import "../oz/EnumerableSet.sol";
 import "../series/SeriesLibrary.sol";
 import "../swap/ILight.sol";
-import "./MinterAmmStorage.sol";
 
 /// This is an implementation of a minting/redeeming AMM (Automated Market Maker) that trades a list of series with the same
 /// collateral token. For example, a single WBTC Call AMM contract can trade all strikes of WBTC calls using
@@ -78,8 +77,7 @@ contract MinterAmm is
     ERC1155HolderUpgradeable,
     IAddSeriesToAmm,
     OwnableUpgradeable,
-    Proxiable,
-    MinterAmmStorageV1
+    Proxiable
 {
     /// Use safe ERC20 functions for any token transfers since people don't follow the ERC20 standard */
     using SafeERC20 for IERC20;
@@ -143,6 +141,9 @@ contract MinterAmm is
 
     /// @dev The contract used to make pricing calculations for the MinterAmm
     address public ammDataProvider;
+
+    /// @dev The address for the airswap Light contract on-chain.
+    address public lightAirswapAddress;
 
     /// Emitted when the amm is created
     event AMMInitialized(
