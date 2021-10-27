@@ -1,137 +1,183 @@
-// SPDX-License-Identifier: GPL-3.0-only
+//SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.0;
 
-import "./IPriceOracle.sol";
-import "../libraries/Math.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "../libraries/Welford.sol";
-import {PRBMathSD59x18} from "../libraries/PRBMathSD59x18.sol";
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import {DSMath} from "../libraries/DSMath.sol";
+import {Welford} from "../libraries/Welford.sol";
+import {Math} from "../libraries/Math.sol";
+import {PRBMathSD59x18} from "../libraries/PRBMathSD59x18.sol";
+import "./IPriceOracle.sol";
+
 import "hardhat/console.sol";
 
-contract VolatilityOracle is Ownable {
+contract VolatilityOracle is DSMath {
     using SafeMath for uint256;
 
     IPriceOracle public priceOracleAddress;
-    uint32 public immutable period = 1 days;
-    uint256 public immutable annualizationConstant =
-        Math.sqrt(uint256(31536000).div(uint256(86400)));
 
-    uint256 constant WAD = 10**18;
+    /**
+     * Immutables
+     */
+    uint32 public immutable period;
+    uint256 public immutable windowSize;
+    uint256 public immutable annualizationConstant;
+    uint256 internal constant commitPhaseDuration = 1800; // 30 minutes from every period
 
     /**
      * Storage
      */
     struct Accumulator {
-        // Max number of records: 2^16-1 = 65535.
-        // If we commit twice a day, we get to have a max of ~89 years.
-        uint16 count;
+        // Stores the index of next observation
+        uint8 currentObservationIndex;
         // Timestamp of the last record
         uint32 lastTimestamp;
         // Smaller size because prices denominated in USDC, max 7.9e27
         int96 mean;
-        // Stores the sum of squared errors
-        uint112 m2;
+        // Stores the dsquared (variance * count)
+        uint256 dsq;
     }
+
+    /// @dev Stores the latest data that helps us compute the standard deviation of the seen dataset.
+    mapping(address => mapping(address => Accumulator)) public accumulators;
+
+    /// @dev Stores the last oracle TWAP price for a pool
+    mapping(address => mapping(address => uint256)) public lastPrices;
+
+    // @dev Stores log-return observations over window
+    mapping(address => mapping(address => int256[])) public observations;
 
     /***
      * Events
      */
+
     event Commit(
-        uint16 count,
         uint32 commitTimestamp,
         int96 mean,
-        uint112 m2,
+        uint256 dsq,
         uint256 newValue,
         address committer
     );
 
-    /// @dev Stores the latest data that helps us compute the standard deviation of the seen dataset.
-    mapping(address => mapping(address => Accumulator)) internal volatility;
+    /**
+     * @notice Creates an volatility oracle for a pool
+     * @param _period is how often the oracle needs to be updated
+     * @param _priceOracle the price oracle address
+     * @param _windowInDays is how many days the window should be
+     */
+    constructor(
+        uint32 _period,
+        IPriceOracle _priceOracle,
+        uint256 _windowInDays
+    ) {
+        require(_period > 0, "!_period");
+        require(_windowInDays > 0, "!_windowInDays");
 
-    uint256 observationCount;
-
-    constructor(uint256 _observationCount, IPriceOracle _priceOracle) {
-        observationCount = _observationCount;
+        period = _period;
         priceOracleAddress = _priceOracle;
+        windowSize = _windowInDays.mul(uint256(1 days).div(_period));
+
+        // 31536000 seconds in a year
+        // divided by the period duration
+        // For e.g. if period = 1 day = 86400 seconds
+        // It would be 31536000/86400 = 365 days.
+        annualizationConstant = Math.sqrt(uint256(31536000).div(_period));
     }
 
-    function updateSampleVariance(address underlyingToken, address priceToken)
-        external
-    {
-        if (
-            block.timestamp -
-                volatility[underlyingToken][priceToken].lastTimestamp <
-            24 hours
-        ) return;
+    /**
+     * @notice Initialized pool observation window
+     */
+    function initPool(address underlyingToken, address priceToken) external {
+        console.log("INSIDE OF HERE");
+        require(
+            observations[underlyingToken][priceToken].length == 0,
+            "Pool initialized"
+        );
+        observations[underlyingToken][priceToken] = new int256[](windowSize);
+    }
+
+    /**
+     * @notice Commits an oracle update. Must be called after pool initialized
+     */
+    function commit(address underlyingToken, address priceToken) external {
+        require(
+            observations[underlyingToken][priceToken].length > 0,
+            "!pool initialize"
+        );
+
         (uint32 commitTimestamp, uint32 gapFromPeriod) = secondsFromPeriod();
-
-        uint256 lastSettlementDate = IPriceOracle(priceOracleAddress)
-            .get8amWeeklyOrDailyAligned(block.timestamp - 1 days);
-
-        (, uint256 lastPrice) = IPriceOracle(priceOracleAddress)
-            .getSettlementPrice(
-                underlyingToken,
-                priceToken,
-                lastSettlementDate
-            );
+        require(gapFromPeriod < commitPhaseDuration, "Not commit phase");
 
         uint256 price = IPriceOracle(priceOracleAddress).getCurrentPrice(
             underlyingToken,
             priceToken
         );
+        uint256 _lastPrice = lastPrices[underlyingToken][priceToken];
+        uint256 periodReturn = _lastPrice > 0 ? wdiv(price, _lastPrice) : 0;
 
-        uint256 _lastPrice = lastPrice;
-        uint256 periodReturn = _lastPrice > 0
-            ? (((price * WAD) + (_lastPrice / 2)) / _lastPrice)
-            : 0;
+        require(price > 0, "Price from twap is 0");
 
         // logReturn is in 10**18
         // we need to scale it down to 10**8
         int256 logReturn = periodReturn > 0
             ? PRBMathSD59x18.ln(int256(periodReturn)) / 10**10
             : 0;
-        Accumulator storage accum = volatility[underlyingToken][priceToken];
 
-        (uint256 newCount, int256 newMean, uint256 newM2) = Welford.update(
-            accum.count,
-            accum.mean,
-            accum.m2,
-            logReturn
+        Accumulator storage accum = accumulators[underlyingToken][priceToken];
+
+        require(
+            block.timestamp >=
+                accum.lastTimestamp + period - commitPhaseDuration,
+            "Committed"
         );
 
-        require(newCount < type(uint16).max, ">U16");
-        require(newMean < type(int96).max, ">I96");
-        require(newM2 < type(uint112).max, ">U112");
+        uint256 currentObservationIndex = accum.currentObservationIndex;
 
-        accum.count = uint16(newCount);
+        (int256 newMean, int256 newDSQ) = Welford.update(
+            observationCount(underlyingToken, priceToken, true),
+            observations[underlyingToken][priceToken][currentObservationIndex],
+            logReturn,
+            accum.mean,
+            int256(accum.dsq)
+        );
+
+        require(newMean < type(int96).max, ">I96");
+        // require(int256(newDSQ) < type(uint256).max, ">U120");
+
         accum.mean = int96(newMean);
-        accum.m2 = uint112(newM2);
+        accum.dsq = uint256(newDSQ);
         accum.lastTimestamp = commitTimestamp;
+        observations[underlyingToken][priceToken][
+            currentObservationIndex
+        ] = logReturn;
+        accum.currentObservationIndex = uint8(
+            (currentObservationIndex + 1) % windowSize
+        );
+        lastPrices[underlyingToken][priceToken] = price;
 
         emit Commit(
-            uint16(newCount),
             uint32(commitTimestamp),
             int96(newMean),
-            uint112(newM2),
+            uint256(newDSQ),
             price,
             msg.sender
         );
     }
 
-    // function updateVolatilityBatch(address[] underlyingTokens, address priceToken) {
-    //     for each (underlyingToken) {
-    //         updateVolatility(underlyingToken, priceToken);
-    //     }
-    // }
-
     /**
      * @notice Returns the standard deviation of the base currency in 10**8 i.e. 1*10**8 = 100%
      * @return standardDeviation is the standard deviation of the asset
      */
-    // function getVolatility(address underlyingToken, address priceToken) external returns(currentSampleVariance memory currentVolatility){
-    //     return Welford.stdev( volatility[underlyingToken][priceToken].count, volatility[underlyingToken][priceToken].m2);
-    // }
+    function vol(address underlyingToken, address priceToken)
+        public
+        view
+        returns (uint256 standardDeviation)
+    {
+        return
+            Welford.stdev(
+                observationCount(underlyingToken, priceToken, false),
+                int256(accumulators[underlyingToken][priceToken].dsq)
+            );
+    }
 
     /**
      * @notice Returns the annualized standard deviation of the base currency in 10**8 i.e. 1*10**8 = 100%
@@ -142,50 +188,67 @@ contract VolatilityOracle is Ownable {
         view
         returns (uint256 annualStdev)
     {
-        annualStdev =
-            Welford.stdev(
-                volatility[underlyingToken][priceToken].count,
-                volatility[underlyingToken][priceToken].m2
-            ) *
-            annualizationConstant;
-        return annualStdev;
+        return
+            Welford
+                .stdev(
+                    observationCount(underlyingToken, priceToken, false),
+                    int256(accumulators[underlyingToken][priceToken].dsq)
+                )
+                .mul(annualizationConstant);
     }
 
-    // Admin functions
-    function setSampleVariance(
-        address underlyingToken,
-        address priceToken,
-        uint16 count,
-        uint32 lastTimestamp,
-        int96 mean
-    ) public onlyOwner {
-        //Add Require Checks in here
-        volatility[underlyingToken][priceToken].count = count;
-        volatility[underlyingToken][priceToken].lastTimestamp = lastTimestamp;
-        volatility[underlyingToken][priceToken].mean = mean;
+    /**
+     * @notice Gets the time weighted average tick
+     * @return timeWeightedAverageTick is the tick which was resolved to be the time-weighted average
+     */
+    function getTimeWeightedAverageTick(
+        int56 olderTickCumulative,
+        int56 newerTickCumulative,
+        uint32 duration
+    ) private pure returns (int24 timeWeightedAverageTick) {
+        int56 tickCumulativesDelta = newerTickCumulative - olderTickCumulative;
+        int24 _timeWeightedAverageTick = int24(tickCumulativesDelta / duration);
+
+        // Always round to negative infinity
+        if (tickCumulativesDelta < 0 && (tickCumulativesDelta % duration != 0))
+            _timeWeightedAverageTick--;
+
+        return _timeWeightedAverageTick;
     }
 
-    function addTokenPairAndSetSampleVariance(
-        address underlyingToken,
-        address priceToken,
-        address oracle,
-        uint16 count,
-        uint32 lastTimestamp,
-        int96 mean
-    ) external onlyOwner {
-        IPriceOracle(priceOracleAddress).addTokenPair(
-            underlyingToken,
-            priceToken,
-            oracle
-        );
-        setSampleVariance(
-            underlyingToken,
-            priceToken,
-            count,
-            lastTimestamp,
-            mean
-        );
-    }
+    // /**
+    //  * @notice Gets the tick cumulatives which is the tick * seconds
+    //  * @return oldestTickCumulative is the tick cumulative at last index of the observations array
+    //  * @return newestTickCumulative is the tick cumulative at the first index of the observations array
+    //  * @return duration is the TWAP duration determined by the difference between newest-oldest
+    //  */
+    // function getTickCumulatives(address underlyingToken, address priceToken])
+    //     private
+    //     view
+    //     returns (
+    //         int56 oldestTickCumulative,
+    //         int56 newestTickCumulative,
+    //         uint32 duration
+    //     )
+    // {
+    //     IUniswapV3Pool uniPool = IUniswapV3Pool(pool);
+
+    //     (, , uint16 newestIndex, uint16 observationCardinality, , , ) =
+    //         uniPool.slot0();
+
+    //     // Get the latest observation
+    //     (uint32 newestTimestamp, int56 _newestTickCumulative, , ) =
+    //         uniPool.observations(newestIndex);
+
+    //     // Get the oldest observation
+    //     uint256 oldestIndex = (newestIndex + 1) % observationCardinality;
+    //     (uint32 oldestTimestamp, int56 _oldestTickCumulative, , ) =
+    //         uniPool.observations(oldestIndex);
+
+    //     uint32 _duration = newestTimestamp - oldestTimestamp;
+
+    //     return (_oldestTickCumulative, _newestTickCumulative, _duration);
+    // }
 
     /**
      * @notice Returns the closest period from the current block.timestamp
@@ -203,5 +266,23 @@ contract VolatilityOracle is Ownable {
             return (timestamp - rem, rem);
         }
         return (timestamp + period - rem, period - rem);
+    }
+
+    /**
+     * @notice Returns the current number of observations [0, windowSize]
+     * @param isInc is whether we want to add 1 to the number of
+     * observations for mean purposes
+     * @return obvCount is the observation count
+     */
+    function observationCount(
+        address underlyingToken,
+        address priceToken,
+        bool isInc
+    ) internal view returns (uint256 obvCount) {
+        uint256 size = windowSize; // cache for gas
+        obvCount = observations[underlyingToken][priceToken][size - 1] != 0
+            ? size
+            : accumulators[underlyingToken][priceToken]
+                .currentObservationIndex + (isInc ? 1 : 0);
     }
 }

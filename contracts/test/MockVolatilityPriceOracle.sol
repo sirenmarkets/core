@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
+pragma solidity >=0.7.3 <=0.8.0;
 
-pragma solidity 0.8.0;
-
-import "../series/PriceOracle";
+import "../series/PriceOracle.sol";
 
 //Add chainlinkname at begining
 
@@ -13,8 +12,6 @@ import "../series/PriceOracle";
  * the AMM.
  */
 contract MockVolatilityPriceOracle is PriceOracle {
-    constructor() public PriceOracle(0) {}
-
     /// @notice Stores the current price from the oracle specified by the pair underlyingToken-priceToken for the
     /// given settlement date
     /// @param underlyingToken Should be equal to the Markets' underlyingToken field
@@ -30,7 +27,7 @@ contract MockVolatilityPriceOracle is PriceOracle {
         address priceToken,
         uint256 date,
         uint256 price
-    ) external override {
+    ) external {
         require(
             oracles[underlyingToken][priceToken] != address(0x0),
             "no oracle address for this token pair"

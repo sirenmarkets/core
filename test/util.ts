@@ -13,6 +13,8 @@ import {
   MinterAmmContract,
   ERC1155ControllerInstance,
   SirenExchangeContract,
+  MockVolatilityPriceOracleInstance,
+  MockVolatilityPriceOracleContract,
 } from "../typechain"
 import { artifacts, assert, ethers } from "hardhat"
 import { time, expectEvent, BN } from "@openzeppelin/test-helpers"
@@ -28,6 +30,9 @@ const aliceAccount = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
 const bobAccount = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
 
 const PriceOracle: PriceOracleContract = artifacts.require("PriceOracle")
+
+const MockVolatilityPriceOracle: MockVolatilityPriceOracleContract =
+  artifacts.require("MockVolatilityPriceOracle")
 
 const SeriesController: SeriesControllerContract =
   artifacts.require("SeriesController")
@@ -64,6 +69,24 @@ export async function setupPriceOracle(
     mockOracleAddress,
   )
   return deployedPriceOracle
+}
+
+export async function setupMockVolatilityPriceOracle(
+  underlyingAddress: string,
+  priceAddress: string,
+  mockOracleAddress: string,
+): Promise<MockVolatilityPriceOracleInstance> {
+  const deployedMockVolatilityPriceOracle: MockVolatilityPriceOracleInstance =
+    await MockVolatilityPriceOracle.new()
+
+  await deployedMockVolatilityPriceOracle.initialize(ONE_DAY_DURATION)
+
+  await deployedMockVolatilityPriceOracle.addTokenPair(
+    underlyingAddress,
+    priceAddress,
+    mockOracleAddress,
+  )
+  return deployedMockVolatilityPriceOracle
 }
 
 export async function checkBalances(

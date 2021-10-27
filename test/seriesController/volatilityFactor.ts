@@ -3,8 +3,10 @@ import {
   setupPriceOracle,
   getNextFriday8amUTCTimestamp,
   setupAllTestContracts,
+  setupMockVolatilityPriceOracle,
 } from "../util"
 /* global artifacts contract it assert */
+import { BigNumber } from "@ethersproject/bignumber"
 import {
   time,
   expectEvent,
@@ -23,9 +25,11 @@ import {
   MockPriceOracleInstance,
   VolatilityOracleContract,
   MockVolatilityPriceOracleContract,
+  MockVolatilityPriceOracleInstance,
 } from "../../typechain"
 
 let deployedVolatilityOracle
+let deployedMockVolatilityOracle
 
 const MockVolatilityPriceOracle: MockVolatilityPriceOracleContract =
   artifacts.require("MockVolatilityPriceOracle")
@@ -36,7 +40,8 @@ const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
 const PriceOracle: PriceOracleContract = artifacts.require("PriceOracle")
 
 const wbtcDecimals = 8
-const humanCollateralPrice = new BN(21_500 * 10 ** 8) // 22k
+const humanCollateralPrice = new BN(20_500 * 10 ** 8) // 20.5k
+const humanCollateralPrice1 = new BN(21_500 * 10 ** 8) // 21.5k
 
 const humanCollateralPrice2 = new BN(22_000 * 10 ** 8) // 22k
 
@@ -47,10 +52,13 @@ contract("Volatility Factor", (accounts) => {
   const VolatilityOracle: VolatilityOracleContract =
     artifacts.require("VolatilityOracle")
   let deployedPriceOracle: PriceOracleInstance
+  let deployedMockVolatilityPriceOracle: MockVolatilityPriceOracleInstance
   let priceToken: SimpleTokenInstance
   let underlyingToken: SimpleTokenInstance
   let deployedMockPriceOracle: MockPriceOracleInstance
   let nextFriday8amUTC: number
+
+  let PERIOD = 86400
 
   before(async () => {
     // Create a token for the underlying asset
@@ -65,10 +73,11 @@ contract("Volatility Factor", (accounts) => {
   beforeEach(async () => {
     // create the price oracle fresh for each test
     deployedMockPriceOracle = await MockPriceOracle.new(wbtcDecimals)
-    await deployedMockPriceOracle.setLatestAnswer(humanCollateralPrice)
+
+    await deployedMockPriceOracle.setLatestAnswer(humanCollateralPrice2)
 
     nextFriday8amUTC = getNextFriday8amUTCTimestamp(await now())
-    deployedPriceOracle = await setupPriceOracle(
+    deployedMockVolatilityPriceOracle = await setupMockVolatilityPriceOracle(
       underlyingToken.address,
       priceToken.address,
       deployedMockPriceOracle.address,
@@ -76,68 +85,159 @@ contract("Volatility Factor", (accounts) => {
 
     const volatility = await ethers.getContractFactory("VolatilityOracle", {})
 
+    const MockVolatility = await ethers.getContractFactory(
+      "MockVolatilityOracle",
+      {},
+    )
+
     deployedVolatilityOracle = await volatility.deploy(
+      PERIOD,
+      deployedMockVolatilityPriceOracle.address,
       90,
-      deployedPriceOracle.address,
+    )
+    deployedMockVolatilityOracle = await MockVolatility.deploy(
+      PERIOD,
+      deployedMockVolatilityPriceOracle.address,
+      90,
     )
   })
   describe("Successes", async () => {
-    it("Tries to Execute a BTokenBuy Exchange", async () => {
-      let timestamp = Date.now() - 86400000
+    // it("Tries to Execute a BTokenBuy Exchange", async () => {
+    //   const now = new Date();
+    //   const year = now.getUTCFullYear();
+    //   const month = now.getUTCMonth();
+    //   const day = now.getUTCDate();
+    //   const hour = now.getUTCHours();
 
-      timestamp = timestamp / 1000
+    //   const todayUTC= new Date();
+    //   todayUTC.setDate(day); // +1 because my logic is to get "tomorrow"
+    //   todayUTC.setUTCFullYear(year);
+    //   todayUTC.setMonth(month);
+    //   todayUTC.setUTCHours(8);
+    //   todayUTC.setUTCMinutes(0);
+    //   todayUTC.setUTCSeconds(0);
+    //   todayUTC.setUTCMilliseconds(0)
 
-      timestamp = parseInt(
-        await (
-          await deployedPriceOracle.get8amWeeklyOrDailyAligned(
-            parseInt(timestamp.toString()),
-          )
-        ).toString(),
-      )
+    //   console.log(todayUTC.getTime());
 
-      await deployedPriceOracle.setSettlementPriceForDate(
+    //   let timestamp = todayUTC.getTime() - (86400000 * 2)
+    //   let timestamp2 = todayUTC.getTime() - 86400000
+
+    //   timestamp = timestamp / 1000
+    //   timestamp2 = timestamp2 / 1000
+
+    //   console.log(timestamp2);
+    //   console.log(timestamp);
+
+    //   timestamp = parseInt(
+    //     await (
+    //       await deployedMockVolatilityPriceOracle.get8amWeeklyOrDailyAligned(
+    //         parseInt(timestamp.toString()),
+    //       )
+    //     ).toString(),
+    //   )
+
+    //   timestamp2 = parseInt(
+    //     await (
+    //       await deployedMockVolatilityPriceOracle.get8amWeeklyOrDailyAligned(
+    //         parseInt(timestamp2.toString()),
+    //       )
+    //     ).toString(),
+    //   )
+
+    //   await deployedMockVolatilityPriceOracle.setSettlementPriceOnDate(
+    //     underlyingToken.address,
+    //     priceToken.address,
+    //     timestamp,
+    //     humanCollateralPrice
+    //   )
+
+    //   await deployedMockVolatilityPriceOracle.setSettlementPriceOnDate(
+    //     underlyingToken.address,
+    //     priceToken.address,
+    //     timestamp2,
+    //     humanCollateralPrice1
+    //   )
+
+    //   // await deployed.setSampleVariance(
+    //   //   underlyingToken.address,
+    //   //   priceToken.address,
+    //   //   1,
+    //   //   timestamp2,
+    //   //   2469261,
+    //   // )
+
+    //   await deployedVolatilityOracle.updateSampleVariance(
+    //     underlyingToken.address,
+    //     priceToken.address
+    //   )
+
+    //   await deployedMockPriceOracle.setLatestAnswer(humanCollateralPrice2)
+
+    //   await deployedMockVolatilityPriceOracle.setSettlementPrice(
+    //     underlyingToken.address,
+    //     priceToken.address,
+    //   )
+
+    //   const newPriceTuple = await deployedMockVolatilityPriceOracle.getSettlementPrice(
+    //     underlyingToken.address,
+    //     priceToken.address,
+    //     timestamp,
+    //   )
+    //   // console.log(newPriceTuple)
+    //   // assert.equal(true, newPriceTuple[0])
+    //   // assert.equal(
+    //   //   newPriceTuple[1].toString(),
+    //   //   humanCollateralPrice.toString(),
+    //   //   "incorrect settlement price set",
+    //   // )
+    //   // await deployedVolatilityOracle.updateSampleVariance(
+    //   //   underlyingToken.address,
+    //   //   priceToken.address
+    //   // )
+
+    //   console.log(
+    //     await deployedVolatilityOracle.annualizedVol(
+    //       underlyingToken.address,
+    //       priceToken.address,
+    //     ),
+    //   )
+    // })
+
+    it("updates the vol", async function () {
+      const values = [
+        BigNumber.from("2000000000"),
+        BigNumber.from("2100000000"),
+        BigNumber.from("2200000000"),
+        BigNumber.from("2150000000"),
+      ]
+      const stdevs = [
+        BigNumber.from("0"),
+        BigNumber.from("2439508"),
+        BigNumber.from("2248393"),
+        BigNumber.from("3068199"),
+      ]
+
+      await deployedMockVolatilityOracle.initPool(
         underlyingToken.address,
         priceToken.address,
-        timestamp,
       )
 
-      await deployedMockPriceOracle.setLatestAnswer(humanCollateralPrice2)
-
-      await deployedPriceOracle.setSettlementPrice(
-        underlyingToken.address,
-        priceToken.address,
-      )
-
-      const newPriceTuple = await deployedPriceOracle.getSettlementPrice(
-        underlyingToken.address,
-        priceToken.address,
-        timestamp,
-      )
-      console.log(newPriceTuple)
-      assert.equal(true, newPriceTuple[0])
-      assert.equal(
-        newPriceTuple[1].toString(),
-        humanCollateralPrice.toString(),
-        "incorrect settlement price set",
-      )
-      await deployedVolatilityOracle.setSampleVariance(
-        underlyingToken.address,
-        priceToken.address,
-        1,
-        timestamp,
-        4762804,
-      )
-      await deployedVolatilityOracle.updateSampleVariance(
-        underlyingToken.address,
-        priceToken.address,
-      )
-
-      console.log(
-        await deployedVolatilityOracle.annualizedVol(
+      for (let i = 0; i < values.length; i++) {
+        await deployedMockPriceOracle.setLatestAnswer(values[i].toString())
+        await deployedMockVolatilityOracle.setPrice(values[i])
+        const topOfPeriod = (await getTopOfPeriod()) + PERIOD
+        await time.increaseTo(topOfPeriod)
+        await deployedMockVolatilityOracle.mockCommit(
           underlyingToken.address,
           priceToken.address,
-        ),
-      )
+        )
+        let stdev = await deployedMockVolatilityOracle.vol(
+          underlyingToken.address,
+          priceToken.address,
+        )
+        assert.equal(stdev.toString(), stdevs[i].toString())
+      }
     })
   })
   // const ownerAccount = accounts[0]
@@ -179,4 +279,17 @@ contract("Volatility Factor", (accounts) => {
   //     "Vol factor should be set",
   //   )
   // })
+
+  const getTopOfPeriod = async () => {
+    const latestTimestamp = Date.now()
+    let topOfPeriod: number
+
+    const rem = latestTimestamp % PERIOD
+    if (rem < Math.floor(PERIOD / 2)) {
+      topOfPeriod = latestTimestamp - rem + PERIOD
+    } else {
+      topOfPeriod = latestTimestamp + rem + PERIOD
+    }
+    return topOfPeriod
+  }
 })
