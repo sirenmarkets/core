@@ -21,7 +21,7 @@ contract VolatilityOracle is DSMath {
     uint32 public immutable period;
     uint256 public immutable windowSize;
     uint256 public immutable annualizationConstant;
-    uint256 internal constant commitPhaseDuration = 1800; // 30 minutes from every period
+    uint256 internal constant commitPhaseDuration = 3600; // 1 hour from every period
 
     /**
      * Storage
@@ -87,7 +87,6 @@ contract VolatilityOracle is DSMath {
      * @notice Initialized pool observation window
      */
     function initPool(address underlyingToken, address priceToken) external {
-        console.log("INSIDE OF HERE");
         require(
             observations[underlyingToken][priceToken].length == 0,
             "Pool initialized"
@@ -105,6 +104,7 @@ contract VolatilityOracle is DSMath {
         );
 
         (uint32 commitTimestamp, uint32 gapFromPeriod) = secondsFromPeriod();
+
         require(gapFromPeriod < commitPhaseDuration, "Not commit phase");
 
         uint256 price = IPriceOracle(priceOracleAddress).getCurrentPrice(
@@ -114,7 +114,7 @@ contract VolatilityOracle is DSMath {
         uint256 _lastPrice = lastPrices[underlyingToken][priceToken];
         uint256 periodReturn = _lastPrice > 0 ? wdiv(price, _lastPrice) : 0;
 
-        require(price > 0, "Price from twap is 0");
+        require(price > 0, "Price from price oracle is 0");
 
         // logReturn is in 10**18
         // we need to scale it down to 10**8
@@ -215,40 +215,6 @@ contract VolatilityOracle is DSMath {
 
         return _timeWeightedAverageTick;
     }
-
-    // /**
-    //  * @notice Gets the tick cumulatives which is the tick * seconds
-    //  * @return oldestTickCumulative is the tick cumulative at last index of the observations array
-    //  * @return newestTickCumulative is the tick cumulative at the first index of the observations array
-    //  * @return duration is the TWAP duration determined by the difference between newest-oldest
-    //  */
-    // function getTickCumulatives(address underlyingToken, address priceToken])
-    //     private
-    //     view
-    //     returns (
-    //         int56 oldestTickCumulative,
-    //         int56 newestTickCumulative,
-    //         uint32 duration
-    //     )
-    // {
-    //     IUniswapV3Pool uniPool = IUniswapV3Pool(pool);
-
-    //     (, , uint16 newestIndex, uint16 observationCardinality, , , ) =
-    //         uniPool.slot0();
-
-    //     // Get the latest observation
-    //     (uint32 newestTimestamp, int56 _newestTickCumulative, , ) =
-    //         uniPool.observations(newestIndex);
-
-    //     // Get the oldest observation
-    //     uint256 oldestIndex = (newestIndex + 1) % observationCardinality;
-    //     (uint32 oldestTimestamp, int56 _oldestTickCumulative, , ) =
-    //         uniPool.observations(oldestIndex);
-
-    //     uint32 _duration = newestTimestamp - oldestTimestamp;
-
-    //     return (_oldestTickCumulative, _newestTickCumulative, _duration);
-    // }
 
     /**
      * @notice Returns the closest period from the current block.timestamp

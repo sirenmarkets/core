@@ -4,8 +4,13 @@ pragma solidity >=0.7.3 <=0.8.0;
 import {SignedSafeMath} from "@openzeppelin/contracts/utils/math/SignedSafeMath.sol";
 import {Math} from "./Math.sol";
 
+/// @author Ken Chan
+///         Chuddy
+
 // REFERENCE
 // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
+// This implementation of this algorithm was created by Ribon Finance github linke below
+// https://github.com/ribbon-finance/rvol/blob/master/contracts/libraries/Welford.sol
 library Welford {
     using SignedSafeMath for int256;
 
