@@ -27,6 +27,7 @@ interface ISeriesController {
 
     /// @notice All data pertaining to an individual series
     struct Series {
+        uint64 seriesId;
         uint40 expirationDate;
         bool isPutOption;
         ISeriesController.Tokens tokens;

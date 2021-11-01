@@ -46,7 +46,7 @@ interface IAmmDataProvider {
         uint64[] memory openSeries,
         address ammAddress,
         uint256 collateralTokenBalance,
-        uint256 impliedVolatility
+        uint256[] memory impliedVolatility
     ) external view returns (uint256);
 
     function getPriceForExpiredSeries(uint64 seriesId, uint256 volatilityFactor)
@@ -59,7 +59,7 @@ interface IAmmDataProvider {
         uint64[] memory openSeries,
         uint256 collateralBalance,
         address ammAddress,
-        uint256 impliedVolatility
+        uint256[] memory impliedVolatility
     ) external view returns (uint256);
 
     function getRedeemableCollateral(

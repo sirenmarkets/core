@@ -357,7 +357,7 @@ contract AmmDataProvider is IAmmDataProvider {
         uint64[] memory openSeries,
         address ammAddress,
         uint256 collateralTokenBalance,
-        uint256 impliedVolatility
+        uint256[] memory impliedVolatility
     ) external view override returns (uint256) {
         if (lpTokenAmount == 0) return 0;
         if (lpTokenSupply == 0) return 0;
@@ -397,7 +397,7 @@ contract AmmDataProvider is IAmmDataProvider {
 
                 uint256 bTokenPrice = getPriceForExpiredSeries(
                     seriesId,
-                    impliedVolatility
+                    impliedVolatility[i]
                 );
 
                 uint256 collateralAmountB = optionTokenGetCollateralOut(
@@ -486,7 +486,7 @@ contract AmmDataProvider is IAmmDataProvider {
         uint64[] memory openSeries,
         uint256 collateralBalance,
         address ammAddress,
-        uint256 impliedVolatility
+        uint256[] memory impliedVolatility
     ) external view override returns (uint256) {
         // Note! This function assumes the underlyingPrice is a valid series
         // price in units of underlyingToken/priceToken. If the onchain price
@@ -533,7 +533,7 @@ contract AmmDataProvider is IAmmDataProvider {
                 uint256 bPrice = getPriceForExpiredSeriesInternal(
                     series,
                     underlyingPrice,
-                    impliedVolatility
+                    impliedVolatility[i]
                 );
                 // wPrice = 1 - bPrice
                 uint256 wPrice = uint256(1e18) - bPrice;

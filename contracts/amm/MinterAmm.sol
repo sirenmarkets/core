@@ -14,6 +14,7 @@ import "./IAddSeriesToAmm.sol";
 import "./IAmmDataProvider.sol";
 import "./InitializeableAmm.sol";
 import "./MinterAmmStorage.sol";
+import "../series/IVolatilityOracle.sol";
 
 /// This is an implementation of a minting/redeeming AMM (Automated Market Maker) that trades a list of series with the same
 /// collateral token. For example, a single WBTC Call AMM contract can trade all strikes of WBTC calls using
@@ -73,7 +74,7 @@ contract MinterAmm is
     IAddSeriesToAmm,
     OwnableUpgradeable,
     Proxiable,
-    MinterAmmStorageV1
+    MinterAmmStorageV2
 {
     /// @dev NOTE: No local variables should be added here.  Instead see MinterAmmStorageV*.sol
 
@@ -129,6 +130,7 @@ contract MinterAmm is
     );
 
     /// Emitted when the owner updates volatilityFactor
+    /// TODO: update this to emmit the series id and the volatility
     event VolatilityFactorUpdated(uint256 newVolatilityFactor);
 
     /// Emitted when a new sirenPriceOracle gets set on an upgraded AMM
@@ -260,10 +262,6 @@ contract MinterAmm is
             IERC20Lib(address(collateralToken)).decimals()
         );
 
-        // Set default volatility
-        // 0.4 * volInSeconds * 1e18
-        volatilityFactor = 4000e10;
-
         __Ownable_init();
 
         emit AMMInitialized(
@@ -274,12 +272,14 @@ contract MinterAmm is
     }
 
     /// The owner can set the volatility factor used to price the options
-    function setVolatilityFactor(uint256 _volatilityFactor) public onlyOwner {
-        // Check lower bounds: 500e10 corresponds to ~7% annualized volatility
-        require(_volatilityFactor > 500e10, "E09");
-
-        volatilityFactor = _volatilityFactor;
-        emit VolatilityFactorUpdated(_volatilityFactor);
+    function getVolatility(uint64 _seriesId) public view returns (uint256) {
+        return
+            uint256(
+                IVolatilityOracle(volatilityOracle).annualizedVol(
+                    address(underlyingToken),
+                    address(priceToken)
+                )
+            );
     }
 
     /// The owner can set the trade fee params - if any are set to 0/0x0 then trade fees are disabled
@@ -605,7 +605,7 @@ contract MinterAmm is
                 getAllSeries(),
                 collateralToken.balanceOf(address(this)),
                 address(this),
-                volatilityFactor
+                getAllVolatilities()
             );
     }
 
@@ -621,6 +621,21 @@ contract MinterAmm is
             series[i] = uint64(openSeries.at(i));
         }
         return series;
+    }
+
+    /// @notice List the Volatilies price each series trade
+    /// @notice Warning: there is no guarantee that the indexes
+    /// of any individual Series will remain constant between blocks. At any
+    /// point the indexes of a particular Series may change, so do not rely on
+    /// the indexes obtained from this function
+    /// @return an array of all the series IDs
+    function getAllVolatilities() public view returns (uint256[] memory) {
+        uint256[] memory volatilies = new uint256[](openSeries.length());
+        for (uint256 i = 0; i < openSeries.length(); i++) {
+            uint64 seriesId = uint64(openSeries.at(i));
+            volatilies[i] = getVolatility(seriesId);
+        }
+        return volatilies;
     }
 
     /// @notice Get a specific Series that this AMM trades
@@ -686,7 +701,7 @@ contract MinterAmm is
         return
             IAmmDataProvider(ammDataProvider).getPriceForExpiredSeries(
                 seriesId,
-                volatilityFactor
+                getVolatility(seriesId)
             );
     }
 
@@ -705,7 +720,7 @@ contract MinterAmm is
                 series.expirationDate - block.timestamp,
                 series.strikePrice,
                 underlyingPrice,
-                volatilityFactor,
+                getVolatility(series.seriesId),
                 series.isPutOption
             );
     }
@@ -1252,7 +1267,7 @@ contract MinterAmm is
                 getAllSeries(),
                 address(this),
                 collateralToken.balanceOf(address(this)),
-                volatilityFactor
+                getAllVolatilities()
             );
     }
 

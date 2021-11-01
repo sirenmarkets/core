@@ -7,7 +7,6 @@ import {Welford} from "../libraries/Welford.sol";
 import {Math} from "../libraries/Math.sol";
 import {PRBMathSD59x18} from "../libraries/PRBMathSD59x18.sol";
 import "./IPriceOracle.sol";
-
 import "hardhat/console.sol";
 
 contract VolatilityOracle is DSMath {

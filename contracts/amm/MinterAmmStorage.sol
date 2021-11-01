@@ -33,7 +33,7 @@ contract MinterAmmStorageV1 {
     /// @dev Fees on trading
     uint16 public tradeFeeBasisPoints;
 
-    /// Volatility factor used in the black scholes approximation - can be updated by the owner */
+    // volatilityFactor is depricated and replaced with seriesVolatilities
     uint256 public volatilityFactor;
 
     /// @dev Flag to ensure initialization can only happen once
@@ -77,8 +77,17 @@ contract MinterAmmStorageV1 {
     address public lightAirswapAddress;
 }
 
+contract MinterAmmStorageV2 is MinterAmmStorageV1 {
+    /// @dev Stores volatility mapped to each series
+    ///Replaces volatilityFactor
+    mapping(uint64 => uint256) public seriesVolatilities;
+
+    /// @dev The address for the VolatilityOracle
+    address public volatilityOracle;
+}
+
 // Next version example:
-/// contract MinterAmmStorageV2 is MinterAmmStorageV1 {
+/// contract MinterAmmStorageV3 is MinterAmmStorageV2 {
 ///   address public myAddress;
 /// }
-/// Then... MinterAmm should inherit from MinterAmmStorageV2
+/// Then... MinterAmm should inherit from MinterAmmStorageV3
