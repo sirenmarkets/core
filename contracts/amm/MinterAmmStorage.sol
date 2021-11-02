@@ -84,6 +84,8 @@ contract MinterAmmStorageV2 is MinterAmmStorageV1 {
 
     /// @dev The address for the VolatilityOracle
     address public volatilityOracle;
+
+    address public blackScholesController;
 }
 
 // Next version example:

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-pragma solidity >=0.5.0 <=0.8.0;
+pragma solidity 0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpgradeable.sol";
@@ -725,7 +725,7 @@ contract MinterAmm is
         uint256 call;
         (call, put) = IBlackScholes(blackScholesController).optionPrices(
             series.expirationDate - block.timestamp,
-            volatilityFactor,
+            getVolatility(series.seriesId),
             underlyingPrice,
             series.strikePrice,
             0
@@ -735,28 +735,6 @@ contract MinterAmm is
         } else {
             return ((call * 1e18) / underlyingPrice);
         }
-    }
-
-    /// @dev Calculate price of bToken based on Black-Scholes approximation by Brennan-Subrahmanyam from their paper
-    /// "A Simple Formula to Compute the Implied Standard Deviation" (1988).
-    /// Formula: 0.4 * ImplVol * sqrt(timeUntilExpiry) * priceRatio
-    ///
-    /// Returns premium in units of percentage of collateral locked in a contract for both calls and puts
-    function calcPrice(
-        uint256 timeUntilExpiry,
-        uint256 strike,
-        uint256 currentPrice,
-        uint256 volatility,
-        bool isPutOption
-    ) public view returns (uint256) {
-        return
-            IAmmDataProvider(ammDataProvider).calcPrice(
-                timeUntilExpiry,
-                strike,
-                currentPrice,
-                volatility,
-                isPutOption
-            );
     }
 
     /// @dev Calculate the fee amount for a buy/sell
