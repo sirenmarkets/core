@@ -818,6 +818,7 @@ contract SeriesController is
             // add to the array so the Series data can be accessed in the future
             allSeries.push(
                 createSeriesInternal(
+                    _latestIndex,
                     _expirationDates[i],
                     _isPutOption,
                     _tokens,
@@ -862,6 +863,7 @@ contract SeriesController is
 
     /// @dev Sanitize and set the parameters for a new Series
     function createSeriesInternal(
+        uint64 _seriesId,
         uint40 _expirationDate,
         bool _isPutOption,
         ISeriesController.Tokens calldata _tokens,
@@ -886,6 +888,7 @@ contract SeriesController is
 
         return
             ISeriesController.Series(
+                _seriesId,
                 _expirationDate,
                 _isPutOption,
                 _tokens,
