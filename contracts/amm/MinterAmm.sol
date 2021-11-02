@@ -710,33 +710,6 @@ contract MinterAmm is
             );
     }
 
-    function getPriceForSeriesInternal(
-        ISeriesController.Series memory series,
-        uint256 underlyingPrice
-    ) private view returns (uint256) {
-        // Note! This function assumes the price obtained from the onchain oracle
-        // in getCurrentUnderlyingPrice is a valid series price in units of
-        // underlyingToken/priceToken. If the onchain price oracle's value
-        // were to drift from the true series price, then the bToken price
-        // we calculate here would also drift, and will result in undefined
-        // behavior for any functions which call getPriceForSeries
-
-        uint256 put;
-        uint256 call;
-        (call, put) = IBlackScholes(blackScholesController).optionPrices(
-            series.expirationDate - block.timestamp,
-            getVolatility(series.seriesId),
-            underlyingPrice,
-            series.strikePrice,
-            0
-        );
-        if (series.isPutOption == true) {
-            return ((put * 1e18) / underlyingPrice);
-        } else {
-            return ((call * 1e18) / underlyingPrice);
-        }
-    }
-
     /// @dev Calculate the fee amount for a buy/sell
     /// If params are not set, the fee amount will be 0
     /// See contract comments above for logic explanation of fee calculations.
