@@ -2,11 +2,9 @@
 
 pragma solidity 0.8.0;
 
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpgradeable.sol";
-import "../series/ISeriesController.sol";
+import "../libraries/Math.sol";
 import "../proxy/Proxiable.sol";
 import "../proxy/Proxy.sol";
 import "../libraries/Math.sol";
@@ -15,11 +13,11 @@ import "./IAmmDataProvider.sol";
 import "./IAddSeriesToAmm.sol";
 import "./IBlackScholes.sol";
 import "../series/IPriceOracle.sol";
-import "../token/ISimpleToken.sol";
+import "../swap/ILight.sol";
 import "../token/IERC20Lib.sol";
 import "../oz/EnumerableSet.sol";
 import "../series/SeriesLibrary.sol";
-import "hardhat/console.sol";
+import "./MinterAmmStorage.sol";
 
 /// This is an implementation of a minting/redeeming AMM (Automated Market Maker) that trades a list of series with the same
 /// collateral token. For example, a single WBTC Call AMM contract can trade all strikes of WBTC calls using
@@ -78,59 +76,16 @@ contract MinterAmm is
     ERC1155HolderUpgradeable,
     IAddSeriesToAmm,
     OwnableUpgradeable,
-    Proxiable
+    Proxiable,
+    MinterAmmStorageV1
 {
+    /// @dev NOTE: No local variables should be added here.  Instead see MinterAmmStorageV*.sol
+
     /// Use safe ERC20 functions for any token transfers since people don't follow the ERC20 standard */
     using SafeERC20 for IERC20;
     using SafeERC20 for ISimpleToken;
 
     using EnumerableSet for EnumerableSet.UintSet;
-
-    /// @dev The token contract that will track lp ownership of the AMM
-    ISimpleToken public lpToken;
-
-    /// @dev The ERC20 tokens used by all the Series associated with this AMM
-    IERC20 public underlyingToken;
-    IERC20 public priceToken;
-    IERC20 public collateralToken;
-
-    /// @dev The registry which the AMM will use to lookup individual Series
-    ISeriesController public seriesController;
-
-    /// @notice The contract used to mint the option tokens
-    IERC1155 public erc1155Controller;
-
-    /// @dev Fees on trading
-    uint16 public tradeFeeBasisPoints;
-
-    /// Volatility factor used in the black scholes approximation - can be updated by the owner */
-    uint256 public volatilityFactor;
-
-    /// @dev Flag to ensure initialization can only happen once
-    bool initialized = false;
-
-    uint256 public constant MINIMUM_TRADE_SIZE = 1000;
-
-    /// @dev A price oracle contract used to get onchain price data
-    address private sirenPriceOracle;
-
-    /// @dev Collection of ids of open series
-    /// @dev If we ever re-deploy MinterAmm we need to check that the EnumerableSet implementation hasn’t changed,
-    /// because we rely on undocumented implementation details (see Note in MinterAmm.claimAllExpiredTokens on
-    /// removing series)
-    EnumerableSet.UintSet private openSeries;
-
-    /// @dev Max fee basis points on the value of the option
-    uint16 public maxOptionFeeBasisPoints;
-
-    /// @dev Address where fees are sent on each trade
-    address public feeDestinationAddress;
-
-    /// @dev The contract used to make pricing calculations for the MinterAmm
-    address public ammDataProvider;
-
-    /// @dev The contract used to make pricing calculations for the MinterAmm
-    address public blackScholesController;
 
     /// Emitted when the amm is created
     event AMMInitialized(
@@ -183,6 +138,9 @@ contract MinterAmm is
     /// Emitted when a new sirenPriceOracle gets set on an upgraded AMM
     event NewSirenPriceOracle(address newSirenPriceOracle);
 
+    /// Emitted when a new ammDataProviders gets set on an upgraded AMM
+    event NewAmmDataProvider(address newAmmDataProvider);
+
     /// @notice Emitted when an expired series has been removed
     event SeriesEvicted(uint64 seriesId);
 
@@ -195,6 +153,9 @@ contract MinterAmm is
 
     // Emitted when fees are paid
     event TradeFeesPaid(address indexed feePaidTo, uint256 feeAmount);
+
+    // Emitted when owner updates
+    event NewLightAirswapAddress(address newLightAirswapAddress);
 
     // Error codes. We only use error code because we need to reduce the size of this contract's deployed
     // bytecode in order for it to be deployable
@@ -213,6 +174,7 @@ contract MinterAmm is
     // E13: Series does not exist on this AMM
     // E14: Invalid _newAmmDataProvider
     // E15: Invalid _ammDataProvider
+    // E16: Invalid lightAirswapAddress
 
     /// @dev Require minimum trade size to prevent precision errors at low values
     modifier minTradeSize(uint256 tradeSize) {
@@ -221,6 +183,25 @@ contract MinterAmm is
             "Buy/Sell amount below min size"
         );
         _;
+    }
+
+    /// @dev Prevents a contract from calling itself, directly or indirectly.
+    /// Calling a `nonReentrant` function from another `nonReentrant`
+    /// function is not supported. It is possible to prevent this from happening
+    /// by making the `nonReentrant` function external, and make it call a
+    /// `private` function that does the actual work.
+    modifier nonReentrant() {
+        // On the first call to nonReentrant, _notEntered will be true
+        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
+
+        // Any calls to nonReentrant after this point will fail
+        _status = _ENTERED;
+
+        _;
+
+        // By storing the original value once again, a refund is triggered (see
+        // https://eips.ethereum.org/EIPS/eip-2200)
+        _status = _NOT_ENTERED;
     }
 
     /// Initialize the contract, and create an lpToken to track ownership
@@ -345,6 +326,21 @@ contract MinterAmm is
         require(_newAmmDataProvider != address(0x0), "E14");
 
         ammDataProvider = _newAmmDataProvider;
+
+        emit NewAmmDataProvider(_newAmmDataProvider);
+    }
+
+    /// @notice update the address for the airswap lib used for direct buys
+    /// @param _lightAirswapAddress the new address to use
+    /// @dev only the admin address may call this function
+    /// @dev setting the address to 0x0 will disable this functionality
+    function updateLightAirswapAddress(address _lightAirswapAddress)
+        external
+        onlyOwner
+    {
+        lightAirswapAddress = _lightAirswapAddress;
+
+        emit NewLightAirswapAddress(_lightAirswapAddress);
     }
 
     /// LP allows collateral to be used to mint new options
@@ -352,6 +348,7 @@ contract MinterAmm is
     /// The amount of lpTokens is calculated based on total pool value
     function provideCapital(uint256 collateralAmount, uint256 lpTokenMinimum)
         external
+        nonReentrant
     {
         // Move collateral into this contract
         collateralToken.safeTransferFrom(
@@ -407,7 +404,7 @@ contract MinterAmm is
         uint256 lpTokenAmount,
         bool sellTokens,
         uint256 collateralMinimum
-    ) public {
+    ) public nonReentrant {
         require(!sellTokens || collateralMinimum > 0, "E12");
         // First get starting numbers
         uint256 redeemerCollateralBalance = collateralToken.balanceOf(
@@ -607,71 +604,14 @@ contract MinterAmm is
         view
         returns (uint256)
     {
-        // Note! This function assumes the price obtained from the onchain oracle
-        // in getCurrentUnderlyingPrice is a valid series price in units of
-        // collateralToken/paymentToken. If the onchain price oracle's value
-        // were to drift from the true series price, then the bToken price
-        // we calculate here would also drift, and will result in undefined
-        // behavior for any functions which call getTotalPoolValue
-        uint256 underlyingPrice = getCurrentUnderlyingPrice();
-        // First, determine the value of all residual b/wTokens
-        uint256 activeTokensValue = 0;
-        uint256 expiredTokensValue = 0;
-        for (uint256 i = 0; i < openSeries.length(); i++) {
-            uint64 seriesId = uint64(openSeries.at(i));
-            ISeriesController.Series memory series = seriesController.series(
-                seriesId
-            );
-
-            uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-            uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
-
-            uint256 bTokenBalance = erc1155Controller.balanceOf(
+        return
+            IAmmDataProvider(ammDataProvider).getTotalPoolValue(
+                includeUnclaimed,
+                getAllSeries(),
+                collateralToken.balanceOf(address(this)),
                 address(this),
-                bTokenIndex
+                volatilityFactor
             );
-            uint256 wTokenBalance = erc1155Controller.balanceOf(
-                address(this),
-                wTokenIndex
-            );
-
-            if (
-                seriesController.state(seriesId) ==
-                ISeriesController.SeriesState.OPEN
-            ) {
-                // value all active bTokens and wTokens at current prices
-                uint256 bPrice = getPriceForSeriesInternal(
-                    series,
-                    underlyingPrice
-                );
-                // wPrice = 1 - bPrice
-                uint256 wPrice = uint256(1e18) - bPrice;
-
-                uint256 tokensValueCollateral = seriesController
-                    .getCollateralPerOptionToken(
-                        seriesId,
-                        (bTokenBalance * bPrice + wTokenBalance * wPrice) / 1e18
-                    );
-
-                activeTokensValue += tokensValueCollateral;
-            } else if (
-                includeUnclaimed &&
-                seriesController.state(seriesId) ==
-                ISeriesController.SeriesState.EXPIRED
-            ) {
-                // Get collateral token locked in the series
-                expiredTokensValue += getRedeemableCollateral(
-                    seriesId,
-                    wTokenBalance,
-                    bTokenBalance
-                );
-            }
-        }
-
-        // Add collateral value
-        uint256 collateralBalance = collateralToken.balanceOf(address(this));
-
-        return activeTokensValue + expiredTokensValue + collateralBalance;
     }
 
     /// @notice List the Series ids this AMM trades
@@ -680,7 +620,7 @@ contract MinterAmm is
     /// point the indexes of a particular Series may change, so do not rely on
     /// the indexes obtained from this function
     /// @return an array of all the series IDs
-    function getAllSeries() external view returns (uint64[] memory) {
+    function getAllSeries() public view returns (uint64[] memory) {
         uint64[] memory series = new uint64[](openSeries.length());
         for (uint256 i = 0; i < openSeries.length(); i++) {
             series[i] = uint64(openSeries.at(i));
@@ -749,9 +689,9 @@ contract MinterAmm is
         require(openSeries.contains(seriesId), "E13");
 
         return
-            getPriceForSeriesInternal(
-                seriesController.series(seriesId),
-                getCurrentUnderlyingPrice()
+            IAmmDataProvider(ammDataProvider).getPriceForExpiredSeries(
+                seriesId,
+                volatilityFactor
             );
     }
 
@@ -819,6 +759,89 @@ contract MinterAmm is
         return 0;
     }
 
+    /// @dev Allows an owner to invoke a Direct Buy against the AMM
+    /// A direct buy allows a signer wallet to predetermine a number of option
+    ///     tokens to buy (senderAmount) with the specified number of collateral payment tokens (signerTokens).
+    /// The direct buy will first use the collateral in the AMM to mint the options and
+    ///     then execute a swap with the signer using Airswap protocol.
+    /// Only the owner should be allowed to execute a direct buy as this is a "guarded" call.
+    /// Sender address in the Airswap protocol will be this contract address.
+    function bTokenDirectBuy(
+        uint64 seriesId,
+        uint256 nonce, // Nonce on the airswap sig for the signer
+        uint256 expiry, // Date until swap is valid
+        address signerWallet, // Address of the buyer (signer)
+        uint256 signerAmount, // Amount of collateral that will be paid for options by the signer
+        uint256 senderAmount, // Amount of options to buy from the AMM
+        uint8 v, // Sig of signer wallet for Airswap
+        bytes32 r, // Sig of signer wallet for Airswap
+        bytes32 s // Sig of signer wallet for Airswap
+    ) external onlyOwner nonReentrant {
+        require(openSeries.contains(seriesId), "E13");
+        require(lightAirswapAddress != address(0x0), "E16");
+
+        // Get the bToken balance of the AMM
+        uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
+        uint256 bTokenBalance = erc1155Controller.balanceOf(
+            address(this),
+            bTokenIndex
+        );
+
+        // Mint required number of bTokens for the direct buy (if required)
+        if (bTokenBalance < senderAmount) {
+            // Approve the collateral to mint bTokenAmount of new options
+            uint256 bTokenCollateralAmount = seriesController
+                .getCollateralPerOptionToken(
+                    seriesId,
+                    senderAmount - bTokenBalance
+                );
+
+            collateralToken.approve(
+                address(seriesController),
+                bTokenCollateralAmount
+            );
+
+            // If the AMM does not have enough collateral to mint tokens, expect revert.
+            seriesController.mintOptions(
+                seriesId,
+                senderAmount - bTokenBalance
+            );
+        }
+
+        // Approve the bTokens to be swapped
+        erc1155Controller.setApprovalForAll(lightAirswapAddress, true);
+
+        // Now that the contract has enough bTokens, swap with the buyer
+        ILight(lightAirswapAddress).swap(
+            nonce, // Signer's nonce
+            expiry, // Expiration date of swap
+            signerWallet, // Buyer of the options
+            address(collateralToken), // Payment made by buyer
+            signerAmount, // Amount of collateral paid for options
+            address(erc1155Controller), // Address of erc1155 contract
+            bTokenIndex, // Token ID for options
+            senderAmount, // Num options to sell
+            v,
+            r,
+            s
+        ); // Sig of signer for swap
+
+        // Remove approval
+        erc1155Controller.setApprovalForAll(lightAirswapAddress, false);
+
+        // Calculate trade fees if they are enabled with all params set
+        uint256 tradeFee = calculateFees(senderAmount, signerAmount);
+
+        // If fees were taken, move them to the destination
+        if (tradeFee > 0) {
+            collateralToken.safeTransfer(feeDestinationAddress, tradeFee);
+            emit TradeFeesPaid(feeDestinationAddress, tradeFee);
+        }
+
+        // Emit the event
+        emit BTokensBought(signerWallet, seriesId, senderAmount, signerAmount);
+    }
+
     /// @dev Buy bToken of a given series.
     /// We supply series index instead of series address to ensure that only supported series can be traded using this AMM
     /// collateralMaximum is used for slippage protection.
@@ -827,7 +850,7 @@ contract MinterAmm is
         uint64 seriesId,
         uint256 bTokenAmount,
         uint256 collateralMaximum
-    ) external minTradeSize(bTokenAmount) returns (uint256) {
+    ) external minTradeSize(bTokenAmount) nonReentrant returns (uint256) {
         require(openSeries.contains(seriesId), "E13");
 
         require(
@@ -871,7 +894,10 @@ contract MinterAmm is
         if (bTokenBalance < bTokenAmount) {
             // Approve the collateral to mint bTokenAmount of new options
             uint256 bTokenCollateralAmount = seriesController
-                .getCollateralPerOptionToken(seriesId, bTokenAmount);
+                .getCollateralPerOptionToken(
+                    seriesId,
+                    bTokenAmount - bTokenBalance
+                );
 
             collateralToken.approve(
                 address(seriesController),
@@ -917,7 +943,7 @@ contract MinterAmm is
         uint64 seriesId,
         uint256 bTokenAmount,
         uint256 collateralMinimum
-    ) external minTradeSize(bTokenAmount) returns (uint256) {
+    ) external minTradeSize(bTokenAmount) nonReentrant returns (uint256) {
         require(openSeries.contains(seriesId), "E13");
 
         require(
@@ -1090,7 +1116,7 @@ contract MinterAmm is
         uint64 seriesId,
         uint256 wTokenAmount,
         uint256 collateralMinimum
-    ) external minTradeSize(wTokenAmount) returns (uint256) {
+    ) external minTradeSize(wTokenAmount) nonReentrant returns (uint256) {
         require(openSeries.contains(seriesId), "E13");
 
         require(
@@ -1193,39 +1219,12 @@ contract MinterAmm is
         view
         returns (uint256)
     {
-        uint256 unredeemedCollateral = 0;
-
-        for (uint256 i = 0; i < openSeries.length(); i++) {
-            uint64 seriesId = uint64(openSeries.at(i));
-
-            if (
-                seriesController.state(seriesId) ==
-                ISeriesController.SeriesState.EXPIRED
-            ) {
-                uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-                uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
-
-                // Get the pool's option token balances
-                uint256 bTokenBalance = erc1155Controller.balanceOf(
-                    address(this),
-                    bTokenIndex
+        return
+            IAmmDataProvider(ammDataProvider)
+                .getCollateralValueOfAllExpiredOptionTokens(
+                    getAllSeries(),
+                    address(this)
                 );
-                uint256 wTokenBalance = erc1155Controller.balanceOf(
-                    address(this),
-                    wTokenIndex
-                );
-
-                // calculate the amount of collateral The AMM would receive by
-                // redeeming this Series' bTokens and wTokens
-                unredeemedCollateral += getRedeemableCollateral(
-                    seriesId,
-                    wTokenBalance,
-                    bTokenBalance
-                );
-            }
-        }
-
-        return unredeemedCollateral;
     }
 
     /// @notice Calculate sale value of pro-rata LP b/wTokens in units of collateral token
@@ -1234,88 +1233,17 @@ contract MinterAmm is
         view
         returns (uint256)
     {
-        if (lpTokenAmount == 0) return 0;
-
         uint256 lpTokenSupply = IERC20Lib(address(lpToken)).totalSupply();
-        if (lpTokenSupply == 0) return 0;
 
-        // Calculate the amount of collateral receivable by redeeming all the expired option tokens
-        uint256 expiredOptionTokenCollateral = getCollateralValueOfAllExpiredOptionTokens();
-
-        // Calculate amount of collateral left in the pool to sell tokens to
-        uint256 totalCollateral = expiredOptionTokenCollateral +
-            collateralToken.balanceOf(address(this));
-
-        // Subtract pro-rata collateral amount to be withdrawn
-        totalCollateral =
-            (totalCollateral * (lpTokenSupply - lpTokenAmount)) /
-            lpTokenSupply;
-
-        // Given remaining collateral calculate how much all tokens can be sold for
-        uint256 collateralLeft = totalCollateral;
-        for (uint256 i = 0; i < openSeries.length(); i++) {
-            uint64 seriesId = uint64(openSeries.at(i));
-
-            if (
-                seriesController.state(seriesId) ==
-                ISeriesController.SeriesState.OPEN
-            ) {
-                uint256 bTokenToSell = (erc1155Controller.balanceOf(
-                    address(this),
-                    SeriesLibrary.bTokenIndex(seriesId)
-                ) * lpTokenAmount) / lpTokenSupply;
-                uint256 wTokenToSell = (erc1155Controller.balanceOf(
-                    address(this),
-                    SeriesLibrary.wTokenIndex(seriesId)
-                ) * lpTokenAmount) / lpTokenSupply;
-
-                uint256 collateralAmountB = optionTokenGetCollateralOutInternal(
-                    seriesId,
-                    bTokenToSell,
-                    collateralLeft,
-                    true
-                );
-                collateralLeft -= collateralAmountB;
-
-                uint256 collateralAmountW = optionTokenGetCollateralOutInternal(
-                    seriesId,
-                    wTokenToSell,
-                    collateralLeft,
-                    false
-                );
-                collateralLeft -= collateralAmountW;
-            }
-        }
-
-        return totalCollateral - collateralLeft;
-    }
-
-    /// @dev Calculate the collateral amount receivable by redeeming the given
-    /// Series' bTokens and wToken
-    /// @param seriesId The index of the Series
-    /// @param wTokenBalance The wToken balance for this Series owned by this AMM
-    /// @param bTokenBalance The bToken balance for this Series owned by this AMM
-    /// @return The total amount of collateral receivable by redeeming the Series' option tokens
-    function getRedeemableCollateral(
-        uint64 seriesId,
-        uint256 wTokenBalance,
-        uint256 bTokenBalance
-    ) private view returns (uint256) {
-        uint256 unredeemedCollateral = 0;
-        if (wTokenBalance > 0) {
-            (uint256 unclaimedCollateral, ) = seriesController.getClaimAmount(
-                seriesId,
-                wTokenBalance
+        return
+            IAmmDataProvider(ammDataProvider).getOptionTokensSaleValue(
+                lpTokenAmount,
+                lpTokenSupply,
+                getAllSeries(),
+                address(this),
+                collateralToken.balanceOf(address(this)),
+                volatilityFactor
             );
-            unredeemedCollateral += unclaimedCollateral;
-        }
-        if (bTokenBalance > 0) {
-            (uint256 unexercisedCollateral, ) = seriesController
-                .getExerciseAmount(seriesId, bTokenBalance);
-            unredeemedCollateral += unexercisedCollateral;
-        }
-
-        return unredeemedCollateral;
     }
 
     /// @notice Adds the address of series to the amm

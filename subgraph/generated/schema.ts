@@ -2689,6 +2689,15 @@ export class LpTokenMinted extends Entity {
   set poolValueSnapshot(value: string) {
     this.set("poolValueSnapshot", Value.fromString(value));
   }
+
+  get transaction(): string {
+    let value = this.get("transaction");
+    return value.toString();
+  }
+
+  set transaction(value: string) {
+    this.set("transaction", Value.fromString(value));
+  }
 }
 
 export class LpTokenBurned extends Entity {
@@ -2791,6 +2800,15 @@ export class LpTokenBurned extends Entity {
 
   set poolValueSnapshot(value: string) {
     this.set("poolValueSnapshot", Value.fromString(value));
+  }
+
+  get transaction(): string {
+    let value = this.get("transaction");
+    return value.toString();
+  }
+
+  set transaction(value: string) {
+    this.set("transaction", Value.fromString(value));
   }
 }
 
@@ -2904,6 +2922,15 @@ export class BTokenBought extends Entity {
   set seriesId(value: i32) {
     this.set("seriesId", Value.fromI32(value));
   }
+
+  get transaction(): string {
+    let value = this.get("transaction");
+    return value.toString();
+  }
+
+  set transaction(value: string) {
+    this.set("transaction", Value.fromString(value));
+  }
 }
 
 export class BTokenSold extends Entity {
@@ -3016,6 +3043,15 @@ export class BTokenSold extends Entity {
   set seriesId(value: i32) {
     this.set("seriesId", Value.fromI32(value));
   }
+
+  get transaction(): string {
+    let value = this.get("transaction");
+    return value.toString();
+  }
+
+  set transaction(value: string) {
+    this.set("transaction", Value.fromString(value));
+  }
 }
 
 export class WTokenSold extends Entity {
@@ -3127,6 +3163,15 @@ export class WTokenSold extends Entity {
 
   set seriesId(value: i32) {
     this.set("seriesId", Value.fromI32(value));
+  }
+
+  get transaction(): string {
+    let value = this.get("transaction");
+    return value.toString();
+  }
+
+  set transaction(value: string) {
+    this.set("transaction", Value.fromString(value));
   }
 }
 
