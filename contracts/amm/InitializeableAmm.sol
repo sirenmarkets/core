@@ -4,13 +4,14 @@ pragma solidity 0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../series/ISeriesController.sol";
+import "../configuration/IAddressesProvider.sol";
 
 interface InitializeableAmm {
     function initialize(
         ISeriesController _seriesController,
         address _priceOracle,
         address _ammDataProvider,
-        address _blackScholesController,
+        IAddressesProvider _addressesProvider,
         IERC20 _underlyingToken,
         IERC20 _priceToken,
         IERC20 _collateralToken,

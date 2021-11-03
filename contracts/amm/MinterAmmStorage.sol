@@ -8,6 +8,7 @@ import "../oz/EnumerableSet.sol";
 import "../series/ISeriesController.sol";
 import "../series/SeriesLibrary.sol";
 import "../token/ISimpleToken.sol";
+import "../configuration/IAddressesProvider.sol";
 
 /// This contract stores all new local variables for the MinterAmm.sol contract.
 /// This allows us to upgrade the contract and add new variables without worrying about
@@ -83,9 +84,7 @@ contract MinterAmmStorageV2 is MinterAmmStorageV1 {
     mapping(uint64 => uint256) public seriesVolatilities;
 
     /// @dev The address for the VolatilityOracle
-    address public volatilityOracle;
-
-    address public blackScholesController;
+    IAddressesProvider addressesProvider;
 }
 
 // Next version example:

@@ -11,25 +11,32 @@ import "../series/IPriceOracle.sol";
 import "../series/SeriesLibrary.sol";
 import "../libraries/Math.sol";
 import "./IBlackScholes.sol";
+import "../configuration/IAddressesProvider.sol";
 
 contract AmmDataProvider is IAmmDataProvider {
     ISeriesController public seriesController;
     IERC1155 public erc1155Controller;
     IPriceOracle public priceOracle;
-    IBlackScholes public blackScholesController;
+    IAddressesProvider public addressesProvider;
 
     event AmmDataProviderCreated(
         ISeriesController seriesController,
         IERC1155 erc1155Controller,
-        IPriceOracle priceOracle
+        IPriceOracle priceOracle,
+        IAddressesProvider addressesProvider
     );
 
     constructor(
         ISeriesController _seriesController,
         IERC1155 _erc1155Controller,
         IPriceOracle _priceOracle,
-        IBlackScholes _blackScholesController
+        IAddressesProvider _addressProvider
     ) {
+        require(
+            address(_addressProvider) != address(0x0),
+            "AmmDataProvider: _addressProvider cannot be the 0x0 address"
+        );
+
         require(
             address(_seriesController) != address(0x0),
             "AmmDataProvider: _seriesController cannot be the 0x0 address"
@@ -46,12 +53,13 @@ contract AmmDataProvider is IAmmDataProvider {
         seriesController = _seriesController;
         erc1155Controller = _erc1155Controller;
         priceOracle = _priceOracle;
-        blackScholesController = _blackScholesController;
+        addressesProvider = _addressProvider;
 
         emit AmmDataProviderCreated(
             _seriesController,
             _erc1155Controller,
-            _priceOracle
+            _priceOracle,
+            _addressProvider
         );
     }
 
@@ -424,13 +432,15 @@ contract AmmDataProvider is IAmmDataProvider {
         // oracle's value were to drift from the true series price, then the bToken price
         // we calculate here would also drift, and will result in undefined
         // behavior for any functions which call getPriceForExpiredSeriesInternal
-        (uint256 call, uint256 put) = blackScholesController.optionPrices(
-            series.expirationDate - block.timestamp,
-            volatilityFactor,
-            underlyingPrice,
-            series.strikePrice,
-            0
-        );
+        (uint256 call, uint256 put) = IBlackScholes(
+            addressesProvider.getBlackScholes()
+        ).optionPrices(
+                series.expirationDate - block.timestamp,
+                volatilityFactor,
+                underlyingPrice,
+                series.strikePrice,
+                0
+            );
         if (series.isPutOption == true) {
             return ((put * 1e18) / underlyingPrice);
         } else {

@@ -18,6 +18,8 @@ contract LendingPoolAddressesProvider is Ownable, IAddressesProvider {
     bytes32 private constant SERIES_CONTROLLER = "SERIES_CONTROLLER";
     bytes32 private constant POOL_ADMIN = "POOL_ADMIN";
     bytes32 private constant EMERGENCY_ADMIN = "EMERGENCY_ADMIN";
+    bytes32 private constant VOLATILITY_ORACLE = "VOLATILITY_ORACLE";
+    bytes32 private constant BLACKSCHOLES = "BLACKSCHOLES";
 
     /**
      * @dev Sets an address for an id replacing the address saved in the addresses map
@@ -102,5 +104,27 @@ contract LendingPoolAddressesProvider is Ownable, IAddressesProvider {
     {
         _addresses[SERIES_CONTROLLER] = seriesController;
         emit SeriesControllerUpdated(seriesController);
+    }
+
+    function getVolatilityOracle() external view override returns (address) {
+        return getAddress(VOLATILITY_ORACLE);
+    }
+
+    function setVolatilityOracle(address volatilityOracle)
+        external
+        override
+        onlyOwner
+    {
+        _addresses[VOLATILITY_ORACLE] = volatilityOracle;
+        emit VolatilityOracleUpdated(volatilityOracle);
+    }
+
+    function getBlackScholes() external view override returns (address) {
+        return getAddress(BLACKSCHOLES);
+    }
+
+    function setBlackScholes(address blackScholes) external override onlyOwner {
+        _addresses[BLACKSCHOLES] = blackScholes;
+        emit BlackScholesUpdated(blackScholes);
     }
 }

@@ -9,6 +9,7 @@ import "../proxy/Proxiable.sol";
 import "./InitializeableAmm.sol";
 import "./IAddSeriesToAmm.sol";
 import "../series/ISeriesController.sol";
+import "../configuration/IAddressesProvider.sol";
 
 /// @title AmmFactory
 /// @author The Siren Devs
@@ -22,6 +23,9 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
 
     /// @notice Address of the SeriesController associated with this AmmFactory
     ISeriesController public seriesController;
+
+    /// @notice Address of the AddressesProvider associated with this AmmFactory
+    IAddressesProvider public addressesProvider;
 
     /// @notice Mapping of keccak256(abi.encode(address(_underlyingToken), address(_priceToken), address(collateralToken)))
     /// bytes32 keys to AMM (Automated Market Maker) addresses
@@ -41,12 +45,14 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
     function initialize(
         address _ammImplementation,
         address _tokenImplementation,
-        ISeriesController _seriesController
+        ISeriesController _seriesController,
+        IAddressesProvider _addressesProvider
     ) external {
         __AmmFactory_init(
             _ammImplementation,
             _tokenImplementation,
-            _seriesController
+            _seriesController,
+            _addressesProvider
         );
     }
 
@@ -56,7 +62,8 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
     function __AmmFactory_init(
         address _ammImplementation,
         address _tokenImplementation,
-        ISeriesController _seriesController
+        ISeriesController _seriesController,
+        IAddressesProvider _addressesProvider
     ) internal initializer {
         // Verify addresses
         require(
@@ -71,11 +78,16 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
             address(_seriesController) != address(0x0),
             "Invalid _seriesController"
         );
+        require(
+            address(_addressesProvider) != address(0x0),
+            "Invalid _addressesProvider"
+        );
 
         // Save off implementation address
         ammImplementation = _ammImplementation;
         tokenImplementation = _tokenImplementation;
         seriesController = _seriesController;
+        addressesProvider = _addressesProvider;
 
         // Set up the initialization of the inherited ownable contract
         __Ownable_init();
@@ -141,7 +153,6 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
     function createAmm(
         address _sirenPriceOracle,
         address _ammDataProvider,
-        address _blackScholesController,
         IERC20 _underlyingToken,
         IERC20 _priceToken,
         IERC20 _collateralToken,
@@ -184,7 +195,7 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
             seriesController,
             _sirenPriceOracle,
             _ammDataProvider,
-            _blackScholesController,
+            addressesProvider,
             _underlyingToken,
             _priceToken,
             _collateralToken,

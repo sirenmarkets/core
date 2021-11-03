@@ -11,7 +11,6 @@ import "../libraries/Math.sol";
 import "./InitializeableAmm.sol";
 import "./IAmmDataProvider.sol";
 import "./IAddSeriesToAmm.sol";
-import "./IBlackScholes.sol";
 import "../series/IPriceOracle.sol";
 import "../swap/ILight.sol";
 import "../token/IERC20Lib.sol";
@@ -211,7 +210,7 @@ contract MinterAmm is
         ISeriesController _seriesController,
         address _sirenPriceOracle,
         address _ammDataProvider,
-        address _blackScholesController,
+        IAddressesProvider _addressesProvider,
         IERC20 _underlyingToken,
         IERC20 _priceToken,
         IERC20 _collateralToken,
@@ -232,8 +231,8 @@ contract MinterAmm is
 
         // Save off state variables
         seriesController = _seriesController;
+        addressesProvider = _addressesProvider;
         ammDataProvider = _ammDataProvider;
-        blackScholesController = _blackScholesController;
         erc1155Controller = IERC1155(_seriesController.erc1155Controller());
 
         // Approve seriesController to move tokens
@@ -281,10 +280,11 @@ contract MinterAmm is
     function getVolatility(uint64 _seriesId) public view returns (uint256) {
         return
             uint256(
-                IVolatilityOracle(volatilityOracle).annualizedVol(
-                    address(underlyingToken),
-                    address(priceToken)
-                )
+                IVolatilityOracle(addressesProvider.getVolatilityOracle())
+                    .annualizedVol(
+                        address(underlyingToken),
+                        address(priceToken)
+                    )
             );
     }
 
