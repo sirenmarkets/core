@@ -16,6 +16,8 @@ import {
   SirenExchangeContract,
   MockVolatilityPriceOracleInstance,
   MockVolatilityPriceOracleContract,
+  AddressesProviderInstance,
+  AddressesProviderContract,
 } from "../typechain"
 import { artifacts, assert, ethers } from "hardhat"
 import { time, expectEvent, BN } from "@openzeppelin/test-helpers"
@@ -53,6 +55,9 @@ const AmmDataProvider: AmmDataProviderContract =
   artifacts.require("AmmDataProvider")
 
 const BlackScholes: BlackScholesContract = artifacts.require("BlackScholes")
+
+const AddressesProvider: AddressesProviderContract =
+  artifacts.require("AddressesProvider")
 
 const FEE_RECEIVER_ADDRESS = "0x000000000000000000000000000000000000dEaD"
 const ONE_DAY_DURATION = 24 * 60 * 60
@@ -318,6 +323,11 @@ export async function setupSingletonTestContracts(
 
   const deployedBlackScholes: BlackScholesInstance = await BlackScholes.new()
 
+  const deployedAddressesProvider: AddressesProviderInstance =
+    await AddressesProvider.new()
+
+  deployedAddressesProvider.setBlackScholes(deployedBlackScholes.address)
+
   // Create a new proxy contract pointing at the series vault logic for testing
   const vaultProxy = await Proxy.new(seriesVaultLogic.address)
   const deployedVault = await SeriesVault.at(vaultProxy.address)
@@ -405,6 +415,7 @@ export async function setupSingletonTestContracts(
     ammLogic.address,
     erc20Logic.address,
     deployedSeriesController.address,
+    deployedAddressesProvider.address,
   )
 
   return {
@@ -419,6 +430,7 @@ export async function setupSingletonTestContracts(
     deployedAmmFactory,
     deployedAmmDataProvider,
     deployedBlackScholes,
+    deployedAddressesProvider,
     oraclePrice,
     expiration,
     exerciseFee,
@@ -573,6 +585,7 @@ export async function setupAmm({
   deployedPriceOracle,
   deployedAmmDataProvider,
   deployedBlackScholes,
+  deployedAddressesProvider,
   underlyingToken,
   priceToken,
   collateralToken,
@@ -582,6 +595,7 @@ export async function setupAmm({
     deployedPriceOracle.address,
     deployedAmmDataProvider.address,
     deployedBlackScholes.address,
+    deployedAddressesProvider,
     underlyingToken.address,
     priceToken.address,
     collateralToken.address,
@@ -688,6 +702,7 @@ export async function setupAllTestContracts(
     deployedAmmFactory,
     deployedAmmDataProvider,
     deployedBlackScholes,
+    deployedAddressesProvider,
     expiration,
     erc1155URI,
   } = await setupSingletonTestContracts({
@@ -710,6 +725,7 @@ export async function setupAllTestContracts(
     deployedPriceOracle,
     deployedAmmDataProvider,
     deployedBlackScholes,
+    deployedAddressesProvider,
     underlyingToken,
     priceToken,
     collateralToken,
@@ -749,6 +765,7 @@ export async function setupAllTestContracts(
     deployedAmmFactory,
     deployedAmmDataProvider,
     deployedBlackScholes,
+    deployedAddressesProvider,
     deployedAmm,
     oraclePrice,
     expiration,

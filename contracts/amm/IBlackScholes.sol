@@ -11,6 +11,11 @@ interface IBlackScholes {
         uint256 stdVega;
     }
 
+    struct PricesStdVega {
+        uint256 price;
+        uint256 stdVega;
+    }
+
     function abs(int256 x) external pure returns (uint256);
 
     function exp(uint256 x) external pure returns (uint256);
@@ -34,4 +39,13 @@ interface IBlackScholes {
         uint256 strikeDecimal,
         int256 rateDecimal
     ) external pure returns (PricesDeltaStdVega memory);
+
+    function pricesStdVegaInUnderlying(
+        uint256 timeToExpirySec,
+        uint256 volatilityDecimal,
+        uint256 spotDecimal,
+        uint256 strikeDecimal,
+        int256 rateDecimal,
+        bool isPut
+    ) external pure returns (PricesStdVega memory);
 }

@@ -7,7 +7,6 @@ import "@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpg
 import "../libraries/Math.sol";
 import "../proxy/Proxiable.sol";
 import "../proxy/Proxy.sol";
-import "../libraries/Math.sol";
 import "./InitializeableAmm.sol";
 import "./IAmmDataProvider.sol";
 import "./IAddSeriesToAmm.sol";
@@ -18,6 +17,7 @@ import "../oz/EnumerableSet.sol";
 import "../series/SeriesLibrary.sol";
 import "./MinterAmmStorage.sol";
 import "../series/IVolatilityOracle.sol";
+import "./IBlackScholes.sol";
 
 /// This is an implementation of a minting/redeeming AMM (Automated Market Maker) that trades a list of series with the same
 /// collateral token. For example, a single WBTC Call AMM contract can trade all strikes of WBTC calls using
@@ -286,6 +286,22 @@ contract MinterAmm is
                         address(priceToken)
                     )
             );
+    }
+
+    /// Each time a trade happens we update the volatility
+    function updateVolatility(
+        uint64 _seriesId,
+        int256 priceImpact,
+        uint256 currentIV,
+        uint256 vega
+    ) internal returns (uint256) {
+        uint256 newIV = (currentIV + uint256(priceImpact) / vega);
+        if (newIV > 4e8) {
+            newIV = 4e8;
+        } else if (newIV < 5e7) {
+            newIV = 5e7;
+        }
+        seriesVolatilities[_seriesId] = newIV;
     }
 
     /// The owner can set the trade fee params - if any are set to 0/0x0 then trade fees are disabled
@@ -569,10 +585,12 @@ contract MinterAmm is
                     // AMM's collateral balance will be after executing this
                     // transaction (see MinterAmm.withdrawCapital to see where
                     // _sellOrWithdrawActiveTokens gets called)
+                    uint256 bTokenPrice = getPriceForSeries(seriesId);
                     uint256 collateralAmountB = optionTokenGetCollateralOutInternal(
                             seriesId,
                             bTokenToSell,
                             collateralLeft,
+                            bTokenPrice,
                             true
                         );
 
@@ -587,6 +605,7 @@ contract MinterAmm is
                             seriesId,
                             wTokenToSell,
                             collateralLeft,
+                            bTokenPrice,
                             false
                         );
                     collateralLeft -= collateralAmountW;
@@ -846,11 +865,23 @@ contract MinterAmm is
                 ISeriesController.SeriesState.OPEN,
             "Series has expired"
         );
+        uint256 collateralAmount;
+        {
+            (uint256 price, uint256 vega) = calculatePriceAndVega(seriesId);
 
-        uint256 collateralAmount = bTokenGetCollateralInWithoutFees(
-            seriesId,
-            bTokenAmount
-        );
+            uint256 collateralAmount = bTokenGetCollateralInWithoutFees(
+                seriesId,
+                bTokenAmount,
+                price
+            );
+
+            updateVolatility(
+                seriesId,
+                int256((collateralAmount * 1e18) / bTokenAmount - price),
+                getVolatility(seriesId),
+                vega
+            );
+        }
 
         // Calculate trade fees if they are enabled with all params set
         uint256 tradeFee = calculateFees(bTokenAmount, collateralAmount);
@@ -939,11 +970,23 @@ contract MinterAmm is
                 ISeriesController.SeriesState.OPEN,
             "Series has expired"
         );
+        uint256 collateralAmount;
+        {
+            (uint256 price, uint256 vega) = calculatePriceAndVega(seriesId);
 
-        uint256 collateralAmount = bTokenGetCollateralOutWithoutFees(
-            seriesId,
-            bTokenAmount
-        );
+            collateralAmount = bTokenGetCollateralOutWithoutFees(
+                seriesId,
+                bTokenAmount,
+                price
+            );
+
+            updateVolatility(
+                seriesId,
+                int256((collateralAmount * 1e18) / bTokenAmount - price),
+                getVolatility(seriesId),
+                vega
+            );
+        }
 
         // Calculate trade fees if they are enabled with all params set
         uint256 tradeFee = calculateFees(bTokenAmount, collateralAmount);
@@ -1013,7 +1056,8 @@ contract MinterAmm is
     /// @return The amount of collateral token necessary to buy bTokenAmount worth of bTokens
     function bTokenGetCollateralInWithoutFees(
         uint64 seriesId,
-        uint256 bTokenAmount
+        uint256 bTokenAmount,
+        uint256 bTokenPrice
     ) public view returns (uint256) {
         return
             IAmmDataProvider(ammDataProvider).bTokenGetCollateralIn(
@@ -1021,7 +1065,7 @@ contract MinterAmm is
                 address(this),
                 bTokenAmount,
                 collateralToken.balanceOf(address(this)),
-                getPriceForSeries(seriesId)
+                bTokenPrice
             );
     }
 
@@ -1041,7 +1085,8 @@ contract MinterAmm is
     {
         uint256 collateralWithoutFees = bTokenGetCollateralInWithoutFees(
             seriesId,
-            bTokenAmount
+            bTokenAmount,
+            getPriceForSeries(seriesId)
         );
         uint256 tradeFee = calculateFees(bTokenAmount, collateralWithoutFees);
         return collateralWithoutFees + tradeFee;
@@ -1059,13 +1104,15 @@ contract MinterAmm is
     /// bTokens to the pool
     function bTokenGetCollateralOutWithoutFees(
         uint64 seriesId,
-        uint256 bTokenAmount
+        uint256 bTokenAmount,
+        uint256 bTokenPrice
     ) public view returns (uint256) {
         return
             optionTokenGetCollateralOutInternal(
                 seriesId,
                 bTokenAmount,
                 collateralToken.balanceOf(address(this)),
+                bTokenPrice,
                 true
             );
     }
@@ -1089,6 +1136,7 @@ contract MinterAmm is
             seriesId,
             bTokenAmount,
             collateralToken.balanceOf(address(this)),
+            getPriceForSeries(seriesId),
             true
         );
         uint256 tradeFee = calculateFees(bTokenAmount, collateralWithoutFees);
@@ -1168,6 +1216,7 @@ contract MinterAmm is
                 seriesId,
                 wTokenAmount,
                 collateralToken.balanceOf(address(this)),
+                getPriceForSeries(seriesId),
                 false
             );
     }
@@ -1184,6 +1233,7 @@ contract MinterAmm is
         uint64 seriesId,
         uint256 optionTokenAmount,
         uint256 _collateralTokenBalance,
+        uint256 bTokenPrice,
         bool isBToken
     ) private view returns (uint256) {
         return
@@ -1192,7 +1242,7 @@ contract MinterAmm is
                 address(this),
                 optionTokenAmount,
                 _collateralTokenBalance,
-                getPriceForSeries(seriesId),
+                bTokenPrice,
                 isBToken
             );
     }
@@ -1260,5 +1310,29 @@ contract MinterAmm is
         return
             interfaceId == this.addSeries.selector ||
             super.supportsInterface(interfaceId);
+    }
+
+    function calculatePriceAndVega(uint64 seriesId)
+        internal
+        returns (uint256 price, uint256 vega)
+    {
+        ISeriesController.Series memory series = seriesController.series(
+            seriesId
+        );
+        IBlackScholes blackScholes = IBlackScholes(
+            addressesProvider.getBlackScholes()
+        );
+
+        IBlackScholes.PricesStdVega memory pricesStdVega = blackScholes
+            .pricesStdVegaInUnderlying(
+                series.expirationDate - block.timestamp,
+                getVolatility(seriesId),
+                getCurrentUnderlyingPrice(),
+                series.strikePrice,
+                0,
+                series.isPutOption
+            );
+
+        return (pricesStdVega.price, pricesStdVega.stdVega);
     }
 }

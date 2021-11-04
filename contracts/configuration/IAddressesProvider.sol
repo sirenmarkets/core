@@ -36,17 +36,17 @@ interface IAddressesProvider {
 
     function getAmmDataProvider() external view returns (address);
 
-    function setAmmDataProvider(address priceOracle) external;
+    function setAmmDataProvider(address ammDataProvider) external;
 
     function getSeriesController() external view returns (address);
 
-    function setSeriesController(address priceOracle) external;
+    function setSeriesController(address seriesController) external;
 
     function getVolatilityOracle() external view returns (address);
 
-    function setVolatilityOracle(address priceOracle) external;
+    function setVolatilityOracle(address volatilityOracle) external;
 
     function getBlackScholes() external view returns (address);
 
-    function setBlackScholes(address priceOracle) external;
+    function setBlackScholes(address blackScholes) external;
 }

@@ -6,7 +6,6 @@ pragma experimental ABIEncoderV2;
 import "../synthetix/SignedSafeDecimalMath.sol";
 import "../synthetix/SafeDecimalMath.sol";
 import "./IBlackScholes.sol";
-import "hardhat/console.sol";
 
 /**
  * @title BlackScholes
@@ -416,5 +415,56 @@ contract BlackScholes is IBlackScholes {
                 putDelta.preciseDecimalToDecimal(),
                 v
             );
+    }
+
+    /**
+     * @dev Returns call/put prices for options with given parameters.
+     * @param timeToExpirySec Number of seconds to the expiry of the option
+     * @param volatilityDecimal Implied volatility over the period til expiry as a percentage
+     * @param spotDecimal The current price of the base asset
+     * @param strikeDecimal The strike price of the option
+     * @param rateDecimal The percentage risk free rate + carry cost
+     * @param isPut is the call a put or a call
+     */
+    function pricesStdVegaInUnderlying(
+        uint256 timeToExpirySec,
+        uint256 volatilityDecimal,
+        uint256 spotDecimal,
+        uint256 strikeDecimal,
+        int256 rateDecimal,
+        bool isPut
+    ) external pure override returns (IBlackScholes.PricesStdVega memory) {
+        uint256 tAnnualised = annualise(timeToExpirySec);
+        uint256 spotPrecise = spotDecimal.decimalToPreciseDecimal();
+
+        (int256 d1, int256 d2) = d1d2(
+            tAnnualised,
+            volatilityDecimal.decimalToPreciseDecimal(),
+            spotPrecise,
+            strikeDecimal.decimalToPreciseDecimal(),
+            rateDecimal.decimalToPreciseDecimal()
+        );
+
+        uint256 v = _standardVega(d1, spotPrecise, timeToExpirySec) /
+            spotDecimal;
+
+        uint256 price;
+        {
+            (uint256 callPrice, uint256 putPrice) = _optionPrices(
+                tAnnualised,
+                spotPrecise,
+                strikeDecimal.decimalToPreciseDecimal(),
+                rateDecimal.decimalToPreciseDecimal(),
+                d1,
+                d2
+            );
+            if (isPut) {
+                price = putPrice.preciseDecimalToDecimal() / spotDecimal;
+            } else {
+                price = callPrice.preciseDecimalToDecimal() / spotDecimal;
+            }
+        }
+
+        return IBlackScholes.PricesStdVega(price, v);
     }
 }

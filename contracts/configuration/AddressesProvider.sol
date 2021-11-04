@@ -10,7 +10,7 @@ import {IAddressesProvider} from "./IAddressesProvider.sol";
  * @dev Main registry of addresses part of or connected to the protocol, including permissioned roles
  * @author Dakra-Mystic
  **/
-contract LendingPoolAddressesProvider is Ownable, IAddressesProvider {
+contract AddressesProvider is Ownable, IAddressesProvider {
     mapping(bytes32 => address) private _addresses;
 
     bytes32 private constant PRICE_ORACLE = "PRICEE_ORACLE";
