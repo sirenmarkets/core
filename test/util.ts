@@ -383,7 +383,6 @@ export async function setupSingletonTestContracts(
     ammLogic.address,
     erc20Logic.address,
     deployedSeriesController.address,
-    deployedAddressesProvider.address,
   )
 
   return {
