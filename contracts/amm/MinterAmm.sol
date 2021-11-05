@@ -18,6 +18,7 @@ import "../series/SeriesLibrary.sol";
 import "./MinterAmmStorage.sol";
 import "../series/IVolatilityOracle.sol";
 import "./IBlackScholes.sol";
+import "hardhat/console.sol";
 
 /// This is an implementation of a minting/redeeming AMM (Automated Market Maker) that trades a list of series with the same
 /// collateral token. For example, a single WBTC Call AMM contract can trade all strikes of WBTC calls using
@@ -278,6 +279,7 @@ contract MinterAmm is
 
     /// The owner can set the volatility factor used to price the options
     function getVolatility(uint64 _seriesId) public view returns (uint256) {
+        console.log("hello");
         return
             uint256(
                 IVolatilityOracle(addressesProvider.getVolatilityOracle())
@@ -773,81 +775,81 @@ contract MinterAmm is
     ///     then execute a swap with the signer using Airswap protocol.
     /// Only the owner should be allowed to execute a direct buy as this is a "guarded" call.
     /// Sender address in the Airswap protocol will be this contract address.
-    function bTokenDirectBuy(
-        uint64 seriesId,
-        uint256 nonce, // Nonce on the airswap sig for the signer
-        uint256 expiry, // Date until swap is valid
-        address signerWallet, // Address of the buyer (signer)
-        uint256 signerAmount, // Amount of collateral that will be paid for options by the signer
-        uint256 senderAmount, // Amount of options to buy from the AMM
-        uint8 v, // Sig of signer wallet for Airswap
-        bytes32 r, // Sig of signer wallet for Airswap
-        bytes32 s // Sig of signer wallet for Airswap
-    ) external onlyOwner nonReentrant {
-        require(openSeries.contains(seriesId), "E13");
-        require(lightAirswapAddress != address(0x0), "E16");
+    // function bTokenDirectBuy(
+    //     uint64 seriesId,
+    //     uint256 nonce, // Nonce on the airswap sig for the signer
+    //     uint256 expiry, // Date until swap is valid
+    //     address signerWallet, // Address of the buyer (signer)
+    //     uint256 signerAmount, // Amount of collateral that will be paid for options by the signer
+    //     uint256 senderAmount, // Amount of options to buy from the AMM
+    //     uint8 v, // Sig of signer wallet for Airswap
+    //     bytes32 r, // Sig of signer wallet for Airswap
+    //     bytes32 s // Sig of signer wallet for Airswap
+    // ) external onlyOwner nonReentrant {
+    //     require(openSeries.contains(seriesId), "E13");
+    //     require(lightAirswapAddress != address(0x0), "E16");
 
-        // Get the bToken balance of the AMM
-        uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-        uint256 bTokenBalance = erc1155Controller.balanceOf(
-            address(this),
-            bTokenIndex
-        );
+    //     // Get the bToken balance of the AMM
+    //     uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
+    //     uint256 bTokenBalance = erc1155Controller.balanceOf(
+    //         address(this),
+    //         bTokenIndex
+    //     );
 
-        // Mint required number of bTokens for the direct buy (if required)
-        if (bTokenBalance < senderAmount) {
-            // Approve the collateral to mint bTokenAmount of new options
-            uint256 bTokenCollateralAmount = seriesController
-                .getCollateralPerOptionToken(
-                    seriesId,
-                    senderAmount - bTokenBalance
-                );
+    //     // Mint required number of bTokens for the direct buy (if required)
+    //     if (bTokenBalance < senderAmount) {
+    //         // Approve the collateral to mint bTokenAmount of new options
+    //         uint256 bTokenCollateralAmount = seriesController
+    //             .getCollateralPerOptionToken(
+    //                 seriesId,
+    //                 senderAmount - bTokenBalance
+    //             );
 
-            collateralToken.approve(
-                address(seriesController),
-                bTokenCollateralAmount
-            );
+    //         collateralToken.approve(
+    //             address(seriesController),
+    //             bTokenCollateralAmount
+    //         );
 
-            // If the AMM does not have enough collateral to mint tokens, expect revert.
-            seriesController.mintOptions(
-                seriesId,
-                senderAmount - bTokenBalance
-            );
-        }
+    //         // If the AMM does not have enough collateral to mint tokens, expect revert.
+    //         seriesController.mintOptions(
+    //             seriesId,
+    //             senderAmount - bTokenBalance
+    //         );
+    //     }
 
-        // Approve the bTokens to be swapped
-        erc1155Controller.setApprovalForAll(lightAirswapAddress, true);
+    //     // Approve the bTokens to be swapped
+    //     erc1155Controller.setApprovalForAll(lightAirswapAddress, true);
 
-        // Now that the contract has enough bTokens, swap with the buyer
-        ILight(lightAirswapAddress).swap(
-            nonce, // Signer's nonce
-            expiry, // Expiration date of swap
-            signerWallet, // Buyer of the options
-            address(collateralToken), // Payment made by buyer
-            signerAmount, // Amount of collateral paid for options
-            address(erc1155Controller), // Address of erc1155 contract
-            bTokenIndex, // Token ID for options
-            senderAmount, // Num options to sell
-            v,
-            r,
-            s
-        ); // Sig of signer for swap
+    //     // Now that the contract has enough bTokens, swap with the buyer
+    //     ILight(lightAirswapAddress).swap(
+    //         nonce, // Signer's nonce
+    //         expiry, // Expiration date of swap
+    //         signerWallet, // Buyer of the options
+    //         address(collateralToken), // Payment made by buyer
+    //         signerAmount, // Amount of collateral paid for options
+    //         address(erc1155Controller), // Address of erc1155 contract
+    //         bTokenIndex, // Token ID for options
+    //         senderAmount, // Num options to sell
+    //         v,
+    //         r,
+    //         s
+    //     ); // Sig of signer for swap
 
-        // Remove approval
-        erc1155Controller.setApprovalForAll(lightAirswapAddress, false);
+    //     // Remove approval
+    //     erc1155Controller.setApprovalForAll(lightAirswapAddress, false);
 
-        // Calculate trade fees if they are enabled with all params set
-        uint256 tradeFee = calculateFees(senderAmount, signerAmount);
+    //     // Calculate trade fees if they are enabled with all params set
+    //     uint256 tradeFee = calculateFees(senderAmount, signerAmount);
 
-        // If fees were taken, move them to the destination
-        if (tradeFee > 0) {
-            collateralToken.safeTransfer(feeDestinationAddress, tradeFee);
-            emit TradeFeesPaid(feeDestinationAddress, tradeFee);
-        }
+    //     // If fees were taken, move them to the destination
+    //     if (tradeFee > 0) {
+    //         collateralToken.safeTransfer(feeDestinationAddress, tradeFee);
+    //         emit TradeFeesPaid(feeDestinationAddress, tradeFee);
+    //     }
 
-        // Emit the event
-        emit BTokensBought(signerWallet, seriesId, senderAmount, signerAmount);
-    }
+    //     // Emit the event
+    //     emit BTokensBought(signerWallet, seriesId, senderAmount, signerAmount);
+    // }
 
     /// @dev Buy bToken of a given series.
     /// We supply series index instead of series address to ensure that only supported series can be traded using this AMM

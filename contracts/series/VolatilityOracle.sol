@@ -21,6 +21,7 @@ contract VolatilityOracle is DSMath {
     uint256 public immutable windowSize;
     uint256 public immutable annualizationConstant;
     uint256 internal constant commitPhaseDuration = 3600; // 1 hour from every period
+    mapping(uint64 => uint256) public seriesVolatilities;
 
     /**
      * Storage
@@ -245,6 +246,9 @@ contract VolatilityOracle is DSMath {
         bool isInc
     ) internal view returns (uint256 obvCount) {
         uint256 size = windowSize; // cache for gas
+        console.log(underlyingToken);
+        console.log(priceToken);
+        // console.log(observations[underlyingToken][priceToken][size - 1] );
         obvCount = observations[underlyingToken][priceToken][size - 1] != 0
             ? size
             : accumulators[underlyingToken][priceToken]

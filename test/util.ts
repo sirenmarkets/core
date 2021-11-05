@@ -594,8 +594,6 @@ export async function setupAmm({
   const createAmmResp = await deployedAmmFactory.createAmm(
     deployedPriceOracle.address,
     deployedAmmDataProvider.address,
-    deployedBlackScholes.address,
-    deployedAddressesProvider,
     underlyingToken.address,
     priceToken.address,
     collateralToken.address,
