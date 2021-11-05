@@ -66,7 +66,7 @@ contract("Address Provider Set/Get Verification", (accounts) => {
     // Total assets value in the AMM should be 10k.
     assertBNEq(
       getAddress,
-      0x0000000000000000000000000000000000000000,
+      "0x0000000000000000000000000000000000000000",
       "Get Address should return a blank address",
     )
   })
