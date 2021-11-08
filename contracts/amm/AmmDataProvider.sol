@@ -12,6 +12,7 @@ import "../series/SeriesLibrary.sol";
 import "../libraries/Math.sol";
 import "./IBlackScholes.sol";
 import "../configuration/IAddressesProvider.sol";
+import "hardhat/console.sol";
 
 contract AmmDataProvider is IAmmDataProvider {
     ISeriesController public seriesController;
@@ -442,9 +443,12 @@ contract AmmDataProvider is IAmmDataProvider {
                 0
             );
         if (series.isPutOption == true) {
+            console.log(put);
             return ((put * 1e18) / underlyingPrice);
         } else {
             return ((call * 1e18) / underlyingPrice);
+            console.log("INSIDE OF CALL");
+            console.log(call);
         }
     }
 

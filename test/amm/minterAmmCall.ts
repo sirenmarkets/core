@@ -1,6 +1,8 @@
 /* global artifacts contract it assert */
-import { time, expectEvent, expectRevert } from "@openzeppelin/test-helpers"
-import { artifacts, contract } from "hardhat"
+import { time, expectEvent, expectRevert, BN } from "@openzeppelin/test-helpers"
+import { artifacts, contract, ethers } from "hardhat"
+import { BigNumber } from "@ethersproject/bignumber"
+const { provider } = ethers
 import {
   SimpleTokenContract,
   MockPriceOracleInstance,
@@ -9,6 +11,9 @@ import {
   MinterAmmInstance,
   SeriesControllerInstance,
   ERC1155ControllerInstance,
+  MockPriceOracleContract,
+  MockVolatilityPriceOracleInstance,
+  AddressesProviderInstance,
 } from "../../typechain"
 
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
@@ -18,6 +23,7 @@ import {
   checkBalances,
   setupAllTestContracts,
   setupSeries,
+  setupMockVolatilityPriceOracle,
   ONE_WEEK_DURATION,
 } from "../util"
 
@@ -26,10 +32,22 @@ let deployedERC1155Controller: ERC1155ControllerInstance
 let deployedAmm: MinterAmmInstance
 let deployedMockPriceOracle: MockPriceOracleInstance
 let deployedPriceOracle: PriceOracleInstance
+let deployedMockVolatilityPriceOracle: MockVolatilityPriceOracleInstance
+let deployedAddressesProvider: AddressesProviderInstance
+
+let deployedVolatilityOracle
+let deployedMockVolatilityOracle
+
+const wbtcDecimals = 8
+
+const MockPriceOracle: MockPriceOracleContract =
+  artifacts.require("MockPriceOracle")
 
 let underlyingToken: SimpleTokenInstance
 let priceToken: SimpleTokenInstance
 let collateralToken: SimpleTokenInstance
+let PERIOD = 86400
+const WINDOW_IN_DAYS = 90 // 3 month vol data
 
 let expiration: number
 let seriesId: string
@@ -70,10 +88,72 @@ contract("AMM Call Verification", (accounts) => {
       deployedPriceOracle,
       deployedMockPriceOracle,
       expiration,
+      deployedAddressesProvider,
     } = await setupAllTestContracts({
       strikePrice: STRIKE_PRICE.toString(),
       oraclePrice: OTM_BTC_ORACLE_PRICE,
     }))
+
+    underlyingToken = await SimpleToken.new()
+    await underlyingToken.initialize("Wrapped BTC", "WBTC", wbtcDecimals)
+
+    priceToken = await SimpleToken.new()
+    await priceToken.initialize("USD Coin", "USDC", 6)
+
+    // create the price oracle fresh for each test
+    deployedMockPriceOracle = await MockPriceOracle.new(wbtcDecimals)
+
+    const humanCollateralPrice2 = new BN(22_000 * 10 ** 8) // 22k
+
+    await deployedMockPriceOracle.setLatestAnswer(humanCollateralPrice2)
+    deployedMockVolatilityPriceOracle = await setupMockVolatilityPriceOracle(
+      underlyingToken.address,
+      priceToken.address,
+      deployedMockPriceOracle.address,
+    )
+
+    const volatility = await ethers.getContractFactory("VolatilityOracle", {})
+
+    const MockVolatility = await ethers.getContractFactory(
+      "MockVolatilityOracle",
+      {},
+    )
+
+    deployedVolatilityOracle = await volatility.deploy(
+      PERIOD,
+      deployedMockVolatilityPriceOracle.address,
+      WINDOW_IN_DAYS,
+    )
+    deployedMockVolatilityOracle = await MockVolatility.deploy(
+      PERIOD,
+      deployedMockVolatilityPriceOracle.address,
+      WINDOW_IN_DAYS,
+    )
+
+    deployedAddressesProvider.setVolatilityOracle(
+      deployedMockVolatilityOracle.address,
+    )
+
+    const values = [
+      BigNumber.from("2000000000"),
+      BigNumber.from("2100000000"),
+      BigNumber.from("2200000000"),
+      BigNumber.from("2150000000"),
+    ]
+    const stdevs = [
+      BigNumber.from("0"),
+      BigNumber.from("2439508"),
+      BigNumber.from("2248393"),
+      BigNumber.from("3068199"),
+    ]
+
+    const topOfPeriod = (await getTopOfPeriod()) + PERIOD
+    await time.increaseTo(topOfPeriod)
+
+    await deployedMockVolatilityOracle.initPool(
+      underlyingToken.address,
+      priceToken.address,
+    )
   })
 
   it("Provides capital without trading", async () => {
@@ -81,11 +161,12 @@ contract("AMM Call Verification", (accounts) => {
     await expectRevert.unspecified(deployedAmm.provideCapital(10000, 0))
 
     // Approve collateral
-    await underlyingToken.mint(ownerAccount, 10000)
-    await underlyingToken.approve(deployedAmm.address, 10000)
+    await underlyingToken.mint(ownerAccount, 1000000000)
+    await underlyingToken.approve(deployedAmm.address, 1000000)
 
+    await underlyingToken.mint(aliceAccount, 1000)
     // Provide capital
-    let ret = await deployedAmm.provideCapital(10000, 0)
+    let ret = await deployedAmm.provideCapital(100, 0, { from: aliceAccount })
 
     expectEvent(ret, "LpTokensMinted", {
       minter: ownerAccount,
@@ -1150,7 +1231,7 @@ contract("AMM Call Verification", (accounts) => {
     await time.increaseTo(expiration - ONE_WEEK_DURATION) // use the same time, no matter when this test gets called
 
     // Approve collateral
-    await underlyingToken.mint(ownerAccount, 10000)
+    await underlyingToken.mint(ownerAccount, 1000000)
     await underlyingToken.approve(deployedAmm.address, 10000)
 
     // Provide capital
@@ -1161,7 +1242,7 @@ contract("AMM Call Verification", (accounts) => {
     const lpToken = await SimpleToken.at(await deployedAmm.lpToken())
 
     // Now let's do some trading from another account
-    await underlyingToken.mint(aliceAccount, 1000)
+    await underlyingToken.mint(aliceAccount, 100000)
     await underlyingToken.approve(deployedAmm.address, 1000, {
       from: aliceAccount,
     })
@@ -1182,7 +1263,7 @@ contract("AMM Call Verification", (accounts) => {
     )
 
     // Now have Alice buy some more
-    await underlyingToken.mint(aliceAccount, 1000)
+    await underlyingToken.mint(aliceAccount, 100000)
     await underlyingToken.approve(deployedAmm.address, 1000, {
       from: aliceAccount,
     })
@@ -1199,4 +1280,17 @@ contract("AMM Call Verification", (accounts) => {
     )
     assertBNEq(approval, 0, "No left over approval should be there")
   })
+  const getTopOfPeriod = async () => {
+    const latestTimestamp = (await provider.getBlock("latest")).timestamp
+    let topOfPeriod: number
+
+    const rem = latestTimestamp % PERIOD
+    if (rem < Math.floor(PERIOD / 2)) {
+      topOfPeriod = latestTimestamp - rem + PERIOD
+    } else {
+      topOfPeriod = latestTimestamp + rem + PERIOD
+    }
+    console.log(topOfPeriod)
+    return topOfPeriod
+  }
 })
