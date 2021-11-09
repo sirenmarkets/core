@@ -13,6 +13,8 @@ import {
   MinterAmmContract,
   ERC1155ControllerInstance,
   SirenExchangeContract,
+  AddressesProviderInstance,
+  AddressesProviderContract,
 } from "../typechain"
 import { artifacts, assert, ethers } from "hardhat"
 import { time, expectEvent, BN } from "@openzeppelin/test-helpers"
@@ -44,6 +46,9 @@ const SirenExchange: SirenExchangeContract = artifacts.require("SirenExchange")
 const MinterAmm: MinterAmmContract = artifacts.require("MinterAmm")
 const AmmDataProvider: AmmDataProviderContract =
   artifacts.require("AmmDataProvider")
+
+const AddressesProvider: AddressesProviderContract =
+  artifacts.require("AddressesProvider")
 
 const FEE_RECEIVER_ADDRESS = "0x000000000000000000000000000000000000dEaD"
 const ONE_DAY_DURATION = 24 * 60 * 60
@@ -289,6 +294,9 @@ export async function setupSingletonTestContracts(
     proxyContract.address,
   )
 
+  const deployedAddressesProvider: AddressesProviderInstance =
+    await AddressesProvider.new()
+
   // Create a new proxy contract pointing at the series vault logic for testing
   const vaultProxy = await Proxy.new(seriesVaultLogic.address)
   const deployedVault = await SeriesVault.at(vaultProxy.address)
@@ -388,6 +396,7 @@ export async function setupSingletonTestContracts(
     deployedMockPriceOracle,
     deployedAmmFactory,
     deployedAmmDataProvider,
+    deployedAddressesProvider,
     oraclePrice,
     expiration,
     exerciseFee,
@@ -654,6 +663,7 @@ export async function setupAllTestContracts(
     deployedMockPriceOracle,
     deployedAmmFactory,
     deployedAmmDataProvider,
+    deployedAddressesProvider,
     expiration,
     erc1155URI,
   } = await setupSingletonTestContracts({
@@ -713,6 +723,7 @@ export async function setupAllTestContracts(
     deployedMockPriceOracle,
     deployedAmmFactory,
     deployedAmmDataProvider,
+    deployedAddressesProvider,
     deployedAmm,
     oraclePrice,
     expiration,
