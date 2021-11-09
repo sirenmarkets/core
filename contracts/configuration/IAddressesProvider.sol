@@ -20,14 +20,6 @@ interface IAddressesProvider {
 
     function getAddress(bytes32 id) external view returns (address);
 
-    function getPoolAdmin() external view returns (address);
-
-    function setPoolAdmin(address admin) external;
-
-    function getEmergencyAdmin() external view returns (address);
-
-    function setEmergencyAdmin(address admin) external;
-
     function getPriceOracle() external view returns (address);
 
     function setPriceOracle(address priceOracle) external;

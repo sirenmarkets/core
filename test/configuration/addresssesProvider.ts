@@ -17,13 +17,6 @@ import { setupAllTestContracts, assertBNEq, ONE_WEEK_DURATION } from "../util"
 let deployedSeriesController: SeriesControllerInstance
 let deployedAddressesProvider: AddressesProviderInstance
 
-const STRIKE_PRICE = 15000 * 1e8 // 15000 USD
-const BTC_ORACLE_PRICE = 14_000 * 10 ** 8 // BTC oracle answer has 8 decimals places, same as BTC
-
-const ERROR_MESSAGES = {
-  MIN_TRADE_SIZE: "Buy/Sell amount below min size",
-}
-
 contract("Address Provider Set/Get Verification", (accounts) => {
   const ownerAccount = accounts[0]
   const aliceAccount = accounts[1]
@@ -31,11 +24,7 @@ contract("Address Provider Set/Get Verification", (accounts) => {
 
   beforeEach(async () => {
     ;({ deployedAddressesProvider, deployedSeriesController } =
-      await setupAllTestContracts({
-        strikePrice: STRIKE_PRICE.toString(),
-        oraclePrice: BTC_ORACLE_PRICE,
-        isPutOption: true,
-      }))
+      await setupAllTestContracts())
   })
 
   it("Successfully set a contracts address", async () => {

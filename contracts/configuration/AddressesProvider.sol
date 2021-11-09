@@ -13,11 +13,9 @@ import {IAddressesProvider} from "./IAddressesProvider.sol";
 contract AddressesProvider is Ownable, IAddressesProvider {
     mapping(bytes32 => address) private _addresses;
 
-    bytes32 private constant PRICE_ORACLE = "PRICEE_ORACLE";
+    bytes32 private constant PRICE_ORACLE = "PRICE_ORACLE";
     bytes32 private constant AMM_DATA_PROVIDER = "AMM_DATA_PROVIDER";
     bytes32 private constant SERIES_CONTROLLER = "SERIES_CONTROLLER";
-    bytes32 private constant POOL_ADMIN = "POOL_ADMIN";
-    bytes32 private constant EMERGENCY_ADMIN = "EMERGENCY_ADMIN";
 
     /**
      * @dev Sets an address for an id replacing the address saved in the addresses map
@@ -46,28 +44,6 @@ contract AddressesProvider is Ownable, IAddressesProvider {
      * @dev The functions below are getters/setters of addresses that are outside the context
      * of the protocol hence the upgradable proxy pattern is not used
      **/
-
-    function getPoolAdmin() external view override returns (address) {
-        return getAddress(POOL_ADMIN);
-    }
-
-    function setPoolAdmin(address admin) external override onlyOwner {
-        _addresses[POOL_ADMIN] = admin;
-        emit ConfigurationAdminUpdated(admin);
-    }
-
-    function getEmergencyAdmin() external view override returns (address) {
-        return getAddress(EMERGENCY_ADMIN);
-    }
-
-    function setEmergencyAdmin(address emergencyAdmin)
-        external
-        override
-        onlyOwner
-    {
-        _addresses[EMERGENCY_ADMIN] = emergencyAdmin;
-        emit EmergencyAdminUpdated(emergencyAdmin);
-    }
 
     function getPriceOracle() external view override returns (address) {
         return getAddress(PRICE_ORACLE);
