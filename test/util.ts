@@ -26,6 +26,7 @@ import UniswapV2Factory from "@uniswap/v2-core/build/UniswapV2Factory.json"
 import UniswapV2Router from "@uniswap/v2-periphery/build/UniswapV2Router02.json"
 import IUniswapV2Pair from "@uniswap/v2-core/build/IUniswapV2Pair.json"
 import { BlackScholesInstance } from "../typechain/BlackScholes"
+import { create } from "mathjs"
 
 // these are the deterministic accounts given to use by the Hardhat network. They are
 // deterministic because Hardhat always uses the account mnemonic:
@@ -379,7 +380,7 @@ export async function setupSingletonTestContracts(
     deployedSeriesController.address,
     deployedERC1155Controller.address,
     deployedPriceOracle.address,
-    deployedBlackScholes.address,
+    deployedAddressesProvider.address,
   )
 
   const controllerInitResp =
@@ -640,7 +641,6 @@ export async function setupSeries({
   )
   // @ts-ignore
   const seriesId = seriesEvent.args.seriesId
-
   return {
     seriesId,
     strikePrice,

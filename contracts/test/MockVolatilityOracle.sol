@@ -28,7 +28,7 @@ contract MockVolatilityOracle is DSMath, VolatilityOracle {
 
         (uint32 commitTimestamp, uint32 gapFromPeriod) = secondsFromPeriod();
 
-        require(gapFromPeriod < commitPhaseDuration, "Not commit phase");
+        // require(gapFromPeriod < commitPhaseDuration, "Not commit phase");
 
         uint256 price = IPriceOracle(priceOracleAddress).getCurrentPrice(
             underlyingToken,
@@ -45,11 +45,11 @@ contract MockVolatilityOracle is DSMath, VolatilityOracle {
 
         Accumulator storage accum = accumulators[underlyingToken][priceToken];
 
-        require(
-            block.timestamp >=
-                accum.lastTimestamp + period - commitPhaseDuration,
-            "Committed"
-        );
+        // require(
+        //     block.timestamp >=
+        //         accum.lastTimestamp + period - commitPhaseDuration,
+        //     "Committed"
+        // );
 
         uint256 currentObservationIndex = accum.currentObservationIndex;
 

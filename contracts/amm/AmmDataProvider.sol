@@ -410,6 +410,7 @@ contract AmmDataProvider is IAmmDataProvider {
         ISeriesController.Series memory series = seriesController.series(
             seriesId
         );
+        console.log(seriesController.underlyingToken(seriesId));
         uint256 underlyingPrice = IPriceOracle(priceOracle).getCurrentPrice(
             seriesController.underlyingToken(seriesId),
             seriesController.priceToken(seriesId)
@@ -442,13 +443,19 @@ contract AmmDataProvider is IAmmDataProvider {
                 series.strikePrice,
                 0
             );
+        console.log("VolatilityFactory", volatilityFactor);
+        console.log("Underlying PRice", underlyingPrice);
+        console.log("Strike price", series.strikePrice);
+        console.log("Expiration Date", series.expirationDate);
+        console.log("put", put);
         if (series.isPutOption == true) {
+            console.log("INSIDE OF PUT");
             console.log(put);
             return ((put * 1e18) / underlyingPrice);
         } else {
-            return ((call * 1e18) / underlyingPrice);
             console.log("INSIDE OF CALL");
             console.log(call);
+            return ((call * 1e18) / underlyingPrice);
         }
     }
 

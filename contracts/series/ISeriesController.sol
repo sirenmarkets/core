@@ -62,6 +62,7 @@ interface ISeriesController {
 
     /// @notice Emitted when the owner creates a new series
     event SeriesCreated(
+        uint64 seriesId,
         Tokens tokens,
         address[] restrictedMinters,
         uint256 strikePrice,

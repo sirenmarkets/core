@@ -279,7 +279,6 @@ contract MinterAmm is
 
     /// The owner can set the volatility factor used to price the options
     function getVolatility(uint64 _seriesId) public view returns (uint256) {
-        console.log("hello");
         return
             uint256(
                 IVolatilityOracle(addressesProvider.getVolatilityOracle())

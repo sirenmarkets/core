@@ -827,6 +827,7 @@ contract SeriesController is
 
             // Emit the event
             emit SeriesCreated(
+                _latestIndex,
                 _tokens,
                 _restrictedMinters,
                 _strikePrices[i],

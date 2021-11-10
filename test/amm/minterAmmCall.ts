@@ -53,7 +53,8 @@ let expiration: number
 let seriesId: string
 
 const STRIKE_PRICE = 15000 * 1e8 // 15000 USD
-const OTM_BTC_ORACLE_PRICE = 14_000 * 10 ** 8
+
+const OTM_BTC_ORACLE_PRICE = 15_100 * 10 ** 8
 const ITM_BTC_ORACLE_PRICE = 20_000 * 10 ** 8
 
 const ERROR_MESSAGES = {
@@ -94,16 +95,10 @@ contract("AMM Call Verification", (accounts) => {
       oraclePrice: OTM_BTC_ORACLE_PRICE,
     }))
 
-    underlyingToken = await SimpleToken.new()
-    await underlyingToken.initialize("Wrapped BTC", "WBTC", wbtcDecimals)
-
-    priceToken = await SimpleToken.new()
-    await priceToken.initialize("USD Coin", "USDC", 6)
-
     // create the price oracle fresh for each test
     deployedMockPriceOracle = await MockPriceOracle.new(wbtcDecimals)
 
-    const humanCollateralPrice2 = new BN(22_000 * 10 ** 8) // 22k
+    const humanCollateralPrice2 = new BN(19000 * 1e8) // 19k
 
     await deployedMockPriceOracle.setLatestAnswer(humanCollateralPrice2)
     deployedMockVolatilityPriceOracle = await setupMockVolatilityPriceOracle(
@@ -111,7 +106,6 @@ contract("AMM Call Verification", (accounts) => {
       priceToken.address,
       deployedMockPriceOracle.address,
     )
-
     const volatility = await ethers.getContractFactory("VolatilityOracle", {})
 
     const MockVolatility = await ethers.getContractFactory(
@@ -135,10 +129,10 @@ contract("AMM Call Verification", (accounts) => {
     )
 
     const values = [
+      BigNumber.from("1300000000"),
+      BigNumber.from("1600000000"),
+      BigNumber.from("1430000000"),
       BigNumber.from("2000000000"),
-      BigNumber.from("2100000000"),
-      BigNumber.from("2200000000"),
-      BigNumber.from("2150000000"),
     ]
     const stdevs = [
       BigNumber.from("0"),
@@ -148,12 +142,25 @@ contract("AMM Call Verification", (accounts) => {
     ]
 
     const topOfPeriod = (await getTopOfPeriod()) + PERIOD
-    await time.increaseTo(topOfPeriod)
 
     await deployedMockVolatilityOracle.initPool(
       underlyingToken.address,
       priceToken.address,
     )
+
+    for (let i = 0; i < values.length; i++) {
+      await deployedMockPriceOracle.setLatestAnswer(values[i].toString())
+      await deployedMockVolatilityOracle.setPrice(values[i])
+      await deployedMockVolatilityOracle.mockCommit(
+        underlyingToken.address,
+        priceToken.address,
+      )
+      let stdev = await deployedMockVolatilityOracle.vol(
+        underlyingToken.address,
+        priceToken.address,
+      )
+      // assert.equal(stdev.toString(), stdevs[i].toString())
+    }
   })
 
   it("Provides capital without trading", async () => {
@@ -161,12 +168,11 @@ contract("AMM Call Verification", (accounts) => {
     await expectRevert.unspecified(deployedAmm.provideCapital(10000, 0))
 
     // Approve collateral
-    await underlyingToken.mint(ownerAccount, 1000000000)
-    await underlyingToken.approve(deployedAmm.address, 1000000)
+    await underlyingToken.mint(ownerAccount, 10000)
+    await underlyingToken.approve(deployedAmm.address, 10000)
 
-    await underlyingToken.mint(aliceAccount, 1000)
     // Provide capital
-    let ret = await deployedAmm.provideCapital(100, 0, { from: aliceAccount })
+    let ret = await deployedAmm.provideCapital(10000, 0)
 
     expectEvent(ret, "LpTokensMinted", {
       minter: ownerAccount,
@@ -361,7 +367,7 @@ contract("AMM Call Verification", (accounts) => {
   })
 
   it("Provides capital with trading", async () => {
-    await time.increaseTo(expiration - ONE_WEEK_DURATION) // use the same time, no matter when this test gets called
+    // await time.increaseTo(expiration - ONE_WEEK_DURATION) // use the same time, no matter when this test gets called
 
     // Approve collateral
     await underlyingToken.mint(ownerAccount, 10000)
@@ -546,6 +552,8 @@ contract("AMM Call Verification", (accounts) => {
   })
 
   it("Buys and sells bTokens", async () => {
+    console.log("")
+    console.log(deployedMockPriceOracle.address)
     await time.increaseTo(expiration - ONE_WEEK_DURATION) // use the same time, no matter when this test gets called
 
     // Providing capital before approving should fail
@@ -1281,7 +1289,7 @@ contract("AMM Call Verification", (accounts) => {
     assertBNEq(approval, 0, "No left over approval should be there")
   })
   const getTopOfPeriod = async () => {
-    const latestTimestamp = (await provider.getBlock("latest")).timestamp
+    const latestTimestamp = (await provider.getBlock("latest")).timestamp + 1000
     let topOfPeriod: number
 
     const rem = latestTimestamp % PERIOD
@@ -1290,7 +1298,6 @@ contract("AMM Call Verification", (accounts) => {
     } else {
       topOfPeriod = latestTimestamp + rem + PERIOD
     }
-    console.log(topOfPeriod)
     return topOfPeriod
   }
 })

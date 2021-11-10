@@ -6,6 +6,7 @@ pragma experimental ABIEncoderV2;
 import "../synthetix/SignedSafeDecimalMath.sol";
 import "../synthetix/SafeDecimalMath.sol";
 import "./IBlackScholes.sol";
+import "hardhat/console.sol";
 
 /**
  * @title BlackScholes
@@ -166,7 +167,7 @@ contract BlackScholes is IBlackScholes {
             return 0;
         }
 
-        // Past 10, this will always return 1 at the level of precision we are using
+        // // Past 10, this will always return 1 at the level of precision we are using
         if (x > MAX_CDF_STD_DIST_INPUT) {
             return PRECISE_UNIT;
         }
@@ -262,7 +263,6 @@ contract BlackScholes is IBlackScholes {
         uint256 strikeNd2 = strikePV.multiplyDecimalRoundPrecise(
             stdNormalCDF(d2)
         );
-
         // We clamp to zero if the minuend is less than the subtrahend
         // In some scenarios it may be better to compute put price instead and derive call from it depending on which way
         // around is more precise.
@@ -297,6 +297,8 @@ contract BlackScholes is IBlackScholes {
             strikePrecise,
             ratePrecise
         );
+        console.log("D1111");
+        // console.logInt(d1);
         (call, put) = _optionPrices(
             tAnnualised,
             spotPrecise,
