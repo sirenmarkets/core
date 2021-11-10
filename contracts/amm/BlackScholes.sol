@@ -9,7 +9,9 @@ import "./IBlackScholes.sol";
 
 /**
  * @title BlackScholes
- * @author Lyra
+ * References Lyra for the black scholes implementation
+ * https://github.com/lyra-finance/lyra-protocol/blob/master/contracts/BlackScholes.sol
+ * @author SirenMarkets
  * @dev Contract to compute the black scholes price of options. Where the unit is unspecified, it should be treated as a
  * PRECISE_DECIMAL, which has 1e27 units of precision. The default decimal matches the ethereum standard of 1e18 units
  * of precision.
@@ -390,11 +392,10 @@ contract BlackScholes is IBlackScholes {
     ) external pure override returns (IBlackScholes.PricesDeltaStdVega memory) {
         uint256 tAnnualised = annualise(timeToExpirySec);
         uint256 spotPrecise = spotDecimal.decimalToPreciseDecimal();
-        uint256 volatilityCorrectDecimal = volatilityDecimal * 1e10;
 
         (int256 d1, int256 d2) = d1d2(
             tAnnualised,
-            volatilityCorrectDecimal.decimalToPreciseDecimal(),
+            (volatilityDecimal * 1e10).decimalToPreciseDecimal(),
             spotPrecise,
             strikeDecimal.decimalToPreciseDecimal(),
             rateDecimal.decimalToPreciseDecimal()
@@ -439,22 +440,20 @@ contract BlackScholes is IBlackScholes {
     ) external pure override returns (IBlackScholes.PricesStdVega memory) {
         uint256 tAnnualised = annualise(timeToExpirySec);
         uint256 spotPrecise = spotDecimal.decimalToPreciseDecimal();
-        uint256 volatilityCorrectDecimal = volatilityDecimal * 1e10;
 
         (int256 d1, int256 d2) = d1d2(
             tAnnualised,
-            volatilityCorrectDecimal.decimalToPreciseDecimal(),
+            (volatilityDecimal * 1e10).decimalToPreciseDecimal(),
             spotPrecise,
             strikeDecimal.decimalToPreciseDecimal(),
             rateDecimal.decimalToPreciseDecimal()
         );
 
-        uint256 v = _standardVega(d1, spotPrecise, timeToExpirySec) /
-            spotDecimal;
+        uint256 v = _standardVega(d1, spotPrecise, timeToExpirySec);
 
         uint256 price;
         {
-            (uint256 callPrice, uint256 putPrice) = _optionPrices(
+            (uint256 call, uint256 put) = _optionPrices(
                 tAnnualised,
                 spotPrecise,
                 strikeDecimal.decimalToPreciseDecimal(),
@@ -463,12 +462,11 @@ contract BlackScholes is IBlackScholes {
                 d2
             );
             if (isPut) {
-                price = putPrice.preciseDecimalToDecimal() / spotDecimal;
+                price = put.divideDecimalRoundPrecise(spotPrecise);
             } else {
-                price = callPrice.preciseDecimalToDecimal() / spotDecimal;
+                price = call.divideDecimalRoundPrecise(spotPrecise);
             }
         }
-
-        return IBlackScholes.PricesStdVega(price, v);
+        return IBlackScholes.PricesStdVega(price.preciseDecimalToDecimal(), v);
     }
 }

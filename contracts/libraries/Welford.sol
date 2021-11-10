@@ -4,13 +4,16 @@ pragma solidity >=0.7.3 <=0.8.0;
 import {SignedSafeMath} from "@openzeppelin/contracts/utils/math/SignedSafeMath.sol";
 import {Math} from "./Math.sol";
 
-/// @author Ken Chan
-///         Chuddy
+/**
+ * @title Welford Algorithm
+ * REFERENCE
+ * https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
+ * This implementation of this algorithm was created by Ribon Finance github linke below
+ * https://github.com/ribbon-finance/rvol/blob/master/contracts/libraries/Welford.sol
+ * @author SirenMarkets
+ * @dev Contract to compute a dynamic volatilty of prices without needing to loop over them for each iteration of price calculations
+ */
 
-// REFERENCE
-// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
-// This implementation of this algorithm was created by Ribon Finance github linke below
-// https://github.com/ribbon-finance/rvol/blob/master/contracts/libraries/Welford.sol
 library Welford {
     using SignedSafeMath for int256;
 
