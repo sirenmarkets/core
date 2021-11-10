@@ -274,7 +274,8 @@ contract BlackScholes is IBlackScholes {
     /**
      * @dev Returns call and put prices for options with given parameters.
      * @param timeToExpirySec Number of seconds to the expiry of the option
-     * @param volatilityDecimal Implied volatility over the period til expiry as a percentage
+     * @param volatilityDecimal Implied volatility over the period til expiry as a percentage( we calculate our volatilty and it is returned with 8
+     *                          decimals so we need to update it to be the correct format for blackscholes
      * @param spotDecimal The current price of the base asset
      * @param strikeDecimal The strike price of the option
      * @param rateDecimal The percentage risk free rate + carry cost
@@ -389,10 +390,11 @@ contract BlackScholes is IBlackScholes {
     ) external pure override returns (IBlackScholes.PricesDeltaStdVega memory) {
         uint256 tAnnualised = annualise(timeToExpirySec);
         uint256 spotPrecise = spotDecimal.decimalToPreciseDecimal();
+        uint256 volatilityCorrectDecimal = volatilityDecimal * 1e10;
 
         (int256 d1, int256 d2) = d1d2(
             tAnnualised,
-            volatilityDecimal.decimalToPreciseDecimal(),
+            volatilityCorrectDecimal.decimalToPreciseDecimal(),
             spotPrecise,
             strikeDecimal.decimalToPreciseDecimal(),
             rateDecimal.decimalToPreciseDecimal()
@@ -437,10 +439,11 @@ contract BlackScholes is IBlackScholes {
     ) external pure override returns (IBlackScholes.PricesStdVega memory) {
         uint256 tAnnualised = annualise(timeToExpirySec);
         uint256 spotPrecise = spotDecimal.decimalToPreciseDecimal();
+        uint256 volatilityCorrectDecimal = volatilityDecimal * 1e10;
 
         (int256 d1, int256 d2) = d1d2(
             tAnnualised,
-            volatilityDecimal.decimalToPreciseDecimal(),
+            volatilityCorrectDecimal.decimalToPreciseDecimal(),
             spotPrecise,
             strikeDecimal.decimalToPreciseDecimal(),
             rateDecimal.decimalToPreciseDecimal()
