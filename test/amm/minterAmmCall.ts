@@ -54,7 +54,7 @@ let seriesId: string
 
 const STRIKE_PRICE = 15000 * 1e8 // 15000 USD
 
-const OTM_BTC_ORACLE_PRICE = 15_100 * 10 ** 8
+const OTM_BTC_ORACLE_PRICE = 14_000 * 10 ** 8
 const ITM_BTC_ORACLE_PRICE = 20_000 * 10 ** 8
 
 const ERROR_MESSAGES = {
@@ -129,10 +129,10 @@ contract("AMM Call Verification", (accounts) => {
     )
 
     const values = [
-      BigNumber.from("1300000000"),
-      BigNumber.from("1600000000"),
-      BigNumber.from("1430000000"),
-      BigNumber.from("2000000000"),
+      BigNumber.from("1450000000"),
+      BigNumber.from("1490000000"),
+      BigNumber.from("1500000000"),
+      BigNumber.from("1490000000"),
     ]
     const stdevs = [
       BigNumber.from("0"),
@@ -147,7 +147,6 @@ contract("AMM Call Verification", (accounts) => {
       underlyingToken.address,
       priceToken.address,
     )
-
     for (let i = 0; i < values.length; i++) {
       await deployedMockPriceOracle.setLatestAnswer(values[i].toString())
       await deployedMockVolatilityOracle.setPrice(values[i])
@@ -552,8 +551,6 @@ contract("AMM Call Verification", (accounts) => {
   })
 
   it("Buys and sells bTokens", async () => {
-    console.log("")
-    console.log(deployedMockPriceOracle.address)
     await time.increaseTo(expiration - ONE_WEEK_DURATION) // use the same time, no matter when this test gets called
 
     // Providing capital before approving should fail

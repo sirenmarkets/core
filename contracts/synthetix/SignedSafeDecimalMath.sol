@@ -22,7 +22,9 @@
 //SOFTWARE.
 
 pragma solidity >=0.5.0 <=0.8.0;
+
 // Libraries
+
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SignedSafeMath.sol";
 
 // https://docs.synthetix.io/contracts/source/libraries/safedecimalmath
