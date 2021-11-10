@@ -218,7 +218,7 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
         address underlyingToken,
         address priceToken,
         address oracle
-    ) external onlyOwner {
+    ) external override onlyOwner {
         require(
             oracles[underlyingToken][priceToken] == address(0x0),
             "PriceOracle: cannot set address for an existing oracle"

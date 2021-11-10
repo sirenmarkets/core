@@ -7,12 +7,15 @@ import {
   SeriesVaultContract,
   ERC1155ControllerContract,
   AmmDataProviderContract,
+  BlackScholesContract,
   MockPriceOracleContract,
   ProxyContract,
   AmmFactoryContract,
   MinterAmmContract,
   ERC1155ControllerInstance,
   SirenExchangeContract,
+  MockVolatilityPriceOracleInstance,
+  MockVolatilityPriceOracleContract,
   AddressesProviderInstance,
   AddressesProviderContract,
 } from "../typechain"
@@ -22,6 +25,8 @@ import { time, expectEvent, BN } from "@openzeppelin/test-helpers"
 import UniswapV2Factory from "@uniswap/v2-core/build/UniswapV2Factory.json"
 import UniswapV2Router from "@uniswap/v2-periphery/build/UniswapV2Router02.json"
 import IUniswapV2Pair from "@uniswap/v2-core/build/IUniswapV2Pair.json"
+import { BlackScholesInstance } from "../typechain/BlackScholes"
+import { create } from "mathjs"
 
 // these are the deterministic accounts given to use by the Hardhat network. They are
 // deterministic because Hardhat always uses the account mnemonic:
@@ -30,6 +35,9 @@ const aliceAccount = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
 const bobAccount = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
 
 const PriceOracle: PriceOracleContract = artifacts.require("PriceOracle")
+
+const MockVolatilityPriceOracle: MockVolatilityPriceOracleContract =
+  artifacts.require("MockVolatilityPriceOracle")
 
 const SeriesController: SeriesControllerContract =
   artifacts.require("SeriesController")
@@ -47,6 +55,8 @@ const MinterAmm: MinterAmmContract = artifacts.require("MinterAmm")
 const AmmDataProvider: AmmDataProviderContract =
   artifacts.require("AmmDataProvider")
 
+const BlackScholes: BlackScholesContract = artifacts.require("BlackScholes")
+
 const AddressesProvider: AddressesProviderContract =
   artifacts.require("AddressesProvider")
 
@@ -61,7 +71,7 @@ export async function setupPriceOracle(
 ): Promise<PriceOracleInstance> {
   const deployedPriceOracle: PriceOracleInstance = await PriceOracle.new()
 
-  await deployedPriceOracle.initialize(ONE_WEEK_DURATION)
+  await deployedPriceOracle.initialize(ONE_DAY_DURATION)
 
   await deployedPriceOracle.addTokenPair(
     underlyingAddress,
@@ -69,6 +79,24 @@ export async function setupPriceOracle(
     mockOracleAddress,
   )
   return deployedPriceOracle
+}
+
+export async function setupMockVolatilityPriceOracle(
+  underlyingAddress: string,
+  priceAddress: string,
+  mockOracleAddress: string,
+): Promise<MockVolatilityPriceOracleInstance> {
+  const deployedMockVolatilityPriceOracle: MockVolatilityPriceOracleInstance =
+    await MockVolatilityPriceOracle.new()
+
+  await deployedMockVolatilityPriceOracle.initialize(ONE_DAY_DURATION)
+
+  await deployedMockVolatilityPriceOracle.addTokenPair(
+    underlyingAddress,
+    priceAddress,
+    mockOracleAddress,
+  )
+  return deployedMockVolatilityPriceOracle
 }
 
 export async function checkBalances(
@@ -294,8 +322,12 @@ export async function setupSingletonTestContracts(
     proxyContract.address,
   )
 
+  const deployedBlackScholes: BlackScholesInstance = await BlackScholes.new()
+
   const deployedAddressesProvider: AddressesProviderInstance =
     await AddressesProvider.new()
+
+  deployedAddressesProvider.setBlackScholes(deployedBlackScholes.address)
 
   // Create a new proxy contract pointing at the series vault logic for testing
   const vaultProxy = await Proxy.new(seriesVaultLogic.address)
@@ -348,6 +380,7 @@ export async function setupSingletonTestContracts(
     deployedSeriesController.address,
     deployedERC1155Controller.address,
     deployedPriceOracle.address,
+    deployedAddressesProvider.address,
   )
 
   const controllerInitResp =
@@ -383,6 +416,7 @@ export async function setupSingletonTestContracts(
     ammLogic.address,
     erc20Logic.address,
     deployedSeriesController.address,
+    deployedAddressesProvider.address,
   )
 
   return {
@@ -396,6 +430,7 @@ export async function setupSingletonTestContracts(
     deployedMockPriceOracle,
     deployedAmmFactory,
     deployedAmmDataProvider,
+    deployedBlackScholes,
     deployedAddressesProvider,
     oraclePrice,
     expiration,
@@ -550,6 +585,8 @@ export async function setupAmm({
   deployedAmmFactory,
   deployedPriceOracle,
   deployedAmmDataProvider,
+  deployedBlackScholes,
+  deployedAddressesProvider,
   underlyingToken,
   priceToken,
   collateralToken,
@@ -604,7 +641,6 @@ export async function setupSeries({
   )
   // @ts-ignore
   const seriesId = seriesEvent.args.seriesId
-
   return {
     seriesId,
     strikePrice,
@@ -663,6 +699,7 @@ export async function setupAllTestContracts(
     deployedMockPriceOracle,
     deployedAmmFactory,
     deployedAmmDataProvider,
+    deployedBlackScholes,
     deployedAddressesProvider,
     expiration,
     erc1155URI,
@@ -685,6 +722,8 @@ export async function setupAllTestContracts(
     deployedAmmFactory,
     deployedPriceOracle,
     deployedAmmDataProvider,
+    deployedBlackScholes,
+    deployedAddressesProvider,
     underlyingToken,
     priceToken,
     collateralToken,
@@ -723,6 +762,7 @@ export async function setupAllTestContracts(
     deployedMockPriceOracle,
     deployedAmmFactory,
     deployedAmmDataProvider,
+    deployedBlackScholes,
     deployedAddressesProvider,
     deployedAmm,
     oraclePrice,

@@ -80,5 +80,8 @@
     "typescript": "^4.0.2",
     "uniswap-v3-deploy-plugin": "^0.1.0",
     "web3": "^1.3.0"
+  },
+  "dependencies": {
+    "mathjs": "^9.4.5"
   }
 }

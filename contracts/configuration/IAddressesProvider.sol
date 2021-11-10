@@ -15,6 +15,8 @@ interface IAddressesProvider {
     event LendingRateOracleUpdated(address indexed newAddress);
     event ProxyCreated(bytes32 id, address indexed newAddress);
     event AddressSet(bytes32 id, address indexed newAddress, bool hasProxy);
+    event VolatilityOracleUpdated(address indexed newAddress);
+    event BlackScholesUpdated(address indexed newAddress);
 
     function setAddress(bytes32 id, address newAddress) external;
 
@@ -26,9 +28,17 @@ interface IAddressesProvider {
 
     function getAmmDataProvider() external view returns (address);
 
-    function setAmmDataProvider(address priceOracle) external;
+    function setAmmDataProvider(address ammDataProvider) external;
 
     function getSeriesController() external view returns (address);
 
-    function setSeriesController(address priceOracle) external;
+    function setSeriesController(address seriesController) external;
+
+    function getVolatilityOracle() external view returns (address);
+
+    function setVolatilityOracle(address volatilityOracle) external;
+
+    function getBlackScholes() external view returns (address);
+
+    function setBlackScholes(address blackScholes) external;
 }

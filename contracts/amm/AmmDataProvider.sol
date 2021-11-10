@@ -10,23 +10,34 @@ import "../series/ISeriesController.sol";
 import "../series/IPriceOracle.sol";
 import "../series/SeriesLibrary.sol";
 import "../libraries/Math.sol";
+import "./IBlackScholes.sol";
+import "../configuration/IAddressesProvider.sol";
+import "hardhat/console.sol";
 
 contract AmmDataProvider is IAmmDataProvider {
     ISeriesController public seriesController;
     IERC1155 public erc1155Controller;
     IPriceOracle public priceOracle;
+    IAddressesProvider public addressesProvider;
 
     event AmmDataProviderCreated(
         ISeriesController seriesController,
         IERC1155 erc1155Controller,
-        IPriceOracle priceOracle
+        IPriceOracle priceOracle,
+        IAddressesProvider addressesProvider
     );
 
     constructor(
         ISeriesController _seriesController,
         IERC1155 _erc1155Controller,
-        IPriceOracle _priceOracle
+        IPriceOracle _priceOracle,
+        IAddressesProvider _addressProvider
     ) {
+        require(
+            address(_addressProvider) != address(0x0),
+            "AmmDataProvider: _addressProvider cannot be the 0x0 address"
+        );
+
         require(
             address(_seriesController) != address(0x0),
             "AmmDataProvider: _seriesController cannot be the 0x0 address"
@@ -43,11 +54,13 @@ contract AmmDataProvider is IAmmDataProvider {
         seriesController = _seriesController;
         erc1155Controller = _erc1155Controller;
         priceOracle = _priceOracle;
+        addressesProvider = _addressProvider;
 
         emit AmmDataProviderCreated(
             _seriesController,
             _erc1155Controller,
-            _priceOracle
+            _priceOracle,
+            _addressProvider
         );
     }
 
@@ -133,55 +146,6 @@ contract AmmDataProvider is IAmmDataProvider {
         }
 
         return (bTokenVirtualBalance, wTokenVirtualBalance);
-    }
-
-    /// @dev Calculate price of bToken based on Black-Scholes approximation by Brennan-Subrahmanyam from their paper
-    /// "A Simple Formula to Compute the Implied Standard Deviation" (1988).
-    /// Formula: 0.4 * ImplVol * sqrt(timeUntilExpiry) * priceRatio
-    ///
-    /// Please note that the 0.4 is assumed to already be factored into the `volatility` argument. We do this to save
-    /// gas.
-    ///
-    /// Returns premium in units of percentage of collateral locked in a contract for both calls and puts
-    function calcPrice(
-        uint256 timeUntilExpiry,
-        uint256 strike,
-        uint256 currentPrice,
-        uint256 volatility,
-        bool isPutOption
-    ) public pure override returns (uint256) {
-        uint256 intrinsic = 0;
-        uint256 timeValue = 0;
-
-        if (isPutOption) {
-            if (currentPrice < strike) {
-                // ITM
-                intrinsic = ((strike - currentPrice) * 1e18) / strike;
-            }
-
-            timeValue =
-                (Math.sqrt(timeUntilExpiry) * volatility * strike) /
-                currentPrice;
-        } else {
-            if (currentPrice > strike) {
-                // ITM
-                intrinsic = ((currentPrice - strike) * 1e18) / currentPrice;
-            }
-
-            // use a Black-Scholes approximation to calculate the option price given the
-            // volatility, strike price, and the current series price
-            timeValue =
-                (Math.sqrt(timeUntilExpiry) * volatility * currentPrice) /
-                strike;
-        }
-
-        // Verify that 100% is the max that can be returned.
-        // A super deep In The Money option could return a higher value than 100% using the approximation formula
-        if (intrinsic + timeValue > 1e18) {
-            return 1e18;
-        }
-
-        return intrinsic + timeValue;
     }
 
     /// @notice Calculate premium (i.e. the option price) to buy bTokenAmount bTokens for the
@@ -357,7 +321,7 @@ contract AmmDataProvider is IAmmDataProvider {
         uint64[] memory openSeries,
         address ammAddress,
         uint256 collateralTokenBalance,
-        uint256 impliedVolatility
+        uint256[] memory impliedVolatility
     ) external view override returns (uint256) {
         if (lpTokenAmount == 0) return 0;
         if (lpTokenSupply == 0) return 0;
@@ -397,7 +361,7 @@ contract AmmDataProvider is IAmmDataProvider {
 
                 uint256 bTokenPrice = getPriceForExpiredSeries(
                     seriesId,
-                    impliedVolatility
+                    impliedVolatility[i]
                 );
 
                 uint256 collateralAmountB = optionTokenGetCollateralOut(
@@ -446,6 +410,7 @@ contract AmmDataProvider is IAmmDataProvider {
         ISeriesController.Series memory series = seriesController.series(
             seriesId
         );
+        console.log(seriesController.underlyingToken(seriesId));
         uint256 underlyingPrice = IPriceOracle(priceOracle).getCurrentPrice(
             seriesController.underlyingToken(seriesId),
             seriesController.priceToken(seriesId)
@@ -464,19 +429,34 @@ contract AmmDataProvider is IAmmDataProvider {
         uint256 underlyingPrice,
         uint256 volatilityFactor
     ) private view returns (uint256) {
-        return
-            // Note! This function assumes the underlyingPrice is a valid series
-            // price in units of underlyingToken/priceToken. If the onchain price
-            // oracle's value were to drift from the true series price, then the bToken price
-            // we calculate here would also drift, and will result in undefined
-            // behavior for any functions which call getPriceForExpiredSeriesInternal
-            calcPrice(
+        // Note! This function assumes the underlyingPrice is a valid series
+        // price in units of underlyingToken/priceToken. If the onchain price
+        // oracle's value were to drift from the true series price, then the bToken price
+        // we calculate here would also drift, and will result in undefined
+        // behavior for any functions which call getPriceForExpiredSeriesInternal
+        (uint256 call, uint256 put) = IBlackScholes(
+            addressesProvider.getBlackScholes()
+        ).optionPrices(
                 series.expirationDate - block.timestamp,
-                series.strikePrice,
-                underlyingPrice,
                 volatilityFactor,
-                series.isPutOption
+                underlyingPrice,
+                series.strikePrice,
+                0
             );
+        console.log("VolatilityFactory", volatilityFactor);
+        console.log("Underlying PRice", underlyingPrice);
+        console.log("Strike price", series.strikePrice);
+        console.log("Expiration Date", series.expirationDate);
+        console.log("put", put);
+        if (series.isPutOption == true) {
+            console.log("INSIDE OF PUT");
+            console.log(put);
+            return ((put * 1e18) / underlyingPrice);
+        } else {
+            console.log("INSIDE OF CALL");
+            console.log(call);
+            return ((call * 1e18) / underlyingPrice);
+        }
     }
 
     /// Get value of all assets in the pool in units of this AMM's collateralToken.
@@ -486,7 +466,7 @@ contract AmmDataProvider is IAmmDataProvider {
         uint64[] memory openSeries,
         uint256 collateralBalance,
         address ammAddress,
-        uint256 impliedVolatility
+        uint256[] memory impliedVolatility
     ) external view override returns (uint256) {
         // Note! This function assumes the underlyingPrice is a valid series
         // price in units of underlyingToken/priceToken. If the onchain price
@@ -533,7 +513,7 @@ contract AmmDataProvider is IAmmDataProvider {
                 uint256 bPrice = getPriceForExpiredSeriesInternal(
                     series,
                     underlyingPrice,
-                    impliedVolatility
+                    impliedVolatility[i]
                 );
                 // wPrice = 1 - bPrice
                 uint256 wPrice = uint256(1e18) - bPrice;

@@ -10,6 +10,7 @@ import {
 } from "../../typechain"
 import { constants } from "@openzeppelin/test-helpers"
 import { setupAllTestContracts } from "../util"
+import { BlackScholesInstance } from "../../typechain/BlackScholes"
 
 const ERROR_MESSAGES = {
   UNAUTHORIZED: "Ownable: caller is not the owner",
@@ -31,6 +32,7 @@ contract("MinterAmm AmmDataProvider", (accounts) => {
   let deployedAmmDataProvider: AmmDataProviderInstance
   let newDeployedAmmDataProvider: AmmDataProviderInstance
   let deployedPriceOracle: PriceOracleInstance
+  let deployedBlackScholes: BlackScholesInstance
 
   beforeEach(async () => {
     ;({
@@ -39,12 +41,14 @@ contract("MinterAmm AmmDataProvider", (accounts) => {
       deployedERC1155Controller,
       deployedAmmDataProvider,
       deployedPriceOracle,
+      deployedBlackScholes,
     } = await setupAllTestContracts({}))
 
     newDeployedAmmDataProvider = await AmmDataProvider.new(
       deployedSeriesController.address,
       deployedERC1155Controller.address,
       deployedPriceOracle.address,
+      deployedBlackScholes.address,
     )
   })
 

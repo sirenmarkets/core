@@ -10,14 +10,6 @@ interface IAmmDataProvider {
         uint256 bTokenPrice
     ) external view returns (uint256, uint256);
 
-    function calcPrice(
-        uint256 timeUntilExpiry,
-        uint256 strike,
-        uint256 currentPrice,
-        uint256 volatility,
-        bool isPutOption
-    ) external pure returns (uint256);
-
     function bTokenGetCollateralIn(
         uint64 seriesId,
         address ammAddress,
@@ -46,7 +38,7 @@ interface IAmmDataProvider {
         uint64[] memory openSeries,
         address ammAddress,
         uint256 collateralTokenBalance,
-        uint256 impliedVolatility
+        uint256[] memory impliedVolatility
     ) external view returns (uint256);
 
     function getPriceForExpiredSeries(uint64 seriesId, uint256 volatilityFactor)
@@ -59,7 +51,7 @@ interface IAmmDataProvider {
         uint64[] memory openSeries,
         uint256 collateralBalance,
         address ammAddress,
-        uint256 impliedVolatility
+        uint256[] memory impliedVolatility
     ) external view returns (uint256);
 
     function getRedeemableCollateral(

@@ -65,7 +65,7 @@ contract("AMM Pricing", (accounts) => {
     await time.increaseTo(expiration - ONE_WEEK_DURATION) // use the same time, no matter when this test gets called
     assertBNEq(
       (await deployedAmm.getPriceForSeries(seriesId)).toString(),
-      "99966666666666666", // 0.099 WBTC
+      "71428571428571428", // 0.099 WBTC
       "AMM should have correct price for series",
     )
 
@@ -81,28 +81,32 @@ contract("AMM Pricing", (accounts) => {
     await collateralToken.approve(deployedAmm.address, 1e6, {
       from: aliceAccount,
     })
-
+    console.log("ALSKDFNALSKDFNALSKDNFLASKNDFLSAKNDFLASKNDFKNLASD")
+    console.log(
+      "ALICE ====",
+      (await collateralToken.balanceOf(aliceAccount)).toString(),
+    )
     // Buy bTokens
     const maximumCollateral = await deployedAmm.bTokenGetCollateralIn(
       seriesId,
       1000,
     )
 
-    assertBNEq(maximumCollateral, 140078)
+    assertBNEq(maximumCollateral, 140054)
 
     ret = await deployedAmm.bTokenBuy(seriesId, 1000, maximumCollateral, {
       from: aliceAccount,
     })
     assertBNEq(
       (await collateralToken.balanceOf(aliceAccount)).toString(),
-      859922, // paid 140078 for 1000 tokens at ~0.099 WBTC per 1e8 bToken
+      859946, // paid 140054 for 1000 tokens at ~0.099 WBTC per 1e8 bToken
       "Trader should pay correct collateral amount",
     )
 
     // Check total assets value again.
     assertBNEq(
       (await deployedAmm.getTotalPoolValue(true)).toString(),
-      135078,
+      139254,
       "Total assets value in the AMM should be above 10k",
     )
 
@@ -112,23 +116,22 @@ contract("AMM Pricing", (accounts) => {
       true,
       { from: aliceAccount },
     )
-    ret = await deployedAmm.bTokenSell(seriesId, 1000, 8, {
+    ret = await deployedAmm.bTokenSell(seriesId, 1000, 4, {
       from: aliceAccount,
     })
     assertBNEq(
       (await collateralToken.balanceOf(aliceAccount)).toString(),
-      859930, // received 8 for 1000 tokens at ~0.027
+      859950, // received 4 for 1000 tokens at ~0.027
       "Trader should receive correct collateral amount",
     )
 
     // Check total assets value again.
     assertBNEq(
       (await deployedAmm.getTotalPoolValue(true)).toString(),
-      150070,
+      150050,
       "Total assets value in the AMM should be above 10k",
     )
   })
-
   it("should calculate correctly when WBTC is the collateral token", async () => {
     ;({
       collateralToken,

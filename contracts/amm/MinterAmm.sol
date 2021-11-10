@@ -7,13 +7,18 @@ import "@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpg
 import "../libraries/Math.sol";
 import "../proxy/Proxiable.sol";
 import "../proxy/Proxy.sol";
+import "./InitializeableAmm.sol";
+import "./IAmmDataProvider.sol";
+import "./IAddSeriesToAmm.sol";
 import "../series/IPriceOracle.sol";
 import "../swap/ILight.sol";
 import "../token/IERC20Lib.sol";
-import "./IAddSeriesToAmm.sol";
-import "./IAmmDataProvider.sol";
-import "./InitializeableAmm.sol";
+import "../oz/EnumerableSet.sol";
+import "../series/SeriesLibrary.sol";
 import "./MinterAmmStorage.sol";
+import "../series/IVolatilityOracle.sol";
+import "./IBlackScholes.sol";
+import "hardhat/console.sol";
 
 /// This is an implementation of a minting/redeeming AMM (Automated Market Maker) that trades a list of series with the same
 /// collateral token. For example, a single WBTC Call AMM contract can trade all strikes of WBTC calls using
@@ -73,7 +78,7 @@ contract MinterAmm is
     IAddSeriesToAmm,
     OwnableUpgradeable,
     Proxiable,
-    MinterAmmStorageV1
+    MinterAmmStorageV2
 {
     /// @dev NOTE: No local variables should be added here.  Instead see MinterAmmStorageV*.sol
 
@@ -129,6 +134,7 @@ contract MinterAmm is
     );
 
     /// Emitted when the owner updates volatilityFactor
+    /// TODO: update this to emmit the series id and the volatility
     event VolatilityFactorUpdated(uint256 newVolatilityFactor);
 
     /// Emitted when a new sirenPriceOracle gets set on an upgraded AMM
@@ -205,6 +211,7 @@ contract MinterAmm is
         ISeriesController _seriesController,
         address _sirenPriceOracle,
         address _ammDataProvider,
+        IAddressesProvider _addressesProvider,
         IERC20 _underlyingToken,
         IERC20 _priceToken,
         IERC20 _collateralToken,
@@ -225,6 +232,7 @@ contract MinterAmm is
 
         // Save off state variables
         seriesController = _seriesController;
+        addressesProvider = _addressesProvider;
         ammDataProvider = _ammDataProvider;
         erc1155Controller = IERC1155(_seriesController.erc1155Controller());
 
@@ -260,10 +268,6 @@ contract MinterAmm is
             IERC20Lib(address(collateralToken)).decimals()
         );
 
-        // Set default volatility
-        // 0.4 * volInSeconds * 1e18
-        volatilityFactor = 4000e10;
-
         __Ownable_init();
 
         emit AMMInitialized(
@@ -274,12 +278,31 @@ contract MinterAmm is
     }
 
     /// The owner can set the volatility factor used to price the options
-    function setVolatilityFactor(uint256 _volatilityFactor) public onlyOwner {
-        // Check lower bounds: 500e10 corresponds to ~7% annualized volatility
-        require(_volatilityFactor > 500e10, "E09");
+    function getVolatility(uint64 _seriesId) public view returns (uint256) {
+        return
+            uint256(
+                IVolatilityOracle(addressesProvider.getVolatilityOracle())
+                    .annualizedVol(
+                        address(underlyingToken),
+                        address(priceToken)
+                    )
+            );
+    }
 
-        volatilityFactor = _volatilityFactor;
-        emit VolatilityFactorUpdated(_volatilityFactor);
+    /// Each time a trade happens we update the volatility
+    function updateVolatility(
+        uint64 _seriesId,
+        int256 priceImpact,
+        uint256 currentIV,
+        uint256 vega
+    ) internal returns (uint256) {
+        uint256 newIV = (currentIV + uint256(priceImpact) / vega);
+        if (newIV > 4e8) {
+            newIV = 4e8;
+        } else if (newIV < 5e7) {
+            newIV = 5e7;
+        }
+        seriesVolatilities[_seriesId] = newIV;
     }
 
     /// The owner can set the trade fee params - if any are set to 0/0x0 then trade fees are disabled
@@ -442,7 +465,6 @@ contract MinterAmm is
 
         uint256 collateralTokenSent = collateralToken.balanceOf(msg.sender) -
             redeemerCollateralBalance;
-
         require(
             !sellTokens || collateralTokenSent >= collateralMinimum,
             "Slippage exceeded"
@@ -564,10 +586,12 @@ contract MinterAmm is
                     // AMM's collateral balance will be after executing this
                     // transaction (see MinterAmm.withdrawCapital to see where
                     // _sellOrWithdrawActiveTokens gets called)
+                    uint256 bTokenPrice = getPriceForSeries(seriesId);
                     uint256 collateralAmountB = optionTokenGetCollateralOutInternal(
                             seriesId,
                             bTokenToSell,
                             collateralLeft,
+                            bTokenPrice,
                             true
                         );
 
@@ -582,6 +606,7 @@ contract MinterAmm is
                             seriesId,
                             wTokenToSell,
                             collateralLeft,
+                            bTokenPrice,
                             false
                         );
                     collateralLeft -= collateralAmountW;
@@ -605,7 +630,7 @@ contract MinterAmm is
                 getAllSeries(),
                 collateralToken.balanceOf(address(this)),
                 address(this),
-                volatilityFactor
+                getAllVolatilities()
             );
     }
 
@@ -621,6 +646,21 @@ contract MinterAmm is
             series[i] = uint64(openSeries.at(i));
         }
         return series;
+    }
+
+    /// @notice List the Volatilies price each series trade
+    /// @notice Warning: there is no guarantee that the indexes
+    /// of any individual Series will remain constant between blocks. At any
+    /// point the indexes of a particular Series may change, so do not rely on
+    /// the indexes obtained from this function
+    /// @return an array of all the series IDs
+    function getAllVolatilities() public view returns (uint256[] memory) {
+        uint256[] memory volatilies = new uint256[](openSeries.length());
+        for (uint256 i = 0; i < openSeries.length(); i++) {
+            uint64 seriesId = uint64(openSeries.at(i));
+            volatilies[i] = getVolatility(seriesId);
+        }
+        return volatilies;
     }
 
     /// @notice Get a specific Series that this AMM trades
@@ -686,49 +726,7 @@ contract MinterAmm is
         return
             IAmmDataProvider(ammDataProvider).getPriceForExpiredSeries(
                 seriesId,
-                volatilityFactor
-            );
-    }
-
-    function getPriceForSeriesInternal(
-        ISeriesController.Series memory series,
-        uint256 underlyingPrice
-    ) private view returns (uint256) {
-        return
-            // Note! This function assumes the price obtained from the onchain oracle
-            // in getCurrentUnderlyingPrice is a valid series price in units of
-            // underlyingToken/priceToken. If the onchain price oracle's value
-            // were to drift from the true series price, then the bToken price
-            // we calculate here would also drift, and will result in undefined
-            // behavior for any functions which call getPriceForSeries
-            calcPrice(
-                series.expirationDate - block.timestamp,
-                series.strikePrice,
-                underlyingPrice,
-                volatilityFactor,
-                series.isPutOption
-            );
-    }
-
-    /// @dev Calculate price of bToken based on Black-Scholes approximation by Brennan-Subrahmanyam from their paper
-    /// "A Simple Formula to Compute the Implied Standard Deviation" (1988).
-    /// Formula: 0.4 * ImplVol * sqrt(timeUntilExpiry) * priceRatio
-    ///
-    /// Returns premium in units of percentage of collateral locked in a contract for both calls and puts
-    function calcPrice(
-        uint256 timeUntilExpiry,
-        uint256 strike,
-        uint256 currentPrice,
-        uint256 volatility,
-        bool isPutOption
-    ) public view returns (uint256) {
-        return
-            IAmmDataProvider(ammDataProvider).calcPrice(
-                timeUntilExpiry,
-                strike,
-                currentPrice,
-                volatility,
-                isPutOption
+                getVolatility(seriesId)
             );
     }
 
@@ -776,81 +774,81 @@ contract MinterAmm is
     ///     then execute a swap with the signer using Airswap protocol.
     /// Only the owner should be allowed to execute a direct buy as this is a "guarded" call.
     /// Sender address in the Airswap protocol will be this contract address.
-    function bTokenDirectBuy(
-        uint64 seriesId,
-        uint256 nonce, // Nonce on the airswap sig for the signer
-        uint256 expiry, // Date until swap is valid
-        address signerWallet, // Address of the buyer (signer)
-        uint256 signerAmount, // Amount of collateral that will be paid for options by the signer
-        uint256 senderAmount, // Amount of options to buy from the AMM
-        uint8 v, // Sig of signer wallet for Airswap
-        bytes32 r, // Sig of signer wallet for Airswap
-        bytes32 s // Sig of signer wallet for Airswap
-    ) external onlyOwner nonReentrant {
-        require(openSeries.contains(seriesId), "E13");
-        require(lightAirswapAddress != address(0x0), "E16");
+    // function bTokenDirectBuy(
+    //     uint64 seriesId,
+    //     uint256 nonce, // Nonce on the airswap sig for the signer
+    //     uint256 expiry, // Date until swap is valid
+    //     address signerWallet, // Address of the buyer (signer)
+    //     uint256 signerAmount, // Amount of collateral that will be paid for options by the signer
+    //     uint256 senderAmount, // Amount of options to buy from the AMM
+    //     uint8 v, // Sig of signer wallet for Airswap
+    //     bytes32 r, // Sig of signer wallet for Airswap
+    //     bytes32 s // Sig of signer wallet for Airswap
+    // ) external onlyOwner nonReentrant {
+    //     require(openSeries.contains(seriesId), "E13");
+    //     require(lightAirswapAddress != address(0x0), "E16");
 
-        // Get the bToken balance of the AMM
-        uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-        uint256 bTokenBalance = erc1155Controller.balanceOf(
-            address(this),
-            bTokenIndex
-        );
+    //     // Get the bToken balance of the AMM
+    //     uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
+    //     uint256 bTokenBalance = erc1155Controller.balanceOf(
+    //         address(this),
+    //         bTokenIndex
+    //     );
 
-        // Mint required number of bTokens for the direct buy (if required)
-        if (bTokenBalance < senderAmount) {
-            // Approve the collateral to mint bTokenAmount of new options
-            uint256 bTokenCollateralAmount = seriesController
-                .getCollateralPerOptionToken(
-                    seriesId,
-                    senderAmount - bTokenBalance
-                );
+    //     // Mint required number of bTokens for the direct buy (if required)
+    //     if (bTokenBalance < senderAmount) {
+    //         // Approve the collateral to mint bTokenAmount of new options
+    //         uint256 bTokenCollateralAmount = seriesController
+    //             .getCollateralPerOptionToken(
+    //                 seriesId,
+    //                 senderAmount - bTokenBalance
+    //             );
 
-            collateralToken.approve(
-                address(seriesController),
-                bTokenCollateralAmount
-            );
+    //         collateralToken.approve(
+    //             address(seriesController),
+    //             bTokenCollateralAmount
+    //         );
 
-            // If the AMM does not have enough collateral to mint tokens, expect revert.
-            seriesController.mintOptions(
-                seriesId,
-                senderAmount - bTokenBalance
-            );
-        }
+    //         // If the AMM does not have enough collateral to mint tokens, expect revert.
+    //         seriesController.mintOptions(
+    //             seriesId,
+    //             senderAmount - bTokenBalance
+    //         );
+    //     }
 
-        // Approve the bTokens to be swapped
-        erc1155Controller.setApprovalForAll(lightAirswapAddress, true);
+    //     // Approve the bTokens to be swapped
+    //     erc1155Controller.setApprovalForAll(lightAirswapAddress, true);
 
-        // Now that the contract has enough bTokens, swap with the buyer
-        ILight(lightAirswapAddress).swap(
-            nonce, // Signer's nonce
-            expiry, // Expiration date of swap
-            signerWallet, // Buyer of the options
-            address(collateralToken), // Payment made by buyer
-            signerAmount, // Amount of collateral paid for options
-            address(erc1155Controller), // Address of erc1155 contract
-            bTokenIndex, // Token ID for options
-            senderAmount, // Num options to sell
-            v,
-            r,
-            s
-        ); // Sig of signer for swap
+    //     // Now that the contract has enough bTokens, swap with the buyer
+    //     ILight(lightAirswapAddress).swap(
+    //         nonce, // Signer's nonce
+    //         expiry, // Expiration date of swap
+    //         signerWallet, // Buyer of the options
+    //         address(collateralToken), // Payment made by buyer
+    //         signerAmount, // Amount of collateral paid for options
+    //         address(erc1155Controller), // Address of erc1155 contract
+    //         bTokenIndex, // Token ID for options
+    //         senderAmount, // Num options to sell
+    //         v,
+    //         r,
+    //         s
+    //     ); // Sig of signer for swap
 
-        // Remove approval
-        erc1155Controller.setApprovalForAll(lightAirswapAddress, false);
+    //     // Remove approval
+    //     erc1155Controller.setApprovalForAll(lightAirswapAddress, false);
 
-        // Calculate trade fees if they are enabled with all params set
-        uint256 tradeFee = calculateFees(senderAmount, signerAmount);
+    //     // Calculate trade fees if they are enabled with all params set
+    //     uint256 tradeFee = calculateFees(senderAmount, signerAmount);
 
-        // If fees were taken, move them to the destination
-        if (tradeFee > 0) {
-            collateralToken.safeTransfer(feeDestinationAddress, tradeFee);
-            emit TradeFeesPaid(feeDestinationAddress, tradeFee);
-        }
+    //     // If fees were taken, move them to the destination
+    //     if (tradeFee > 0) {
+    //         collateralToken.safeTransfer(feeDestinationAddress, tradeFee);
+    //         emit TradeFeesPaid(feeDestinationAddress, tradeFee);
+    //     }
 
-        // Emit the event
-        emit BTokensBought(signerWallet, seriesId, senderAmount, signerAmount);
-    }
+    //     // Emit the event
+    //     emit BTokensBought(signerWallet, seriesId, senderAmount, signerAmount);
+    // }
 
     /// @dev Buy bToken of a given series.
     /// We supply series index instead of series address to ensure that only supported series can be traded using this AMM
@@ -868,11 +866,23 @@ contract MinterAmm is
                 ISeriesController.SeriesState.OPEN,
             "Series has expired"
         );
+        uint256 collateralAmount;
+        {
+            (uint256 price, uint256 vega) = calculatePriceAndVega(seriesId);
 
-        uint256 collateralAmount = bTokenGetCollateralInWithoutFees(
-            seriesId,
-            bTokenAmount
-        );
+            uint256 collateralAmount = bTokenGetCollateralInWithoutFees(
+                seriesId,
+                bTokenAmount,
+                price
+            );
+
+            updateVolatility(
+                seriesId,
+                int256((collateralAmount * 1e18) / bTokenAmount - price),
+                getVolatility(seriesId),
+                vega
+            );
+        }
 
         // Calculate trade fees if they are enabled with all params set
         uint256 tradeFee = calculateFees(bTokenAmount, collateralAmount);
@@ -961,11 +971,23 @@ contract MinterAmm is
                 ISeriesController.SeriesState.OPEN,
             "Series has expired"
         );
+        uint256 collateralAmount;
+        {
+            (uint256 price, uint256 vega) = calculatePriceAndVega(seriesId);
 
-        uint256 collateralAmount = bTokenGetCollateralOutWithoutFees(
-            seriesId,
-            bTokenAmount
-        );
+            collateralAmount = bTokenGetCollateralOutWithoutFees(
+                seriesId,
+                bTokenAmount,
+                price
+            );
+
+            updateVolatility(
+                seriesId,
+                int256((collateralAmount * 1e18) / bTokenAmount - price),
+                getVolatility(seriesId),
+                vega
+            );
+        }
 
         // Calculate trade fees if they are enabled with all params set
         uint256 tradeFee = calculateFees(bTokenAmount, collateralAmount);
@@ -1035,7 +1057,8 @@ contract MinterAmm is
     /// @return The amount of collateral token necessary to buy bTokenAmount worth of bTokens
     function bTokenGetCollateralInWithoutFees(
         uint64 seriesId,
-        uint256 bTokenAmount
+        uint256 bTokenAmount,
+        uint256 bTokenPrice
     ) public view returns (uint256) {
         return
             IAmmDataProvider(ammDataProvider).bTokenGetCollateralIn(
@@ -1043,7 +1066,7 @@ contract MinterAmm is
                 address(this),
                 bTokenAmount,
                 collateralToken.balanceOf(address(this)),
-                getPriceForSeries(seriesId)
+                bTokenPrice
             );
     }
 
@@ -1063,7 +1086,8 @@ contract MinterAmm is
     {
         uint256 collateralWithoutFees = bTokenGetCollateralInWithoutFees(
             seriesId,
-            bTokenAmount
+            bTokenAmount,
+            getPriceForSeries(seriesId)
         );
         uint256 tradeFee = calculateFees(bTokenAmount, collateralWithoutFees);
         return collateralWithoutFees + tradeFee;
@@ -1081,13 +1105,15 @@ contract MinterAmm is
     /// bTokens to the pool
     function bTokenGetCollateralOutWithoutFees(
         uint64 seriesId,
-        uint256 bTokenAmount
+        uint256 bTokenAmount,
+        uint256 bTokenPrice
     ) public view returns (uint256) {
         return
             optionTokenGetCollateralOutInternal(
                 seriesId,
                 bTokenAmount,
                 collateralToken.balanceOf(address(this)),
+                bTokenPrice,
                 true
             );
     }
@@ -1111,6 +1137,7 @@ contract MinterAmm is
             seriesId,
             bTokenAmount,
             collateralToken.balanceOf(address(this)),
+            getPriceForSeries(seriesId),
             true
         );
         uint256 tradeFee = calculateFees(bTokenAmount, collateralWithoutFees);
@@ -1190,6 +1217,7 @@ contract MinterAmm is
                 seriesId,
                 wTokenAmount,
                 collateralToken.balanceOf(address(this)),
+                getPriceForSeries(seriesId),
                 false
             );
     }
@@ -1206,6 +1234,7 @@ contract MinterAmm is
         uint64 seriesId,
         uint256 optionTokenAmount,
         uint256 _collateralTokenBalance,
+        uint256 bTokenPrice,
         bool isBToken
     ) private view returns (uint256) {
         return
@@ -1214,7 +1243,7 @@ contract MinterAmm is
                 address(this),
                 optionTokenAmount,
                 _collateralTokenBalance,
-                getPriceForSeries(seriesId),
+                bTokenPrice,
                 isBToken
             );
     }
@@ -1252,7 +1281,7 @@ contract MinterAmm is
                 getAllSeries(),
                 address(this),
                 collateralToken.balanceOf(address(this)),
-                volatilityFactor
+                getAllVolatilities()
             );
     }
 
@@ -1282,5 +1311,29 @@ contract MinterAmm is
         return
             interfaceId == this.addSeries.selector ||
             super.supportsInterface(interfaceId);
+    }
+
+    function calculatePriceAndVega(uint64 seriesId)
+        internal
+        returns (uint256 price, uint256 vega)
+    {
+        ISeriesController.Series memory series = seriesController.series(
+            seriesId
+        );
+        IBlackScholes blackScholes = IBlackScholes(
+            addressesProvider.getBlackScholes()
+        );
+
+        IBlackScholes.PricesStdVega memory pricesStdVega = blackScholes
+            .pricesStdVegaInUnderlying(
+                series.expirationDate - block.timestamp,
+                getVolatility(seriesId),
+                getCurrentUnderlyingPrice(),
+                series.strikePrice,
+                0,
+                series.isPutOption
+            );
+
+        return (pricesStdVega.price, pricesStdVega.stdVega);
     }
 }

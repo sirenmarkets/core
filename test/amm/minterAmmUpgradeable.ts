@@ -9,6 +9,7 @@ import {
   MinterAmmContract,
   SeriesControllerInstance,
   AmmDataProviderInstance,
+  BlackScholesContract,
 } from "../../typechain"
 
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
@@ -18,6 +19,7 @@ let deployedAmmFactory: AmmFactoryInstance
 let deployedPriceOracle: PriceOracleInstance
 let deployedSeriesController: SeriesControllerInstance
 let deployedAmmDataProvider: AmmDataProviderInstance
+let deployedBlackScholes: BlackScholesContract
 
 let underlyingToken: SimpleTokenInstance
 let priceToken: SimpleTokenInstance
@@ -50,6 +52,7 @@ contract("AMM Upgradeability", (accounts) => {
       deployedAmmFactory.createAmm(
         deployedPriceOracle.address,
         deployedAmmDataProvider.address,
+        deployedBlackScholes.address,
         underlyingToken.address,
         priceToken.address,
         collateralToken.address,
@@ -79,6 +82,7 @@ contract("AMM Upgradeability", (accounts) => {
     const { deployedAmm: otherDeployedAmm } = await setupAmm({
       deployedAmmFactory,
       deployedAmmDataProvider,
+      deployedBlackScholes,
       deployedPriceOracle,
       underlyingToken: otherUnderlyingToken,
       priceToken,
@@ -119,6 +123,7 @@ contract("AMM Upgradeability", (accounts) => {
       deployedAmm.initialize(
         deployedSeriesController.address,
         deployedAmmDataProvider.address,
+        deployedBlackScholes.address,
         deployedPriceOracle.address,
         underlyingToken.address,
         priceToken.address,
