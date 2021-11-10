@@ -868,16 +868,18 @@ contract MinterAmm is
         uint256 collateralAmount;
         {
             (uint256 price, uint256 vega) = calculatePriceAndVega(seriesId);
-
             uint256 collateralAmount = bTokenGetCollateralInWithoutFees(
                 seriesId,
                 bTokenAmount,
                 price
             );
-
+            require(collateralAmount > 0, "bToken amount below is too small");
+            uint256 priceImpact = (collateralAmount * 1e18) /
+                bTokenAmount -
+                price;
             updateVolatility(
                 seriesId,
-                int256((collateralAmount * 1e18) / bTokenAmount - price),
+                int256(priceImpact),
                 getVolatility(seriesId),
                 vega
             );
@@ -1332,7 +1334,6 @@ contract MinterAmm is
                 0,
                 series.isPutOption
             );
-
         return (pricesStdVega.price, pricesStdVega.stdVega);
     }
 }
