@@ -6,7 +6,6 @@ pragma experimental ABIEncoderV2;
 import "../synthetix/SignedSafeDecimalMath.sol";
 import "../synthetix/SafeDecimalMath.sol";
 import "./IBlackScholes.sol";
-import "hardhat/console.sol";
 
 /**
  * @title BlackScholes
@@ -167,7 +166,7 @@ contract BlackScholes is IBlackScholes {
             return 0;
         }
 
-        // // Past 10, this will always return 1 at the level of precision we are using
+        // Past 10, this will always return 1 at the level of precision we are using
         if (x > MAX_CDF_STD_DIST_INPUT) {
             return PRECISE_UNIT;
         }
@@ -263,6 +262,7 @@ contract BlackScholes is IBlackScholes {
         uint256 strikeNd2 = strikePV.multiplyDecimalRoundPrecise(
             stdNormalCDF(d2)
         );
+
         // We clamp to zero if the minuend is less than the subtrahend
         // In some scenarios it may be better to compute put price instead and derive call from it depending on which way
         // around is more precise.
@@ -290,9 +290,10 @@ contract BlackScholes is IBlackScholes {
         uint256 spotPrecise = spotDecimal.decimalToPreciseDecimal();
         uint256 strikePrecise = strikeDecimal.decimalToPreciseDecimal();
         int256 ratePrecise = rateDecimal.decimalToPreciseDecimal();
+        uint256 volatilityDecimalDecimal = volatilityDecimal * 1e10;
         (int256 d1, int256 d2) = d1d2(
             tAnnualised,
-            volatilityDecimal.decimalToPreciseDecimal(),
+            volatilityDecimalDecimal.decimalToPreciseDecimal(),
             spotPrecise,
             strikePrecise,
             ratePrecise
@@ -306,11 +307,10 @@ contract BlackScholes is IBlackScholes {
             d1,
             d2
         );
-
         return (call.preciseDecimalToDecimal(), put.preciseDecimalToDecimal());
     }
 
-    /*
+    /*.000246212471428571
      * Greeks
      */
 

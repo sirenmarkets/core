@@ -129,10 +129,10 @@ contract("AMM Call Verification", (accounts) => {
     )
 
     const values = [
-      BigNumber.from("1300000000"),
-      BigNumber.from("1600000000"),
-      BigNumber.from("1430000000"),
-      BigNumber.from("2000000000"),
+      BigNumber.from("1450000000"),
+      BigNumber.from("1490000000"),
+      BigNumber.from("1500000000"),
+      BigNumber.from("1490000000"),
     ]
     const stdevs = [
       BigNumber.from("0"),
@@ -147,7 +147,6 @@ contract("AMM Call Verification", (accounts) => {
       underlyingToken.address,
       priceToken.address,
     )
-
     for (let i = 0; i < values.length; i++) {
       await deployedMockPriceOracle.setLatestAnswer(values[i].toString())
       await deployedMockVolatilityOracle.setPrice(values[i])
