@@ -290,10 +290,10 @@ contract BlackScholes is IBlackScholes {
         uint256 spotPrecise = spotDecimal.decimalToPreciseDecimal();
         uint256 strikePrecise = strikeDecimal.decimalToPreciseDecimal();
         int256 ratePrecise = rateDecimal.decimalToPreciseDecimal();
-        uint256 volatilityDecimalDecimal = volatilityDecimal * 1e10;
+        uint256 volatilityBlackScholesDecimal = volatilityDecimal * 1e10;
         (int256 d1, int256 d2) = d1d2(
             tAnnualised,
-            volatilityDecimalDecimal.decimalToPreciseDecimal(),
+            volatilityBlackScholesDecimal.decimalToPreciseDecimal(),
             spotPrecise,
             strikePrecise,
             ratePrecise
@@ -391,7 +391,7 @@ contract BlackScholes is IBlackScholes {
 
         (int256 d1, int256 d2) = d1d2(
             tAnnualised,
-            volatilityDecimal.decimalToPreciseDecimal(),
+            (volatilityDecimal * 1e10).decimalToPreciseDecimal(),
             spotPrecise,
             strikeDecimal.decimalToPreciseDecimal(),
             rateDecimal.decimalToPreciseDecimal()
@@ -439,14 +439,13 @@ contract BlackScholes is IBlackScholes {
 
         (int256 d1, int256 d2) = d1d2(
             tAnnualised,
-            volatilityDecimal.decimalToPreciseDecimal(),
+            (volatilityDecimal * 1e10).decimalToPreciseDecimal(),
             spotPrecise,
             strikeDecimal.decimalToPreciseDecimal(),
             rateDecimal.decimalToPreciseDecimal()
         );
 
-        uint256 v = _standardVega(d1, spotPrecise, timeToExpirySec) /
-            spotDecimal;
+        uint256 v = _standardVega(d1, spotPrecise, timeToExpirySec);
 
         uint256 price;
         {

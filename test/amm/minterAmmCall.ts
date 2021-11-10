@@ -1236,24 +1236,24 @@ contract("AMM Call Verification", (accounts) => {
     await time.increaseTo(expiration - ONE_WEEK_DURATION) // use the same time, no matter when this test gets called
 
     // Approve collateral
-    await underlyingToken.mint(ownerAccount, 1000000)
-    await underlyingToken.approve(deployedAmm.address, 10000)
+    await underlyingToken.mint(ownerAccount, 10000e10)
+    await underlyingToken.approve(deployedAmm.address, 10000e10)
 
     // Provide capital
-    let ret = await deployedAmm.provideCapital(10000, 0)
+    let ret = await deployedAmm.provideCapital(10000e10, 0)
 
     const bTokenIndex = await deployedSeriesController.bTokenIndex(seriesId)
     const wTokenIndex = await deployedSeriesController.wTokenIndex(seriesId)
     const lpToken = await SimpleToken.at(await deployedAmm.lpToken())
 
     // Now let's do some trading from another account
-    await underlyingToken.mint(aliceAccount, 100000)
-    await underlyingToken.approve(deployedAmm.address, 1000, {
+    await underlyingToken.mint(aliceAccount, 10000e10)
+    await underlyingToken.approve(deployedAmm.address, 3000e10, {
       from: aliceAccount,
     })
 
     // Buy bTokens
-    ret = await deployedAmm.bTokenBuy(seriesId, 3000, 3000, {
+    ret = await deployedAmm.bTokenBuy(seriesId, 3000e10, 3000e10, {
       from: aliceAccount,
     })
 
