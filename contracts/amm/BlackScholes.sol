@@ -297,8 +297,7 @@ contract BlackScholes is IBlackScholes {
             strikePrecise,
             ratePrecise
         );
-        console.log("D1111");
-        // console.logInt(d1);
+
         (call, put) = _optionPrices(
             tAnnualised,
             spotPrecise,

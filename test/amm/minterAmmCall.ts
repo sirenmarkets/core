@@ -54,7 +54,7 @@ let seriesId: string
 
 const STRIKE_PRICE = 15000 * 1e8 // 15000 USD
 
-const OTM_BTC_ORACLE_PRICE = 15_100 * 10 ** 8
+const OTM_BTC_ORACLE_PRICE = 14_000 * 10 ** 8
 const ITM_BTC_ORACLE_PRICE = 20_000 * 10 ** 8
 
 const ERROR_MESSAGES = {
@@ -552,8 +552,6 @@ contract("AMM Call Verification", (accounts) => {
   })
 
   it("Buys and sells bTokens", async () => {
-    console.log("")
-    console.log(deployedMockPriceOracle.address)
     await time.increaseTo(expiration - ONE_WEEK_DURATION) // use the same time, no matter when this test gets called
 
     // Providing capital before approving should fail
