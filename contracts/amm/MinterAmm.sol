@@ -11,7 +11,6 @@ import "../series/IPriceOracle.sol";
 import "../swap/ILight.sol";
 import "../token/IERC20Lib.sol";
 import "./IAddSeriesToAmm.sol";
-import "./IAmmDataProvider.sol";
 import "./InitializeableAmm.sol";
 import "./MinterAmmStorage.sol";
 
@@ -212,7 +211,7 @@ contract MinterAmm is
         uint16 _tradeFeeBasisPoints
     ) public override {
         require(address(_sirenPriceOracle) != address(0x0), "E02");
-        require(_ammDataProvider != address(0x0), "E15");
+        require(address(_ammDataProvider) != address(0x0), "E15");
         require(address(_underlyingToken) != address(0x0), "E03");
         require(address(_priceToken) != address(0x0), "E04");
         require(address(_collateralToken) != address(0x0), "E05");
@@ -225,7 +224,7 @@ contract MinterAmm is
 
         // Save off state variables
         seriesController = _seriesController;
-        ammDataProvider = _ammDataProvider;
+        ammDataProvider = IAmmDataProvider(_ammDataProvider);
         erc1155Controller = IERC1155(_seriesController.erc1155Controller());
 
         // Approve seriesController to move tokens
@@ -240,20 +239,23 @@ contract MinterAmm is
         collateralToken = _collateralToken;
 
         // Create the lpToken and initialize it
-        Proxy lpTokenProxy = new Proxy(_tokenImplementation);
-        lpToken = ISimpleToken(address(lpTokenProxy));
+        lpToken = ISimpleToken(address(new Proxy(_tokenImplementation)));
 
         // AMM name will be <underlying>-<price>-<collateral>, e.g. WBTC-USDC-WBTC for a WBTC Call AMM
-        string memory ammName = string(
+        string memory lpTokenName = string(
             abi.encodePacked(
-                IERC20Lib(address(underlyingToken)).symbol(),
-                "-",
-                IERC20Lib(address(priceToken)).symbol(),
-                "-",
-                IERC20Lib(address(collateralToken)).symbol()
+                "LP-",
+                string(
+                    abi.encodePacked(
+                        IERC20Lib(address(underlyingToken)).symbol(),
+                        "-",
+                        IERC20Lib(address(priceToken)).symbol(),
+                        "-",
+                        IERC20Lib(address(collateralToken)).symbol()
+                    )
+                )
             )
         );
-        string memory lpTokenName = string(abi.encodePacked("LP-", ammName));
         lpToken.initialize(
             lpTokenName,
             lpTokenName,
@@ -319,7 +321,7 @@ contract MinterAmm is
     {
         require(_newAmmDataProvider != address(0x0), "E14");
 
-        ammDataProvider = _newAmmDataProvider;
+        ammDataProvider = IAmmDataProvider(_newAmmDataProvider);
 
         emit NewAmmDataProvider(_newAmmDataProvider);
     }
@@ -481,12 +483,9 @@ contract MinterAmm is
     /// the expired series from the AMM's collection of series
     function claimExpiredTokens(uint64 seriesId) public {
         // claim the expired series' wTokens, which means it can now be safely removed
-        uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-        uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
-
         uint256 bTokenBalance = erc1155Controller.balanceOf(
             address(this),
-            bTokenIndex
+            SeriesLibrary.bTokenIndex(seriesId)
         );
         if (bTokenBalance > 0) {
             seriesController.exerciseOption(seriesId, bTokenBalance, false);
@@ -494,7 +493,7 @@ contract MinterAmm is
 
         uint256 wTokenBalance = erc1155Controller.balanceOf(
             address(this),
-            wTokenIndex
+            SeriesLibrary.wTokenIndex(seriesId)
         );
         if (wTokenBalance > 0) {
             seriesController.claimCollateral(seriesId, wTokenBalance);
@@ -600,7 +599,7 @@ contract MinterAmm is
         returns (uint256)
     {
         return
-            IAmmDataProvider(ammDataProvider).getTotalPoolValue(
+            ammDataProvider.getTotalPoolValue(
                 includeUnclaimed,
                 getAllSeries(),
                 collateralToken.balanceOf(address(this)),
@@ -650,23 +649,11 @@ contract MinterAmm is
         require(openSeries.contains(seriesId), "E13");
 
         return
-            IAmmDataProvider(ammDataProvider).getVirtualReserves(
+            ammDataProvider.getVirtualReserves(
                 seriesId,
                 address(this),
                 collateralToken.balanceOf(address(this)),
                 getPriceForSeries(seriesId)
-            );
-    }
-
-    /// @dev Get the current series price of the underlying token with units of priceToken,
-    /// always with 8 decimals
-    /// @dev For example, if underlying == WBTC and price == USDC, then this function will return
-    /// 4500000000000 ($45_000 in human readable units)
-    function getCurrentUnderlyingPrice() private view returns (uint256) {
-        return
-            IPriceOracle(sirenPriceOracle).getCurrentPrice(
-                address(underlyingToken),
-                address(priceToken)
             );
     }
 
@@ -684,29 +671,9 @@ contract MinterAmm is
         require(openSeries.contains(seriesId), "E13");
 
         return
-            IAmmDataProvider(ammDataProvider).getPriceForExpiredSeries(
+            ammDataProvider.getPriceForExpiredSeries(
                 seriesId,
                 volatilityFactor
-            );
-    }
-
-    function getPriceForSeriesInternal(
-        ISeriesController.Series memory series,
-        uint256 underlyingPrice
-    ) private view returns (uint256) {
-        return
-            // Note! This function assumes the price obtained from the onchain oracle
-            // in getCurrentUnderlyingPrice is a valid series price in units of
-            // underlyingToken/priceToken. If the onchain price oracle's value
-            // were to drift from the true series price, then the bToken price
-            // we calculate here would also drift, and will result in undefined
-            // behavior for any functions which call getPriceForSeries
-            calcPrice(
-                series.expirationDate - block.timestamp,
-                series.strikePrice,
-                underlyingPrice,
-                volatilityFactor,
-                series.isPutOption
             );
     }
 
@@ -723,7 +690,7 @@ contract MinterAmm is
         bool isPutOption
     ) public view returns (uint256) {
         return
-            IAmmDataProvider(ammDataProvider).calcPrice(
+            ammDataProvider.calcPrice(
                 timeUntilExpiry,
                 strike,
                 currentPrice,
@@ -803,13 +770,7 @@ contract MinterAmm is
         erc1155Controller.setApprovalForAll(lightAirswapAddress, false);
 
         // Calculate trade fees if they are enabled with all params set
-        uint256 tradeFee = IAmmDataProvider(ammDataProvider).calculateFees(
-            tradeFeeBasisPoints,
-            maxOptionFeeBasisPoints,
-            feeDestinationAddress,
-            senderAmount,
-            signerAmount
-        );
+        uint256 tradeFee = calculateFees(senderAmount, signerAmount);
 
         // If fees were taken, move them to the destination
         if (tradeFee > 0) {
@@ -844,13 +805,7 @@ contract MinterAmm is
         );
 
         // Calculate trade fees if they are enabled with all params set
-        uint256 tradeFee = IAmmDataProvider(ammDataProvider).calculateFees(
-            tradeFeeBasisPoints,
-            maxOptionFeeBasisPoints,
-            feeDestinationAddress,
-            bTokenAmount,
-            collateralAmount
-        );
+        uint256 tradeFee = calculateFees(bTokenAmount, collateralAmount);
 
         require(
             collateralAmount + tradeFee <= collateralMaximum,
@@ -943,13 +898,7 @@ contract MinterAmm is
         );
 
         // Calculate trade fees if they are enabled with all params set
-        uint256 tradeFee = IAmmDataProvider(ammDataProvider).calculateFees(
-            tradeFeeBasisPoints,
-            maxOptionFeeBasisPoints,
-            feeDestinationAddress,
-            bTokenAmount,
-            collateralAmount
-        );
+        uint256 tradeFee = calculateFees(bTokenAmount, collateralAmount);
 
         require(
             collateralAmount - tradeFee >= collateralMinimum,
@@ -969,16 +918,11 @@ contract MinterAmm is
             data
         );
 
-        // Always be closing!
-        uint256 bTokenBalance = erc1155Controller.balanceOf(
-            address(this),
-            bTokenIndex
+        // Always be closing! - get min of bToken or wToken balance
+        uint256 closeAmount = Math.min(
+            erc1155Controller.balanceOf(address(this), bTokenIndex),
+            erc1155Controller.balanceOf(address(this), wTokenIndex)
         );
-        uint256 wTokenBalance = erc1155Controller.balanceOf(
-            address(this),
-            wTokenIndex
-        );
-        uint256 closeAmount = Math.min(bTokenBalance, wTokenBalance);
 
         // at this point we know it's worth calling closePosition because
         // the close amount is greater than 0, so let's call it and burn
@@ -1019,7 +963,7 @@ contract MinterAmm is
         uint256 bTokenAmount
     ) public view returns (uint256) {
         return
-            IAmmDataProvider(ammDataProvider).bTokenGetCollateralIn(
+            ammDataProvider.bTokenGetCollateralIn(
                 seriesId,
                 address(this),
                 bTokenAmount,
@@ -1046,15 +990,10 @@ contract MinterAmm is
             seriesId,
             bTokenAmount
         );
-        uint256 tradeFee = IAmmDataProvider(ammDataProvider).calculateFees(
-            tradeFeeBasisPoints,
-            maxOptionFeeBasisPoints,
-            feeDestinationAddress,
-            bTokenAmount,
-            collateralWithoutFees
-        );
 
-        return collateralWithoutFees + tradeFee;
+        return
+            collateralWithoutFees +
+            calculateFees(bTokenAmount, collateralWithoutFees);
     }
 
     /// @notice Calculate the amount of collateral token the user will receive for selling
@@ -1101,15 +1040,10 @@ contract MinterAmm is
             collateralToken.balanceOf(address(this)),
             true
         );
-        uint256 tradeFee = IAmmDataProvider(ammDataProvider).calculateFees(
-            tradeFeeBasisPoints,
-            maxOptionFeeBasisPoints,
-            feeDestinationAddress,
-            bTokenAmount,
-            collateralWithoutFees
-        );
 
-        return collateralWithoutFees - tradeFee;
+        return
+            collateralWithoutFees -
+            calculateFees(bTokenAmount, collateralWithoutFees);
     }
 
     /// @notice Sell the wToken of a given series to the AMM in exchange for collateral token
@@ -1151,15 +1085,11 @@ contract MinterAmm is
         );
 
         // Always be closing!
-        uint256 bTokenBalance = erc1155Controller.balanceOf(
-            address(this),
-            bTokenIndex
+        uint256 closeAmount = Math.min(
+            erc1155Controller.balanceOf(address(this), bTokenIndex),
+            erc1155Controller.balanceOf(address(this), wTokenIndex)
         );
-        uint256 wTokenBalance = erc1155Controller.balanceOf(
-            address(this),
-            wTokenIndex
-        );
-        uint256 closeAmount = Math.min(bTokenBalance, wTokenBalance);
+
         if (closeAmount > 0) {
             seriesController.closePosition(seriesId, closeAmount);
         }
@@ -1204,7 +1134,7 @@ contract MinterAmm is
         bool isBToken
     ) private view returns (uint256) {
         return
-            IAmmDataProvider(ammDataProvider).optionTokenGetCollateralOut(
+            ammDataProvider.optionTokenGetCollateralOut(
                 seriesId,
                 address(this),
                 optionTokenAmount,
@@ -1225,11 +1155,10 @@ contract MinterAmm is
         returns (uint256)
     {
         return
-            IAmmDataProvider(ammDataProvider)
-                .getCollateralValueOfAllExpiredOptionTokens(
-                    getAllSeries(),
-                    address(this)
-                );
+            ammDataProvider.getCollateralValueOfAllExpiredOptionTokens(
+                getAllSeries(),
+                address(this)
+            );
     }
 
     /// @notice Calculate sale value of pro-rata LP b/wTokens in units of collateral token
@@ -1238,12 +1167,10 @@ contract MinterAmm is
         view
         returns (uint256)
     {
-        uint256 lpTokenSupply = IERC20Lib(address(lpToken)).totalSupply();
-
         return
-            IAmmDataProvider(ammDataProvider).getOptionTokensSaleValue(
+            ammDataProvider.getOptionTokensSaleValue(
                 lpTokenAmount,
-                lpTokenSupply,
+                IERC20Lib(address(lpToken)).totalSupply(),
                 getAllSeries(),
                 address(this),
                 collateralToken.balanceOf(address(this)),
@@ -1277,5 +1204,23 @@ contract MinterAmm is
         return
             interfaceId == this.addSeries.selector ||
             super.supportsInterface(interfaceId);
+    }
+
+    /// @dev Calculate the fee amount for a buy/sell
+    /// If params are not set, the fee amount will be 0
+    /// See MinterAmm contract comments at top for logic explanation of fee calculations.
+    function calculateFees(uint256 bTokenAmount, uint256 collateralAmount)
+        public
+        view
+        returns (uint256)
+    {
+        return
+            ammDataProvider.calculateFees(
+                tradeFeeBasisPoints,
+                maxOptionFeeBasisPoints,
+                feeDestinationAddress,
+                bTokenAmount,
+                collateralAmount
+            );
     }
 }

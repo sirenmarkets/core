@@ -8,6 +8,7 @@ import "../oz/EnumerableSet.sol";
 import "../series/ISeriesController.sol";
 import "../series/SeriesLibrary.sol";
 import "../token/ISimpleToken.sol";
+import "./IAmmDataProvider.sol";
 
 /// This contract stores all new local variables for the MinterAmm.sol contract.
 /// This allows us to upgrade the contract and add new variables without worrying about
@@ -71,7 +72,7 @@ contract MinterAmmStorageV1 {
     address public feeDestinationAddress;
 
     /// @dev The contract used to make pricing calculations for the MinterAmm
-    address public ammDataProvider;
+    IAmmDataProvider public ammDataProvider;
 
     /// @dev The address for the airswap Light contract on-chain.
     address public lightAirswapAddress;
