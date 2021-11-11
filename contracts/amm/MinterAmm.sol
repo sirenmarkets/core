@@ -875,6 +875,8 @@ contract MinterAmm is
                 price
             );
 
+            require(collateralAmount > uint256(0), "Buy amount is too low");
+
             updateVolatility(
                 seriesId,
                 int256((collateralAmount * 1e18) / bTokenAmount - price),

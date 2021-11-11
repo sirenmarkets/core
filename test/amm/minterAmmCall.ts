@@ -70,6 +70,7 @@ const ERROR_MESSAGES = {
   WITHDRAW_SLIPPAGE: "Slippage exceeded",
   WITHDRAW_COLLATERAL_MINIMUM: "E12",
   CAPITAL_DEPOSIT_REVERT: "Feature not supported",
+  B_TOKEN_BUY_NOT_LARGE_ENOUGH: "Buy amount is too low",
 }
 
 contract("AMM Call Verification", (accounts) => {
@@ -143,7 +144,7 @@ contract("AMM Call Verification", (accounts) => {
 
     const topOfPeriod = (await getTopOfPeriod()) + PERIOD
 
-    await deployedMockVolatilityOracle.initPool(
+    await deployedMockVolatilityOracle.addTokenPair(
       underlyingToken.address,
       priceToken.address,
     )
@@ -1285,6 +1286,40 @@ contract("AMM Call Verification", (accounts) => {
     )
     assertBNEq(approval, 0, "No left over approval should be there")
   })
+
+  it("Verifies check for trade size", async () => {
+    await time.increaseTo(expiration - ONE_WEEK_DURATION) // use the same time, no matter when this test gets called
+
+    // Approve collateral
+    await underlyingToken.mint(ownerAccount, 10000e10)
+    await underlyingToken.approve(deployedAmm.address, 10000e10)
+
+    // Provide capital
+    let ret = await deployedAmm.provideCapital(10000e10, 0)
+
+    // Now let's do some trading from another account
+    await underlyingToken.mint(aliceAccount, 10000e10)
+    await underlyingToken.approve(deployedAmm.address, 3000e10, {
+      from: aliceAccount,
+    })
+
+    // Buy bTokens
+    // Verify it fails if the amount of collateral maximum is exceeded
+    await expectRevert(
+      deployedAmm.bTokenBuy(seriesId, 3000, 3000, {
+        from: aliceAccount,
+      }),
+      ERROR_MESSAGES.B_TOKEN_BUY_NOT_LARGE_ENOUGH,
+    )
+
+    // Verify there is no outstanding approval
+    const approval = await underlyingToken.allowance(
+      deployedAmm.address,
+      deployedSeriesController.address,
+    )
+    assertBNEq(approval, 0, "No left over approval should be there")
+  })
+
   const getTopOfPeriod = async () => {
     const latestTimestamp = (await provider.getBlock("latest")).timestamp + 1000
     let topOfPeriod: number

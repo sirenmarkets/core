@@ -87,4 +87,20 @@ contract MockVolatilityOracle is DSMath, VolatilityOracle {
     function setPrice(uint256 price) public {
         _price = price;
     }
+
+    /**
+     * @notice create token pair for testing so include data not just the token pair
+     */
+    function addTokenPairAndLastPrice(
+        address underlyingToken,
+        address priceToken,
+        uint256 lastPrice
+    ) external {
+        require(
+            observations[underlyingToken][priceToken].length == 0,
+            "Pool initialized"
+        );
+        observations[underlyingToken][priceToken] = new int256[](windowSize);
+        lastPrices[underlyingToken][priceToken] = lastPrice;
+    }
 }
