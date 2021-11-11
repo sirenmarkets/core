@@ -67,4 +67,12 @@ interface IAmmDataProvider {
         uint256 wTokenBalance,
         uint256 bTokenBalance
     ) external view returns (uint256);
+
+    function calculateFees(
+        uint16 tradeFeeBasisPoints,
+        uint16 maxOptionFeeBasisPoints,
+        address feeDestinationAddress,
+        uint256 bTokenAmount,
+        uint256 collateralAmount
+    ) external pure returns (uint256);
 }

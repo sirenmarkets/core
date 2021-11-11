@@ -732,43 +732,6 @@ contract MinterAmm is
             );
     }
 
-    /// @dev Calculate the fee amount for a buy/sell
-    /// If params are not set, the fee amount will be 0
-    /// See contract comments above for logic explanation of fee calculations.
-    function calculateFees(uint256 bTokenAmount, uint256 collateralAmount)
-        public
-        view
-        returns (uint256)
-    {
-        // Check if fees are enabled
-        if (
-            tradeFeeBasisPoints > 0 &&
-            maxOptionFeeBasisPoints > 0 &&
-            feeDestinationAddress != address(0x0)
-        ) {
-            uint256 tradeFee = 0;
-
-            // The default fee is the basis points of the number of options being bought (e.g. bToken amount)
-            uint256 defaultFee = (bTokenAmount * tradeFeeBasisPoints) / 10_000;
-
-            // The max fee is based on the maximum percentage of the collateral being paid to buy the options
-            uint256 maxFee = (collateralAmount * maxOptionFeeBasisPoints) /
-                10_000;
-
-            // Use the smaller of the 2
-            if (defaultFee < maxFee) {
-                tradeFee = defaultFee;
-            } else {
-                tradeFee = maxFee;
-            }
-
-            return tradeFee;
-        }
-
-        // Fees are not enabled
-        return 0;
-    }
-
     /// @dev Allows an owner to invoke a Direct Buy against the AMM
     /// A direct buy allows a signer wallet to predetermine a number of option
     ///     tokens to buy (senderAmount) with the specified number of collateral payment tokens (signerTokens).
@@ -840,7 +803,13 @@ contract MinterAmm is
         erc1155Controller.setApprovalForAll(lightAirswapAddress, false);
 
         // Calculate trade fees if they are enabled with all params set
-        uint256 tradeFee = calculateFees(senderAmount, signerAmount);
+        uint256 tradeFee = IAmmDataProvider(ammDataProvider).calculateFees(
+            tradeFeeBasisPoints,
+            maxOptionFeeBasisPoints,
+            feeDestinationAddress,
+            senderAmount,
+            signerAmount
+        );
 
         // If fees were taken, move them to the destination
         if (tradeFee > 0) {
@@ -875,7 +844,13 @@ contract MinterAmm is
         );
 
         // Calculate trade fees if they are enabled with all params set
-        uint256 tradeFee = calculateFees(bTokenAmount, collateralAmount);
+        uint256 tradeFee = IAmmDataProvider(ammDataProvider).calculateFees(
+            tradeFeeBasisPoints,
+            maxOptionFeeBasisPoints,
+            feeDestinationAddress,
+            bTokenAmount,
+            collateralAmount
+        );
 
         require(
             collateralAmount + tradeFee <= collateralMaximum,
@@ -968,7 +943,13 @@ contract MinterAmm is
         );
 
         // Calculate trade fees if they are enabled with all params set
-        uint256 tradeFee = calculateFees(bTokenAmount, collateralAmount);
+        uint256 tradeFee = IAmmDataProvider(ammDataProvider).calculateFees(
+            tradeFeeBasisPoints,
+            maxOptionFeeBasisPoints,
+            feeDestinationAddress,
+            bTokenAmount,
+            collateralAmount
+        );
 
         require(
             collateralAmount - tradeFee >= collateralMinimum,
@@ -1065,7 +1046,14 @@ contract MinterAmm is
             seriesId,
             bTokenAmount
         );
-        uint256 tradeFee = calculateFees(bTokenAmount, collateralWithoutFees);
+        uint256 tradeFee = IAmmDataProvider(ammDataProvider).calculateFees(
+            tradeFeeBasisPoints,
+            maxOptionFeeBasisPoints,
+            feeDestinationAddress,
+            bTokenAmount,
+            collateralWithoutFees
+        );
+
         return collateralWithoutFees + tradeFee;
     }
 
@@ -1113,7 +1101,14 @@ contract MinterAmm is
             collateralToken.balanceOf(address(this)),
             true
         );
-        uint256 tradeFee = calculateFees(bTokenAmount, collateralWithoutFees);
+        uint256 tradeFee = IAmmDataProvider(ammDataProvider).calculateFees(
+            tradeFeeBasisPoints,
+            maxOptionFeeBasisPoints,
+            feeDestinationAddress,
+            bTokenAmount,
+            collateralWithoutFees
+        );
+
         return collateralWithoutFees - tradeFee;
     }
 

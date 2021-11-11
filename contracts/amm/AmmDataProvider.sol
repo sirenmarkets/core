@@ -562,4 +562,43 @@ contract AmmDataProvider is IAmmDataProvider {
         // Add value of OPEN Series, EXPIRED Series, and collateral token
         return activeTokensValue + expiredTokensValue + collateralBalance;
     }
+
+    /// @dev Calculate the fee amount for a buy/sell
+    /// If params are not set, the fee amount will be 0
+    /// See MinterAmm contract comments at top for logic explanation of fee calculations.
+    function calculateFees(
+        uint16 tradeFeeBasisPoints,
+        uint16 maxOptionFeeBasisPoints,
+        address feeDestinationAddress,
+        uint256 bTokenAmount,
+        uint256 collateralAmount
+    ) external pure override returns (uint256) {
+        // Check if fees are enabled
+        if (
+            tradeFeeBasisPoints > 0 &&
+            maxOptionFeeBasisPoints > 0 &&
+            feeDestinationAddress != address(0x0)
+        ) {
+            uint256 tradeFee = 0;
+
+            // The default fee is the basis points of the number of options being bought (e.g. bToken amount)
+            uint256 defaultFee = (bTokenAmount * tradeFeeBasisPoints) / 10_000;
+
+            // The max fee is based on the maximum percentage of the collateral being paid to buy the options
+            uint256 maxFee = (collateralAmount * maxOptionFeeBasisPoints) /
+                10_000;
+
+            // Use the smaller of the 2
+            if (defaultFee < maxFee) {
+                tradeFee = defaultFee;
+            } else {
+                tradeFee = maxFee;
+            }
+
+            return tradeFee;
+        }
+
+        // Fees are not enabled
+        return 0;
+    }
 }
