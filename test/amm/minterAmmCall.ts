@@ -1221,7 +1221,7 @@ contract("AMM Call Verification", (accounts) => {
     })
 
     // Buy bTokens
-    ret = await deployedAmm.bTokenBuy(seriesId, 1000, 1000, {
+    ret = await deployedAmm.bTokenBuy(seriesId, 1000e10, 1000e10, {
       from: aliceAccount,
     })
 
@@ -1252,7 +1252,7 @@ contract("AMM Call Verification", (accounts) => {
     // Buy bTokens
     // Verify it fails if the amount of collateral maximum is exceeded
     await expectRevert(
-      deployedAmm.bTokenBuy(seriesId, 3000, 3000, {
+      deployedAmm.bTokenBuy(seriesId, 3000e10, 3000e10, {
         from: aliceAccount,
       }),
       ERROR_MESSAGES.B_TOKEN_BUY_NOT_LARGE_ENOUGH,
@@ -1265,17 +1265,4 @@ contract("AMM Call Verification", (accounts) => {
     )
     assertBNEq(approval, 0, "No left over approval should be there")
   })
-
-  const getTopOfPeriod = async () => {
-    const latestTimestamp = (await provider.getBlock("latest")).timestamp + 1000
-    let topOfPeriod: number
-
-    const rem = latestTimestamp % PERIOD
-    if (rem < Math.floor(PERIOD / 2)) {
-      topOfPeriod = latestTimestamp - rem + PERIOD
-    } else {
-      topOfPeriod = latestTimestamp + rem + PERIOD
-    }
-    return topOfPeriod
-  }
 })
