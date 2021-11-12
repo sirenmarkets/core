@@ -106,7 +106,7 @@ contract("AMM Call Verification", (accounts) => {
       deployedMockVolatilityOracle.address,
     )
 
-    let volatility = new BN(2 * 1e7)
+    let volatility = new BN(2 * 1e7) //20% volatility
     deployedMockVolatilityOracle.setAnnualizedVol(
       underlyingToken.address,
       priceToken.address,
