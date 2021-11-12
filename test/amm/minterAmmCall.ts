@@ -56,6 +56,7 @@ const STRIKE_PRICE = 15000 * 1e8 // 15000 USD
 
 const OTM_BTC_ORACLE_PRICE = 14_000 * 10 ** 8
 const ITM_BTC_ORACLE_PRICE = 20_000 * 10 ** 8
+const ANNUALIZED_VOLATILITY = 1 * 10 ** 8
 
 const ERROR_MESSAGES = {
   INIT_ONCE: "Contract can only be initialized once.",
@@ -95,6 +96,7 @@ contract("AMM Call Verification", (accounts) => {
     } = await setupAllTestContracts({
       strikePrice: STRIKE_PRICE.toString(),
       oraclePrice: OTM_BTC_ORACLE_PRICE,
+      annualizedVolatility: ANNUALIZED_VOLATILITY,
     }))
 
     // create the price oracle fresh for each test
@@ -104,13 +106,6 @@ contract("AMM Call Verification", (accounts) => {
 
     deployedAddressesProvider.setVolatilityOracle(
       deployedMockVolatilityOracle.address,
-    )
-
-    let volatility = new BN(1 * 1e8) //100% volatility
-    deployedMockVolatilityOracle.setAnnualizedVol(
-      underlyingToken.address,
-      priceToken.address,
-      volatility,
     )
   })
 

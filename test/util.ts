@@ -116,6 +116,7 @@ export async function setUpMockVolatilityOracle(
   period,
   windowInDays,
   mockPriceOracleAddress: string,
+  volatility: number,
 ): Promise<MockVolatilityOracleInstance> {
   const deployedMockVolatilityOracle: MockVolatilityOracleInstance =
     await MockVolatilityOracle.new(period, mockPriceOracleAddress, windowInDays)
@@ -123,6 +124,12 @@ export async function setUpMockVolatilityOracle(
   await deployedMockVolatilityOracle.addTokenPair(
     underlyingAddress,
     priceAddress,
+  )
+
+  await deployedMockVolatilityOracle.setAnnualizedVol(
+    underlyingAddress,
+    priceAddress,
+    volatility,
   )
 
   return deployedMockVolatilityOracle
@@ -302,6 +309,7 @@ export async function setupSingletonTestContracts(
     underlyingToken = null,
     collateralToken = null,
     priceToken = null,
+    annualizedVolatility = 1 * 1e8, // 100%
   }: {
     erc1155URI?: string
     oraclePrice?: number
@@ -312,6 +320,7 @@ export async function setupSingletonTestContracts(
     underlyingToken?: SimpleTokenInstance
     collateralToken?: SimpleTokenInstance
     priceToken?: SimpleTokenInstance
+    annualizedVolatility?: number
   } = {
     erc1155URI: "https://erc1155.sirenmarkets.com/v2/{id}.json",
     oraclePrice: 12_000 * 1e8, // 12k,
@@ -322,6 +331,7 @@ export async function setupSingletonTestContracts(
     underlyingToken: null,
     collateralToken: null,
     priceToken: null,
+    annualizedVolatility: 1 * 1e8, // 100%
   },
 ) {
   // These logic contracts are what the proxy contracts will point to
@@ -431,12 +441,14 @@ export async function setupSingletonTestContracts(
       priceToken.address,
       deployedMockPriceOracle.address,
     )
+
   const deployedMockVolatilityOracle = await setUpMockVolatilityOracle(
     underlyingToken.address,
     priceToken.address,
     PERIOD,
     WINDOW_IN_DAYS,
     deployedMockVolatilityPriceOracle.address,
+    annualizedVolatility,
   )
 
   expectEvent(controllerInitResp, "SeriesControllerInitialized", {
@@ -719,6 +731,7 @@ export async function setupAllTestContracts(
     isPutOption?: boolean
     strikePrice?: string
     skipCreateSeries?: boolean
+    annualizedVolatility: number
   } = {
     oraclePrice: 12_000 * 1e8, // 12k,
     feeReceiver: FEE_RECEIVER_ADDRESS,
@@ -730,6 +743,7 @@ export async function setupAllTestContracts(
     isPutOption: false,
     strikePrice: (10_000e8).toString(),
     skipCreateSeries: false,
+    annualizedVolatility: 1 * 1e8, // 100%
   },
 ) {
   let {
