@@ -98,7 +98,7 @@ contract("AMM Call Verification", (accounts) => {
     }))
 
     // create the price oracle fresh for each test
-    const humanCollateralPrice2 = new BN(14000 * 1e8) // 19k
+    const humanCollateralPrice2 = new BN(14000 * 1e8) // 14k
 
     await deployedMockPriceOracle.setLatestAnswer(humanCollateralPrice2)
 
@@ -106,7 +106,7 @@ contract("AMM Call Verification", (accounts) => {
       deployedMockVolatilityOracle.address,
     )
 
-    let volatility = new BN(1 * 1e7)
+    let volatility = new BN(2 * 1e7)
     deployedMockVolatilityOracle.setAnnualizedVol(
       underlyingToken.address,
       priceToken.address,
