@@ -278,14 +278,39 @@ contract MinterAmm is
 
     /// The owner can set the volatility factor used to price the options
     function getVolatility(uint64 _seriesId) public view returns (uint256) {
-        return
-            uint256(
-                IVolatilityOracle(addressesProvider.getVolatilityOracle())
-                    .annualizedVol(
-                        address(underlyingToken),
-                        address(priceToken)
-                    )
-            );
+        SeriesVolatility memory seriesVolatility = seriesVolatilities[
+            _seriesId
+        ];
+
+        uint256 realizedVolatility = uint256(
+            IVolatilityOracle(addressesProvider.getVolatilityOracle())
+                .annualizedVol(address(underlyingToken), address(priceToken))
+        ) * 1e10; // oracle stores volatility in 8 decimals precision, here we operate at 18 decimals
+
+        uint256 iv;
+
+        if (
+            seriesVolatility.updatedAt == 0 ||
+            seriesVolatility.volatility == realizedVolatility
+        ) {
+            // Volatility hasn't been initialized for this series
+            iv = realizedVolatility;
+        } else {
+            // TODO: set drift rate dynamically
+            uint256 ivDriftRate = 200000000; // 2*1e-8% per second
+            uint256 ivDrift = ivDriftRate *
+                (block.timestamp - seriesVolatility.updatedAt);
+
+            if (seriesVolatility.volatility > realizedVolatility) {
+                iv = seriesVolatility.volatility - ivDrift;
+                if (iv < realizedVolatility) iv = realizedVolatility;
+            } else {
+                iv = seriesVolatility.volatility + ivDrift;
+                if (iv > realizedVolatility) iv = realizedVolatility;
+            }
+        }
+
+        return iv;
     }
 
     /// Each time a trade happens we update the volatility
@@ -296,12 +321,20 @@ contract MinterAmm is
         uint256 vega
     ) internal returns (uint256) {
         uint256 newIV = (currentIV + uint256(priceImpact) / vega);
-        if (newIV > 4e8) {
-            newIV = 4e8;
-        } else if (newIV < 5e7) {
-            newIV = 5e7;
+
+        // TODO: ability to set IV range
+        uint256 MAX_IV = 4e18; // 400%
+        uint256 MIN_IV = 5e17; // 50%
+        if (newIV > MAX_IV) {
+            newIV = MAX_IV;
+        } else if (newIV < MIN_IV) {
+            newIV = MIN_IV;
         }
-        seriesVolatilities[_seriesId] = newIV;
+        SeriesVolatility storage seriesVolatility = seriesVolatilities[
+            _seriesId
+        ];
+        seriesVolatility.volatility = newIV;
+        seriesVolatility.updatedAt = block.timestamp;
     }
 
     /// The owner can set the trade fee params - if any are set to 0/0x0 then trade fees are disabled

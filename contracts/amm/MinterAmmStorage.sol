@@ -80,8 +80,14 @@ contract MinterAmmStorageV1 {
 
 contract MinterAmmStorageV2 is MinterAmmStorageV1 {
     /// @dev Stores volatility mapped to each series
+
+    struct SeriesVolatility {
+        uint256 volatility;
+        uint256 updatedAt;
+    }
+
     ///Replaces volatilityFactor
-    mapping(uint64 => uint256) public seriesVolatilities;
+    mapping(uint64 => SeriesVolatility) public seriesVolatilities;
 
     /// @dev The address for the VolatilityOracle
     IAddressesProvider addressesProvider;

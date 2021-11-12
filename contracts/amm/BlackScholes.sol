@@ -293,10 +293,9 @@ contract BlackScholes is IBlackScholes {
         uint256 spotPrecise = spotDecimal.decimalToPreciseDecimal();
         uint256 strikePrecise = strikeDecimal.decimalToPreciseDecimal();
         int256 ratePrecise = rateDecimal.decimalToPreciseDecimal();
-        uint256 volatilityBlackScholesDecimal = volatilityDecimal * 1e10;
         (int256 d1, int256 d2) = d1d2(
             tAnnualised,
-            volatilityBlackScholesDecimal.decimalToPreciseDecimal(),
+            volatilityDecimal.decimalToPreciseDecimal(),
             spotPrecise,
             strikePrecise,
             ratePrecise
@@ -395,7 +394,7 @@ contract BlackScholes is IBlackScholes {
 
         (int256 d1, int256 d2) = d1d2(
             tAnnualised,
-            (volatilityDecimal * 1e10).decimalToPreciseDecimal(),
+            volatilityDecimal.decimalToPreciseDecimal(),
             spotPrecise,
             strikeDecimal.decimalToPreciseDecimal(),
             rateDecimal.decimalToPreciseDecimal()
@@ -443,7 +442,7 @@ contract BlackScholes is IBlackScholes {
 
         (int256 d1, int256 d2) = d1d2(
             tAnnualised,
-            (volatilityDecimal * 1e10).decimalToPreciseDecimal(),
+            volatilityDecimal.decimalToPreciseDecimal(),
             spotPrecise,
             strikeDecimal.decimalToPreciseDecimal(),
             rateDecimal.decimalToPreciseDecimal()

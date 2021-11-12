@@ -35,19 +35,11 @@ let deployedPriceOracle: PriceOracleInstance
 let deployedMockVolatilityPriceOracle: MockVolatilityPriceOracleInstance
 let deployedAddressesProvider: AddressesProviderInstance
 
-let deployedVolatilityOracle
 let deployedMockVolatilityOracle
-
-const wbtcDecimals = 8
-
-const MockPriceOracle: MockPriceOracleContract =
-  artifacts.require("MockPriceOracle")
 
 let underlyingToken: SimpleTokenInstance
 let priceToken: SimpleTokenInstance
 let collateralToken: SimpleTokenInstance
-let PERIOD = 86400
-const WINDOW_IN_DAYS = 90 // 3 month vol data
 
 let expiration: number
 let seriesId: string
@@ -56,7 +48,7 @@ const STRIKE_PRICE = 15000 * 1e8 // 15000 USD
 
 const OTM_BTC_ORACLE_PRICE = 14_000 * 10 ** 8
 const ITM_BTC_ORACLE_PRICE = 20_000 * 10 ** 8
-const ANNUALIZED_VOLATILITY = 1 * 10 ** 8
+const ANNUALIZED_VOLATILITY = 1 * 1e8 // 100%
 
 const ERROR_MESSAGES = {
   INIT_ONCE: "Contract can only be initialized once.",
@@ -98,15 +90,6 @@ contract("AMM Call Verification", (accounts) => {
       oraclePrice: OTM_BTC_ORACLE_PRICE,
       annualizedVolatility: ANNUALIZED_VOLATILITY,
     }))
-
-    // create the price oracle fresh for each test
-    const humanCollateralPrice2 = new BN(14000 * 1e8) // 14k
-
-    await deployedMockPriceOracle.setLatestAnswer(humanCollateralPrice2)
-
-    deployedAddressesProvider.setVolatilityOracle(
-      deployedMockVolatilityOracle.address,
-    )
   })
 
   it("Provides capital without trading", async () => {
@@ -312,27 +295,27 @@ contract("AMM Call Verification", (accounts) => {
     )
   })
 
-  it("Provides capital with trading", async () => {
-    // await time.increaseTo(expiration - ONE_WEEK_DURATION) // use the same time, no matter when this test gets called
+  it.only("Provides capital with trading", async () => {
+    await time.increaseTo(expiration - ONE_WEEK_DURATION) // use the same time, no matter when this test gets called
 
     // Approve collateral
-    await underlyingToken.mint(ownerAccount, 10000)
-    await underlyingToken.approve(deployedAmm.address, 10000)
+    await underlyingToken.mint(ownerAccount, 10e8)
+    await underlyingToken.approve(deployedAmm.address, 10e8)
 
     // Provide capital
-    let ret = await deployedAmm.provideCapital(10000, 0)
+    let ret = await deployedAmm.provideCapital(10e8, 0)
 
     expectEvent(ret, "LpTokensMinted", {
       minter: ownerAccount,
-      collateralAdded: "10000",
-      lpTokensMinted: "10000",
+      collateralAdded: "1000000000",
+      lpTokensMinted: "1000000000",
     })
 
     // Total assets value in the AMM should be 10k.
     assertBNEq(
       await deployedAmm.getTotalPoolValue(true),
-      10000,
-      "Total assets value in the AMM should be 10k",
+      10e8,
+      "Total assets value in the AMM should be 10e8",
     )
 
     const bTokenIndex = await deployedSeriesController.bTokenIndex(seriesId)
@@ -340,25 +323,25 @@ contract("AMM Call Verification", (accounts) => {
     const lpToken = await SimpleToken.at(await deployedAmm.lpToken())
 
     // Now let's do some trading from another account
-    await underlyingToken.mint(aliceAccount, 1000)
-    await underlyingToken.approve(deployedAmm.address, 1000, {
+    await underlyingToken.mint(aliceAccount, 1e8)
+    await underlyingToken.approve(deployedAmm.address, 1e8, {
       from: aliceAccount,
     })
 
     // Check that AMM calculates correct bToken price
     assertBNEq(
       await deployedAmm.getPriceForSeries(seriesId),
-      "2927196112142857", // 0.0029 * 1e18
+      "28392462968571428", // 0.028 * 1e18
       "AMM should calculate bToken price correctly",
     )
 
     // Buy bTokens
-    ret = await deployedAmm.bTokenBuy(seriesId, 3000, 3000, {
+    ret = await deployedAmm.bTokenBuy(seriesId, 3e8, 3e8, {
       from: aliceAccount,
     })
     assertBNEq(
       await deployedERC1155Controller.balanceOf(aliceAccount, bTokenIndex),
-      3000,
+      3e8,
       "Trader should receive purchased bTokens",
     )
     assertBNEq(

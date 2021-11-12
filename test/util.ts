@@ -451,6 +451,10 @@ export async function setupSingletonTestContracts(
     annualizedVolatility,
   )
 
+  deployedAddressesProvider.setVolatilityOracle(
+    deployedMockVolatilityOracle.address,
+  )
+
   expectEvent(controllerInitResp, "SeriesControllerInitialized", {
     priceOracle: deployedPriceOracle.address,
     vault: deployedVault.address,
