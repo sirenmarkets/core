@@ -21,7 +21,6 @@ contract VolatilityOracle is DSMath {
     uint256 public immutable windowSize;
     uint256 public immutable annualizationConstant;
     uint256 internal constant commitPhaseDuration = 3600; // 1 hour from every period
-    mapping(uint64 => uint256) public seriesVolatilities;
 
     /**
      * Storage
@@ -86,7 +85,9 @@ contract VolatilityOracle is DSMath {
     /**
      * @notice Initialized pool observation window
      */
-    function initPool(address underlyingToken, address priceToken) external {
+    function addTokenPair(address underlyingToken, address priceToken)
+        external
+    {
         require(
             observations[underlyingToken][priceToken].length == 0,
             "Pool initialized"
@@ -186,6 +187,7 @@ contract VolatilityOracle is DSMath {
     function annualizedVol(address underlyingToken, address priceToken)
         public
         view
+        virtual
         returns (uint256 annualStdev)
     {
         return
