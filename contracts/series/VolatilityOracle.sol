@@ -187,6 +187,7 @@ contract VolatilityOracle is DSMath {
     function annualizedVol(address underlyingToken, address priceToken)
         public
         view
+        virtual
         returns (uint256 annualStdev)
     {
         return

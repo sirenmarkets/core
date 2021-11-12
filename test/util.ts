@@ -18,6 +18,10 @@ import {
   MockVolatilityPriceOracleContract,
   AddressesProviderInstance,
   AddressesProviderContract,
+  VolatilityOracleContract,
+  VolatilityOracleInstance,
+  MockVolatilityOracleInstance,
+  MockVolatilityOracleContract,
 } from "../typechain"
 import { artifacts, assert, ethers } from "hardhat"
 import { time, expectEvent, BN } from "@openzeppelin/test-helpers"
@@ -38,6 +42,10 @@ const PriceOracle: PriceOracleContract = artifacts.require("PriceOracle")
 
 const MockVolatilityPriceOracle: MockVolatilityPriceOracleContract =
   artifacts.require("MockVolatilityPriceOracle")
+
+const MockVolatilityOracle: MockVolatilityOracleContract = artifacts.require(
+  "MockVolatilityOracle",
+)
 
 const SeriesController: SeriesControllerContract =
   artifacts.require("SeriesController")
@@ -63,6 +71,9 @@ const AddressesProvider: AddressesProviderContract =
 const FEE_RECEIVER_ADDRESS = "0x000000000000000000000000000000000000dEaD"
 const ONE_DAY_DURATION = 24 * 60 * 60
 export const ONE_WEEK_DURATION = 7 * ONE_DAY_DURATION
+
+let PERIOD = 86400
+const WINDOW_IN_DAYS = 90 // 3 month vol data
 
 export async function setupPriceOracle(
   underlyingAddress: string,
@@ -97,6 +108,24 @@ export async function setupMockVolatilityPriceOracle(
     mockOracleAddress,
   )
   return deployedMockVolatilityPriceOracle
+}
+
+export async function setUpMockVolatilityOracle(
+  underlyingAddress: string,
+  priceAddress: string,
+  period,
+  windowInDays,
+  mockPriceOracleAddress: string,
+): Promise<MockVolatilityOracleInstance> {
+  const deployedMockVolatilityOracle: MockVolatilityOracleInstance =
+    await MockVolatilityOracle.new(period, mockPriceOracleAddress, windowInDays)
+
+  await deployedMockVolatilityOracle.addTokenPair(
+    underlyingAddress,
+    priceAddress,
+  )
+
+  return deployedMockVolatilityOracle
 }
 
 export async function checkBalances(
@@ -396,6 +425,20 @@ export async function setupSingletonTestContracts(
       },
     )
 
+  const deployedMockVolatilityPriceOracle =
+    await setupMockVolatilityPriceOracle(
+      underlyingToken.address,
+      priceToken.address,
+      deployedMockPriceOracle.address,
+    )
+  const deployedMockVolatilityOracle = await setUpMockVolatilityOracle(
+    underlyingToken.address,
+    priceToken.address,
+    PERIOD,
+    WINDOW_IN_DAYS,
+    deployedMockVolatilityPriceOracle.address,
+  )
+
   expectEvent(controllerInitResp, "SeriesControllerInitialized", {
     priceOracle: deployedPriceOracle.address,
     vault: deployedVault.address,
@@ -432,6 +475,7 @@ export async function setupSingletonTestContracts(
     deployedAmmDataProvider,
     deployedBlackScholes,
     deployedAddressesProvider,
+    deployedMockVolatilityOracle,
     oraclePrice,
     expiration,
     exerciseFee,
@@ -697,6 +741,7 @@ export async function setupAllTestContracts(
     deployedSeriesController,
     deployedPriceOracle,
     deployedMockPriceOracle,
+    deployedMockVolatilityOracle,
     deployedAmmFactory,
     deployedAmmDataProvider,
     deployedBlackScholes,
@@ -760,6 +805,7 @@ export async function setupAllTestContracts(
     deployedSeriesController,
     deployedPriceOracle,
     deployedMockPriceOracle,
+    deployedMockVolatilityOracle,
     deployedAmmFactory,
     deployedAmmDataProvider,
     deployedBlackScholes,

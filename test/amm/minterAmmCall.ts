@@ -11,9 +11,9 @@ import {
   MinterAmmInstance,
   SeriesControllerInstance,
   ERC1155ControllerInstance,
-  MockPriceOracleContract,
-  MockVolatilityPriceOracleInstance,
   AddressesProviderInstance,
+  MockVolatilityPriceOracleInstance,
+  MockPriceOracleContract,
 } from "../../typechain"
 
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
@@ -91,76 +91,27 @@ contract("AMM Call Verification", (accounts) => {
       deployedMockPriceOracle,
       expiration,
       deployedAddressesProvider,
+      deployedMockVolatilityOracle,
     } = await setupAllTestContracts({
       strikePrice: STRIKE_PRICE.toString(),
       oraclePrice: OTM_BTC_ORACLE_PRICE,
     }))
 
     // create the price oracle fresh for each test
-    deployedMockPriceOracle = await MockPriceOracle.new(wbtcDecimals)
-
-    const humanCollateralPrice2 = new BN(19000 * 1e8) // 19k
+    const humanCollateralPrice2 = new BN(14000 * 1e8) // 19k
 
     await deployedMockPriceOracle.setLatestAnswer(humanCollateralPrice2)
-    deployedMockVolatilityPriceOracle = await setupMockVolatilityPriceOracle(
-      underlyingToken.address,
-      priceToken.address,
-      deployedMockPriceOracle.address,
-    )
-    const volatility = await ethers.getContractFactory("VolatilityOracle", {})
-
-    const MockVolatility = await ethers.getContractFactory(
-      "MockVolatilityOracle",
-      {},
-    )
-
-    deployedVolatilityOracle = await volatility.deploy(
-      PERIOD,
-      deployedMockVolatilityPriceOracle.address,
-      WINDOW_IN_DAYS,
-    )
-    deployedMockVolatilityOracle = await MockVolatility.deploy(
-      PERIOD,
-      deployedMockVolatilityPriceOracle.address,
-      WINDOW_IN_DAYS,
-    )
 
     deployedAddressesProvider.setVolatilityOracle(
       deployedMockVolatilityOracle.address,
     )
 
-    const values = [
-      BigNumber.from("1450000000"),
-      BigNumber.from("1490000000"),
-      BigNumber.from("1500000000"),
-      BigNumber.from("1490000000"),
-    ]
-    const stdevs = [
-      BigNumber.from("0"),
-      BigNumber.from("2439508"),
-      BigNumber.from("2248393"),
-      BigNumber.from("3068199"),
-    ]
-
-    const topOfPeriod = (await getTopOfPeriod()) + PERIOD
-
-    await deployedMockVolatilityOracle.addTokenPair(
+    let volatility = new BN(1 * 1e7)
+    deployedMockVolatilityOracle.setAnnualizedVol(
       underlyingToken.address,
       priceToken.address,
+      volatility,
     )
-    for (let i = 0; i < values.length; i++) {
-      await deployedMockPriceOracle.setLatestAnswer(values[i].toString())
-      await deployedMockVolatilityOracle.setPrice(values[i])
-      await deployedMockVolatilityOracle.mockCommit(
-        underlyingToken.address,
-        priceToken.address,
-      )
-      let stdev = await deployedMockVolatilityOracle.vol(
-        underlyingToken.address,
-        priceToken.address,
-      )
-      // assert.equal(stdev.toString(), stdevs[i].toString())
-    }
   })
 
   it("Provides capital without trading", async () => {
