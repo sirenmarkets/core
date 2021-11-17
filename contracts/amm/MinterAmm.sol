@@ -287,7 +287,9 @@ contract MinterAmm is
                         address(underlyingToken),
                         address(priceToken)
                     )
-            ) * 1e10; // oracle stores volatility in 8 decimals precision, here we operate at 18 decimals
+            ) *
+            1e10 + // oracle stores volatility in 8 decimals precision, here we operate at 18 decimals
+            2e17; // bump IV by 20% to give LPs an edge until the dynamic IV is implemented
     }
 
     /// Each time a trade happens we update the volatility
