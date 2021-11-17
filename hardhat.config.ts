@@ -93,7 +93,7 @@ const config: HardhatUserConfig = {
       allowUnlimitedContractSize: true,
       mining: {
         auto: true,
-        interval: 10,
+        interval: 0,
       },
     },
     rinkeby: {
