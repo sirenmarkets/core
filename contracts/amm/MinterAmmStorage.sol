@@ -4,10 +4,10 @@ pragma solidity 0.8.0;
 
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "../oz/EnumerableSet.sol";
 import "../series/ISeriesController.sol";
 import "../series/SeriesLibrary.sol";
 import "../token/ISimpleToken.sol";
+import "./AmmDataProvider.sol";
 
 /// This contract stores all new local variables for the MinterAmm.sol contract.
 /// This allows us to upgrade the contract and add new variables without worrying about
@@ -75,6 +75,9 @@ contract MinterAmmStorageV1 {
 
     /// @dev The address for the airswap Light contract on-chain.
     address public lightAirswapAddress;
+
+    /// @dev Storage references to pass to libraries
+    AmmDataProvider.References refs;
 }
 
 // Next version example:

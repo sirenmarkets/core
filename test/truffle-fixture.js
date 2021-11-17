@@ -25,8 +25,8 @@ module.exports = async () => {
   const mockPriceOracle = await MockPriceOracle.new(8)
   MockPriceOracle.setAsDeployed(mockPriceOracle)
 
-  const minterAmm = await MinterAmm.new()
-  MinterAmm.setAsDeployed(minterAmm)
+  // const minterAmm = await MinterAmm.new()
+  // MinterAmm.setAsDeployed(minterAmm)
 
   const ammFactory = await AmmFactory.new()
   AmmFactory.setAsDeployed(ammFactory)

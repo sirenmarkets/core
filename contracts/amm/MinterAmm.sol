@@ -11,9 +11,9 @@ import "../series/IPriceOracle.sol";
 import "../swap/ILight.sol";
 import "../token/IERC20Lib.sol";
 import "./IAddSeriesToAmm.sol";
-import "./IAmmDataProvider.sol";
 import "./InitializeableAmm.sol";
 import "./MinterAmmStorage.sol";
+import "./AmmDataProvider.sol";
 
 /// This is an implementation of a minting/redeeming AMM (Automated Market Maker) that trades a list of series with the same
 /// collateral token. For example, a single WBTC Call AMM contract can trade all strikes of WBTC calls using
@@ -134,9 +134,6 @@ contract MinterAmm is
     /// Emitted when a new sirenPriceOracle gets set on an upgraded AMM
     event NewSirenPriceOracle(address newSirenPriceOracle);
 
-    /// Emitted when a new ammDataProviders gets set on an upgraded AMM
-    event NewAmmDataProvider(address newAmmDataProvider);
-
     /// @notice Emitted when an expired series has been removed
     event SeriesEvicted(uint64 seriesId);
 
@@ -212,7 +209,6 @@ contract MinterAmm is
         uint16 _tradeFeeBasisPoints
     ) public override {
         require(address(_sirenPriceOracle) != address(0x0), "E02");
-        require(_ammDataProvider != address(0x0), "E15");
         require(address(_underlyingToken) != address(0x0), "E03");
         require(address(_priceToken) != address(0x0), "E04");
         require(address(_collateralToken) != address(0x0), "E05");
@@ -264,6 +260,12 @@ contract MinterAmm is
         // 0.4 * volInSeconds * 1e18
         volatilityFactor = 4000e10;
 
+        refs = AmmDataProvider.References(
+            erc1155Controller,
+            seriesController,
+            IPriceOracle(sirenPriceOracle)
+        );
+
         __Ownable_init();
 
         emit AMMInitialized(
@@ -308,20 +310,6 @@ contract MinterAmm is
         require(_newImplementation != address(0x0), "E10");
 
         _updateCodeAddress(_newImplementation);
-    }
-
-    /// @notice update the AmmDataProvider used by this AMM
-    /// @param _newAmmDataProvider the address of the new AmmDataProvider contract
-    /// @dev only the admin address may call this function
-    function updateAmmDataProvider(address _newAmmDataProvider)
-        external
-        onlyOwner
-    {
-        require(_newAmmDataProvider != address(0x0), "E14");
-
-        ammDataProvider = _newAmmDataProvider;
-
-        emit NewAmmDataProvider(_newAmmDataProvider);
     }
 
     /// @notice update the address for the airswap lib used for direct buys
@@ -480,30 +468,7 @@ contract MinterAmm is
     /// @notice Claims any remaining collateral from expired series whose wToken is held by the AMM, and removes
     /// the expired series from the AMM's collection of series
     function claimExpiredTokens(uint64 seriesId) public {
-        // claim the expired series' wTokens, which means it can now be safely removed
-        uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-        uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
-
-        uint256 bTokenBalance = erc1155Controller.balanceOf(
-            address(this),
-            bTokenIndex
-        );
-        if (bTokenBalance > 0) {
-            seriesController.exerciseOption(seriesId, bTokenBalance, false);
-        }
-
-        uint256 wTokenBalance = erc1155Controller.balanceOf(
-            address(this),
-            wTokenIndex
-        );
-        if (wTokenBalance > 0) {
-            seriesController.claimCollateral(seriesId, wTokenBalance);
-        }
-        // Remove the expired series to free storage and reduce gas fee
-        // NOTE: openSeries.remove will remove the series from the i’th position in the EnumerableSet by
-        // swapping it with the last element in EnumerableSet and then calling .pop on the internal array.
-        // We are relying on this undocumented behavior of EnumerableSet, which is acceptable because once
-        // deployed we will never change the EnumerableSet logic.
+        AmmDataProvider.claimExpiredTokens(refs, seriesId);
         openSeries.remove(seriesId);
 
         emit SeriesEvicted(seriesId);
@@ -600,7 +565,8 @@ contract MinterAmm is
         returns (uint256)
     {
         return
-            IAmmDataProvider(ammDataProvider).getTotalPoolValue(
+            AmmDataProvider.getTotalPoolValue(
+                refs,
                 includeUnclaimed,
                 getAllSeries(),
                 collateralToken.balanceOf(address(this)),
@@ -650,23 +616,12 @@ contract MinterAmm is
         require(openSeries.contains(seriesId), "E13");
 
         return
-            IAmmDataProvider(ammDataProvider).getVirtualReserves(
+            AmmDataProvider.getVirtualReserves(
+                refs,
                 seriesId,
                 address(this),
                 collateralToken.balanceOf(address(this)),
                 getPriceForSeries(seriesId)
-            );
-    }
-
-    /// @dev Get the current series price of the underlying token with units of priceToken,
-    /// always with 8 decimals
-    /// @dev For example, if underlying == WBTC and price == USDC, then this function will return
-    /// 4500000000000 ($45_000 in human readable units)
-    function getCurrentUnderlyingPrice() private view returns (uint256) {
-        return
-            IPriceOracle(sirenPriceOracle).getCurrentPrice(
-                address(underlyingToken),
-                address(priceToken)
             );
     }
 
@@ -684,7 +639,8 @@ contract MinterAmm is
         require(openSeries.contains(seriesId), "E13");
 
         return
-            IAmmDataProvider(ammDataProvider).getPriceForExpiredSeries(
+            AmmDataProvider.getPriceForExpiredSeries(
+                refs,
                 seriesId,
                 volatilityFactor
             );
@@ -721,9 +677,9 @@ contract MinterAmm is
         uint256 currentPrice,
         uint256 volatility,
         bool isPutOption
-    ) public view returns (uint256) {
+    ) public pure returns (uint256) {
         return
-            IAmmDataProvider(ammDataProvider).calcPrice(
+            AmmDataProvider.calcPrice(
                 timeUntilExpiry,
                 strike,
                 currentPrice,
@@ -1038,7 +994,8 @@ contract MinterAmm is
         uint256 bTokenAmount
     ) public view returns (uint256) {
         return
-            IAmmDataProvider(ammDataProvider).bTokenGetCollateralIn(
+            AmmDataProvider.bTokenGetCollateralIn(
+                refs,
                 seriesId,
                 address(this),
                 bTokenAmount,
@@ -1209,7 +1166,8 @@ contract MinterAmm is
         bool isBToken
     ) private view returns (uint256) {
         return
-            IAmmDataProvider(ammDataProvider).optionTokenGetCollateralOut(
+            AmmDataProvider.optionTokenGetCollateralOut(
+                refs,
                 seriesId,
                 address(this),
                 optionTokenAmount,
@@ -1230,11 +1188,11 @@ contract MinterAmm is
         returns (uint256)
     {
         return
-            IAmmDataProvider(ammDataProvider)
-                .getCollateralValueOfAllExpiredOptionTokens(
-                    getAllSeries(),
-                    address(this)
-                );
+            AmmDataProvider.getCollateralValueOfAllExpiredOptionTokens(
+                refs,
+                getAllSeries(),
+                address(this)
+            );
     }
 
     /// @notice Calculate sale value of pro-rata LP b/wTokens in units of collateral token
@@ -1246,7 +1204,8 @@ contract MinterAmm is
         uint256 lpTokenSupply = IERC20Lib(address(lpToken)).totalSupply();
 
         return
-            IAmmDataProvider(ammDataProvider).getOptionTokensSaleValue(
+            AmmDataProvider.getOptionTokensSaleValue(
+                refs,
                 lpTokenAmount,
                 lpTokenSupply,
                 getAllSeries(),
