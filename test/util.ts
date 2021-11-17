@@ -69,7 +69,7 @@ const AddressesProvider: AddressesProviderContract =
   artifacts.require("AddressesProvider")
 
 const FEE_RECEIVER_ADDRESS = "0x000000000000000000000000000000000000dEaD"
-const ONE_DAY_DURATION = 24 * 60 * 60
+export const ONE_DAY_DURATION = 24 * 60 * 60
 export const ONE_WEEK_DURATION = 7 * ONE_DAY_DURATION
 
 let PERIOD = 86400

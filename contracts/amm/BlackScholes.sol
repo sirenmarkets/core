@@ -448,7 +448,9 @@ contract BlackScholes is IBlackScholes {
             rateDecimal.decimalToPreciseDecimal()
         );
 
-        uint256 v = _standardVega(d1, spotPrecise, timeToExpirySec);
+        //uint256 v = _standardVega(d1, spotPrecise, timeToExpirySec);
+        uint256 v = _vega(tAnnualised, spotPrecise, d1)
+            .divideDecimalRoundPrecise(spotPrecise);
 
         uint256 price;
         {
@@ -466,6 +468,10 @@ contract BlackScholes is IBlackScholes {
                 price = call.divideDecimalRoundPrecise(spotPrecise);
             }
         }
-        return IBlackScholes.PricesStdVega(price.preciseDecimalToDecimal(), v);
+        return
+            IBlackScholes.PricesStdVega(
+                price.preciseDecimalToDecimal(),
+                v.preciseDecimalToDecimal()
+            );
     }
 }

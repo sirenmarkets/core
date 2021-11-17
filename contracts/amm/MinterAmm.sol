@@ -19,6 +19,8 @@ import "./MinterAmmStorage.sol";
 import "../series/IVolatilityOracle.sol";
 import "./IBlackScholes.sol";
 
+import "hardhat/console.sol";
+
 /// This is an implementation of a minting/redeeming AMM (Automated Market Maker) that trades a list of series with the same
 /// collateral token. For example, a single WBTC Call AMM contract can trade all strikes of WBTC calls using
 /// WBTC as the collateral, and a single WBTC Put AMM contract can trade all strikes of WBTC puts, using
@@ -296,16 +298,34 @@ contract MinterAmm is
             // Volatility hasn't been initialized for this series
             iv = realizedVolatility;
         } else {
-            // TODO: set drift rate dynamically
-            uint256 ivDriftRate = 200000000; // 2*1e-8% per second
-            uint256 ivDrift = ivDriftRate *
-                (block.timestamp - seriesVolatility.updatedAt);
+            uint256 MIN_IV_DRIFT = 23e11; // ~20% per day
 
             if (seriesVolatility.volatility > realizedVolatility) {
-                iv = seriesVolatility.volatility - ivDrift;
+                uint256 ivDriftRate = (seriesVolatility.volatility -
+                    realizedVolatility) / 86400; // rate to converge in 24 hours
+                if (ivDriftRate < MIN_IV_DRIFT) ivDriftRate = MIN_IV_DRIFT;
+
+                console.log(seriesVolatility.volatility);
+                console.log(ivDriftRate);
+                console.logString("timestamp:");
+                console.log(block.timestamp);
+                console.logString("updatedAt:");
+                console.log(seriesVolatility.updatedAt);
+
+                iv =
+                    seriesVolatility.volatility -
+                    ivDriftRate *
+                    (block.timestamp - seriesVolatility.updatedAt);
                 if (iv < realizedVolatility) iv = realizedVolatility;
             } else {
-                iv = seriesVolatility.volatility + ivDrift;
+                uint256 ivDriftRate = (realizedVolatility -
+                    seriesVolatility.volatility) / 86400; // rate to converge in 24 hours
+                if (ivDriftRate < MIN_IV_DRIFT) ivDriftRate = MIN_IV_DRIFT;
+
+                iv =
+                    seriesVolatility.volatility +
+                    ivDriftRate *
+                    (block.timestamp - seriesVolatility.updatedAt);
                 if (iv > realizedVolatility) iv = realizedVolatility;
             }
         }
@@ -320,7 +340,9 @@ contract MinterAmm is
         uint256 currentIV,
         uint256 vega
     ) internal returns (uint256) {
-        uint256 newIV = (currentIV + uint256(priceImpact) / vega);
+        uint256 newIV = uint256(
+            int256(currentIV) + (priceImpact * 1e18) / int256(vega)
+        );
 
         // TODO: ability to set IV range
         uint256 MAX_IV = 4e18; // 400%
@@ -901,7 +923,7 @@ contract MinterAmm is
         uint256 collateralAmount;
         {
             (uint256 price, uint256 vega) = calculatePriceAndVega(seriesId);
-            uint256 collateralAmount = bTokenGetCollateralInWithoutFees(
+            collateralAmount = bTokenGetCollateralInWithoutFees(
                 seriesId,
                 bTokenAmount,
                 price

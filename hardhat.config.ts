@@ -90,7 +90,11 @@ const config: HardhatUserConfig = {
   defaultNetwork: "hardhat",
   networks: {
     hardhat: {
-      allowUnlimitedContractSize: false,
+      allowUnlimitedContractSize: true,
+      mining: {
+        auto: true,
+        interval: 10,
+      },
     },
     rinkeby: {
       url: `https://rinkeby.infura.io/v3/${env.INFURA_API_KEY}`,

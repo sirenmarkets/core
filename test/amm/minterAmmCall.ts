@@ -25,6 +25,7 @@ import {
   setupSeries,
   setupMockVolatilityPriceOracle,
   ONE_WEEK_DURATION,
+  ONE_DAY_DURATION,
 } from "../util"
 
 let deployedSeriesController: SeriesControllerInstance
@@ -331,14 +332,18 @@ contract("AMM Call Verification", (accounts) => {
     // Check that AMM calculates correct bToken price
     assertBNEq(
       await deployedAmm.getPriceForSeries(seriesId),
-      "28392462968571428", // 0.028 * 1e18
+      "28392286565000000", // 0.028 * 1e18
       "AMM should calculate bToken price correctly",
     )
+
+    console.log("time before buy", (await time.latest()).toString())
 
     // Buy bTokens
     ret = await deployedAmm.bTokenBuy(seriesId, 3e8, 3e8, {
       from: aliceAccount,
     })
+    console.log("time after buy", (await time.latest()).toString())
+
     assertBNEq(
       await deployedERC1155Controller.balanceOf(aliceAccount, bTokenIndex),
       3e8,
@@ -346,12 +351,20 @@ contract("AMM Call Verification", (accounts) => {
     )
     assertBNEq(
       await underlyingToken.balanceOf(aliceAccount),
-      880, // paid 120 for 3000 tokens at ~0.029 + slippage
+      88170063, // paid 11,829,937 for 3e8 tokens at ~0.028 + price impact (0.039 total)
       "Trader should pay correct collateral amount",
     )
+
+    // Check that IV updated correctly such that the new price is old price + price impact (0.039)
+    assertBNEq(
+      await deployedAmm.getPriceForSeries(seriesId),
+      "39672601757857142", // 0.039 * 1e18
+      "AMM should calculate new bToken price correctly",
+    )
+
     assertBNEq(
       await underlyingToken.balanceOf(deployedAmm.address),
-      7120, // 10000 - 3000 + 120
+      711829937, // 10e8 - 3e8 + 11,829,937
       "AMM should have correct collateral amount left",
     )
     assertBNEq(
@@ -359,7 +372,7 @@ contract("AMM Call Verification", (accounts) => {
         deployedAmm.address,
         wTokenIndex,
       ),
-      3000, // same amount as bTokens bought
+      3e8, // same amount as bTokens bought
       "AMM should have correct amount of residual wTokens",
     )
     assertBNEq(
@@ -372,30 +385,45 @@ contract("AMM Call Verification", (accounts) => {
     )
     assertBNEq(
       await deployedAmm.getTotalPoolValue(true),
-      10032, // 7120 + 3000 * (1 - 0.029) (btw, 10032 > 10000 - LPs are making money!!!)
+      999928156, // 711829937 + 3e8 * (1 - 0.03967) (negative change in pool value due to imprecise vega)
       "Total assets value in the AMM should be correct",
     )
+    assertBNEq(
+      await deployedAmm.getVolatility(seriesId),
+      "1219100273366907759", // 122%
+      "Volatility should increase to correct value",
+    )
 
-    // Now that the total pool value is 10032...
+    // Advance time for IV to go back to default
+    console.log("time.latest", (await time.latest()).toString())
+    await time.increaseTo((await time.latest()).toNumber() + ONE_DAY_DURATION)
+
+    assertBNEq(
+      await deployedAmm.getVolatility(seriesId),
+      "1000000000000000000",
+      "Volatility should decay back to default",
+    )
+
+    // Now that the total pool value is 1000024802...
     // If another user deposits another 1k collateral, it should increase pool value
     // by ~9.9% and mint correct amount of LP tokens
-    await underlyingToken.mint(bobAccount, 1000)
-    await underlyingToken.approve(deployedAmm.address, 1000, {
+    await underlyingToken.mint(bobAccount, 1e8)
+    await underlyingToken.approve(deployedAmm.address, 1e8, {
       from: bobAccount,
     })
 
     // Provide capital
-    ret = await deployedAmm.provideCapital(1000, 0, { from: bobAccount })
+    ret = await deployedAmm.provideCapital(1e8, 0, { from: bobAccount })
 
     expectEvent(ret, "LpTokensMinted", {
       minter: bobAccount,
-      collateralAdded: "1000",
-      lpTokensMinted: "996",
+      collateralAdded: (1e8).toString(),
+      lpTokensMinted: "99559691",
     })
 
     assertBNEq(
       await lpToken.balanceOf(bobAccount),
-      996,
+      99559691,
       "lp tokens should have been minted",
     )
 
@@ -417,19 +445,19 @@ contract("AMM Call Verification", (accounts) => {
 
     // Now let's withdraw all Bobs tokens to make sure Bob doesn't make money by simply
     // depositing and withdrawing collateral
-    ret = await deployedAmm.withdrawCapital(996, true, 998, {
+    ret = await deployedAmm.withdrawCapital(99669869, true, 99800000, {
       from: bobAccount,
     })
 
     // Check the math
     expectEvent(ret, "LpTokensBurned", {
       redeemer: bobAccount,
-      collateralRemoved: "998",
-      lpTokensBurned: "996",
+      collateralRemoved: "99972224",
+      lpTokensBurned: "99669869",
     })
     assertBNEq(
       await underlyingToken.balanceOf(bobAccount),
-      998, // 998 < 1000 - Bob lost some money, this is good!
+      99972224, // 99972224 < 1e8 - Bob lost some money, this is good!
       "Bob should lose some money on subsequent withdrawal",
     )
     assertBNEq(
@@ -439,20 +467,20 @@ contract("AMM Call Verification", (accounts) => {
     )
 
     // Now let's withdraw all collateral
-    // notice how the first/longest LP ends up with 7120 collateral + 3000 wTokens
+    // notice how the first/longest LP ends up with 7382 collateral + 3000 wTokens
     // on 10000 initial investment - not bad if those wTokens expire unexercised
-    ret = await deployedAmm.withdrawCapital(10000, false, 0, {
+    ret = await deployedAmm.withdrawCapital(10e8, false, 0, {
       from: ownerAccount,
     })
 
     expectEvent(ret, "LpTokensBurned", {
       redeemer: ownerAccount,
-      collateralRemoved: "7122",
-      lpTokensBurned: "10000",
+      collateralRemoved: "711857707",
+      lpTokensBurned: (10e8).toString(),
     })
     assertBNEq(
       await deployedERC1155Controller.balanceOf(ownerAccount, wTokenIndex),
-      3000,
+      3e8,
       "Residual wTokens should be sent during full withdrawal",
     )
 
