@@ -280,57 +280,14 @@ contract MinterAmm is
 
     /// The owner can set the volatility factor used to price the options
     function getVolatility(uint64 _seriesId) public view returns (uint256) {
-        SeriesVolatility memory seriesVolatility = seriesVolatilities[
-            _seriesId
-        ];
-
-        uint256 realizedVolatility = uint256(
-            IVolatilityOracle(addressesProvider.getVolatilityOracle())
-                .annualizedVol(address(underlyingToken), address(priceToken))
-        ) * 1e10; // oracle stores volatility in 8 decimals precision, here we operate at 18 decimals
-
-        uint256 iv;
-
-        if (
-            seriesVolatility.updatedAt == 0 ||
-            seriesVolatility.volatility == realizedVolatility
-        ) {
-            // Volatility hasn't been initialized for this series
-            iv = realizedVolatility;
-        } else {
-            uint256 MIN_IV_DRIFT = 23e11; // ~20% per day
-
-            if (seriesVolatility.volatility > realizedVolatility) {
-                uint256 ivDriftRate = (seriesVolatility.volatility -
-                    realizedVolatility) / 86400; // rate to converge in 24 hours
-                if (ivDriftRate < MIN_IV_DRIFT) ivDriftRate = MIN_IV_DRIFT;
-
-                console.log(seriesVolatility.volatility);
-                console.log(ivDriftRate);
-                console.logString("timestamp:");
-                console.log(block.timestamp);
-                console.logString("updatedAt:");
-                console.log(seriesVolatility.updatedAt);
-
-                iv =
-                    seriesVolatility.volatility -
-                    ivDriftRate *
-                    (block.timestamp - seriesVolatility.updatedAt);
-                if (iv < realizedVolatility) iv = realizedVolatility;
-            } else {
-                uint256 ivDriftRate = (realizedVolatility -
-                    seriesVolatility.volatility) / 86400; // rate to converge in 24 hours
-                if (ivDriftRate < MIN_IV_DRIFT) ivDriftRate = MIN_IV_DRIFT;
-
-                iv =
-                    seriesVolatility.volatility +
-                    ivDriftRate *
-                    (block.timestamp - seriesVolatility.updatedAt);
-                if (iv > realizedVolatility) iv = realizedVolatility;
-            }
-        }
-
-        return iv;
+        return
+            uint256(
+                IVolatilityOracle(addressesProvider.getVolatilityOracle())
+                    .annualizedVol(
+                        address(underlyingToken),
+                        address(priceToken)
+                    )
+            ) * 1e10; // oracle stores volatility in 8 decimals precision, here we operate at 18 decimals
     }
 
     /// Each time a trade happens we update the volatility
@@ -339,24 +296,8 @@ contract MinterAmm is
         int256 priceImpact,
         uint256 currentIV,
         uint256 vega
-    ) internal returns (uint256) {
-        uint256 newIV = uint256(
-            int256(currentIV) + (priceImpact * 1e18) / int256(vega)
-        );
-
-        // TODO: ability to set IV range
-        uint256 MAX_IV = 4e18; // 400%
-        uint256 MIN_IV = 5e17; // 50%
-        if (newIV > MAX_IV) {
-            newIV = MAX_IV;
-        } else if (newIV < MIN_IV) {
-            newIV = MIN_IV;
-        }
-        SeriesVolatility storage seriesVolatility = seriesVolatilities[
-            _seriesId
-        ];
-        seriesVolatility.volatility = newIV;
-        seriesVolatility.updatedAt = block.timestamp;
+    ) internal {
+        // To be implemented
     }
 
     /// The owner can set the trade fee params - if any are set to 0/0x0 then trade fees are disabled
@@ -828,81 +769,81 @@ contract MinterAmm is
     ///     then execute a swap with the signer using Airswap protocol.
     /// Only the owner should be allowed to execute a direct buy as this is a "guarded" call.
     /// Sender address in the Airswap protocol will be this contract address.
-    // function bTokenDirectBuy(
-    //     uint64 seriesId,
-    //     uint256 nonce, // Nonce on the airswap sig for the signer
-    //     uint256 expiry, // Date until swap is valid
-    //     address signerWallet, // Address of the buyer (signer)
-    //     uint256 signerAmount, // Amount of collateral that will be paid for options by the signer
-    //     uint256 senderAmount, // Amount of options to buy from the AMM
-    //     uint8 v, // Sig of signer wallet for Airswap
-    //     bytes32 r, // Sig of signer wallet for Airswap
-    //     bytes32 s // Sig of signer wallet for Airswap
-    // ) external onlyOwner nonReentrant {
-    //     require(openSeries.contains(seriesId), "E13");
-    //     require(lightAirswapAddress != address(0x0), "E16");
+    function bTokenDirectBuy(
+        uint64 seriesId,
+        uint256 nonce, // Nonce on the airswap sig for the signer
+        uint256 expiry, // Date until swap is valid
+        address signerWallet, // Address of the buyer (signer)
+        uint256 signerAmount, // Amount of collateral that will be paid for options by the signer
+        uint256 senderAmount, // Amount of options to buy from the AMM
+        uint8 v, // Sig of signer wallet for Airswap
+        bytes32 r, // Sig of signer wallet for Airswap
+        bytes32 s // Sig of signer wallet for Airswap
+    ) external onlyOwner nonReentrant {
+        require(openSeries.contains(seriesId), "E13");
+        require(lightAirswapAddress != address(0x0), "E16");
 
-    //     // Get the bToken balance of the AMM
-    //     uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-    //     uint256 bTokenBalance = erc1155Controller.balanceOf(
-    //         address(this),
-    //         bTokenIndex
-    //     );
+        // Get the bToken balance of the AMM
+        uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
+        uint256 bTokenBalance = erc1155Controller.balanceOf(
+            address(this),
+            bTokenIndex
+        );
 
-    //     // Mint required number of bTokens for the direct buy (if required)
-    //     if (bTokenBalance < senderAmount) {
-    //         // Approve the collateral to mint bTokenAmount of new options
-    //         uint256 bTokenCollateralAmount = seriesController
-    //             .getCollateralPerOptionToken(
-    //                 seriesId,
-    //                 senderAmount - bTokenBalance
-    //             );
+        // Mint required number of bTokens for the direct buy (if required)
+        if (bTokenBalance < senderAmount) {
+            // Approve the collateral to mint bTokenAmount of new options
+            uint256 bTokenCollateralAmount = seriesController
+                .getCollateralPerOptionToken(
+                    seriesId,
+                    senderAmount - bTokenBalance
+                );
 
-    //         collateralToken.approve(
-    //             address(seriesController),
-    //             bTokenCollateralAmount
-    //         );
+            collateralToken.approve(
+                address(seriesController),
+                bTokenCollateralAmount
+            );
 
-    //         // If the AMM does not have enough collateral to mint tokens, expect revert.
-    //         seriesController.mintOptions(
-    //             seriesId,
-    //             senderAmount - bTokenBalance
-    //         );
-    //     }
+            // If the AMM does not have enough collateral to mint tokens, expect revert.
+            seriesController.mintOptions(
+                seriesId,
+                senderAmount - bTokenBalance
+            );
+        }
 
-    //     // Approve the bTokens to be swapped
-    //     erc1155Controller.setApprovalForAll(lightAirswapAddress, true);
+        // Approve the bTokens to be swapped
+        erc1155Controller.setApprovalForAll(lightAirswapAddress, true);
 
-    //     // Now that the contract has enough bTokens, swap with the buyer
-    //     ILight(lightAirswapAddress).swap(
-    //         nonce, // Signer's nonce
-    //         expiry, // Expiration date of swap
-    //         signerWallet, // Buyer of the options
-    //         address(collateralToken), // Payment made by buyer
-    //         signerAmount, // Amount of collateral paid for options
-    //         address(erc1155Controller), // Address of erc1155 contract
-    //         bTokenIndex, // Token ID for options
-    //         senderAmount, // Num options to sell
-    //         v,
-    //         r,
-    //         s
-    //     ); // Sig of signer for swap
+        // Now that the contract has enough bTokens, swap with the buyer
+        ILight(lightAirswapAddress).swap(
+            nonce, // Signer's nonce
+            expiry, // Expiration date of swap
+            signerWallet, // Buyer of the options
+            address(collateralToken), // Payment made by buyer
+            signerAmount, // Amount of collateral paid for options
+            address(erc1155Controller), // Address of erc1155 contract
+            bTokenIndex, // Token ID for options
+            senderAmount, // Num options to sell
+            v,
+            r,
+            s
+        ); // Sig of signer for swap
 
-    //     // Remove approval
-    //     erc1155Controller.setApprovalForAll(lightAirswapAddress, false);
+        // Remove approval
+        erc1155Controller.setApprovalForAll(lightAirswapAddress, false);
 
-    //     // Calculate trade fees if they are enabled with all params set
-    //     uint256 tradeFee = calculateFees(senderAmount, signerAmount);
+        // Calculate trade fees if they are enabled with all params set
+        uint256 tradeFee = calculateFees(senderAmount, signerAmount);
 
-    //     // If fees were taken, move them to the destination
-    //     if (tradeFee > 0) {
-    //         collateralToken.safeTransfer(feeDestinationAddress, tradeFee);
-    //         emit TradeFeesPaid(feeDestinationAddress, tradeFee);
-    //     }
+        // If fees were taken, move them to the destination
+        if (tradeFee > 0) {
+            collateralToken.safeTransfer(feeDestinationAddress, tradeFee);
+            emit TradeFeesPaid(feeDestinationAddress, tradeFee);
+        }
 
-    //     // Emit the event
-    //     emit BTokensBought(signerWallet, seriesId, senderAmount, signerAmount);
-    // }
+        // Emit the event
+        emit BTokensBought(signerWallet, seriesId, senderAmount, signerAmount);
+    }
 
     /// @dev Buy bToken of a given series.
     /// We supply series index instead of series address to ensure that only supported series can be traded using this AMM
@@ -928,7 +869,10 @@ contract MinterAmm is
                 bTokenAmount,
                 price
             );
-            require(collateralAmount > uint256(0), "Buy amount is too low");
+            require(
+                collateralAmount * 1e18 >= price * bTokenAmount,
+                "Buy amount is too low"
+            );
 
             uint256 priceImpact = (collateralAmount * 1e18) /
                 bTokenAmount -
@@ -1037,6 +981,11 @@ contract MinterAmm is
                 seriesId,
                 bTokenAmount,
                 price
+            );
+
+            require(
+                collateralAmount * 1e18 <= price * bTokenAmount,
+                "Sell amount is too low"
             );
 
             updateVolatility(

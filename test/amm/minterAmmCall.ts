@@ -296,7 +296,7 @@ contract("AMM Call Verification", (accounts) => {
     )
   })
 
-  it.only("Provides capital with trading", async () => {
+  it("Provides capital with trading", async () => {
     await time.increaseTo(expiration - ONE_WEEK_DURATION) // use the same time, no matter when this test gets called
 
     // Approve collateral
@@ -332,7 +332,7 @@ contract("AMM Call Verification", (accounts) => {
     // Check that AMM calculates correct bToken price
     assertBNEq(
       await deployedAmm.getPriceForSeries(seriesId),
-      "28392286565000000", // 0.028 * 1e18
+      "28392462968571428", // 0.028 * 1e18
       "AMM should calculate bToken price correctly",
     )
 
