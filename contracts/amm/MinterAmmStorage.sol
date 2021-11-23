@@ -9,6 +9,7 @@ import "../series/ISeriesController.sol";
 import "../series/SeriesLibrary.sol";
 import "../token/ISimpleToken.sol";
 import "../configuration/IAddressesProvider.sol";
+import "./AmmDataProvider.sol";
 
 /// This contract stores all new local variables for the MinterAmm.sol contract.
 /// This allows us to upgrade the contract and add new variables without worrying about
@@ -91,6 +92,9 @@ contract MinterAmmStorageV2 is MinterAmmStorageV1 {
 
     /// @dev The address for the VolatilityOracle
     IAddressesProvider addressesProvider;
+
+    /// @dev Storage references to pass to libraries
+    AmmDataProvider.References refs;
 }
 
 // Next version example:
