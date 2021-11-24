@@ -23,6 +23,8 @@ import {
   ONE_WEEK_DURATION,
   setupMockVolatilityPriceOracle,
   getNextFriday8amUTCTimestamp,
+  blackScholes,
+  assertBNEqWithTolerance,
 } from "../util"
 
 let deployedSeriesController: SeriesControllerInstance
@@ -49,7 +51,10 @@ let deployedMockVolatilityOracle
 let deployedMockVolatilityPriceOracle: MockVolatilityPriceOracleInstance
 
 const STRIKE_PRICE = 15000 * 1e8 // 15000 USD
-const BTC_ORACLE_PRICE = 14_000 * 10 ** 8 // BTC oracle answer has 8 decimals places, same as BTC
+const UNDERLYING_PRICE = 14000 * 1e8 // BTC oracle answer has 8 decimals places, same as BTC
+const ANNUALIZED_VOLATILITY = 1 * 1e8 // 100%
+const VOLATILITY_BUMP = 0.2 * 1e8 // 20%
+const PRICE_TOLERANCE = 1e13
 
 const ERROR_MESSAGES = {
   MIN_TRADE_SIZE: "Buy/Sell amount below min size",
@@ -75,74 +80,13 @@ contract("AMM Put Verification", (accounts) => {
       deployedERC1155Controller,
       expiration,
       deployedAddressesProvider,
+      deployedMockVolatilityOracle,
     } = await setupAllTestContracts({
       strikePrice: STRIKE_PRICE.toString(),
-      oraclePrice: BTC_ORACLE_PRICE,
+      oraclePrice: UNDERLYING_PRICE,
+      annualizedVolatility: ANNUALIZED_VOLATILITY,
       isPutOption: true,
     }))
-
-    underlyingToken = await SimpleToken.new()
-    await underlyingToken.initialize("Wrapped BTC", "WBTC", wbtcDecimals)
-
-    priceToken = await SimpleToken.new()
-    await priceToken.initialize("USD Coin", "USDC", 6)
-
-    // create the price oracle fresh for each test
-    deployedMockPriceOracle = await MockPriceOracle.new(wbtcDecimals)
-
-    const humanCollateralPrice2 = new BN(22_000 * 10 ** 8) // 22k
-
-    await deployedMockPriceOracle.setLatestAnswer(humanCollateralPrice2)
-
-    nextFriday8amUTC = getNextFriday8amUTCTimestamp(await now())
-    deployedMockVolatilityPriceOracle = await setupMockVolatilityPriceOracle(
-      underlyingToken.address,
-      priceToken.address,
-      deployedMockPriceOracle.address,
-    )
-
-    const volatility = await ethers.getContractFactory("VolatilityOracle", {})
-
-    const MockVolatility = await ethers.getContractFactory(
-      "MockVolatilityOracle",
-      {},
-    )
-
-    deployedVolatilityOracle = await volatility.deploy(
-      PERIOD,
-      deployedMockVolatilityPriceOracle.address,
-      WINDOW_IN_DAYS,
-    )
-    deployedMockVolatilityOracle = await MockVolatility.deploy(
-      PERIOD,
-      deployedMockVolatilityPriceOracle.address,
-      WINDOW_IN_DAYS,
-    )
-
-    deployedAddressesProvider.setVolatilityOracle(
-      deployedMockVolatilityOracle.address,
-    )
-
-    const values = [
-      BigNumber.from("2000000000"),
-      BigNumber.from("2100000000"),
-      BigNumber.from("2200000000"),
-      BigNumber.from("2150000000"),
-    ]
-    const stdevs = [
-      BigNumber.from("0"),
-      BigNumber.from("2439508"),
-      BigNumber.from("2248393"),
-      BigNumber.from("3068199"),
-    ]
-
-    const topOfPeriod = (await getTopOfPeriod()) + PERIOD
-    await time.increaseTo(topOfPeriod)
-
-    await deployedMockVolatilityOracle.initPool(
-      underlyingToken.address,
-      priceToken.address,
-    )
   })
 
   it("Provides capital without trading", async () => {
@@ -359,8 +303,6 @@ contract("AMM Put Verification", (accounts) => {
         capitalAmount,
       )
 
-    console.log(`capitalCollateral: ${capitalCollateral}`)
-
     // Approve collateral
     await collateralToken.mint(ownerAccount, capitalCollateral)
     await collateralToken.approve(deployedAmm.address, capitalCollateral)
@@ -400,11 +342,33 @@ contract("AMM Put Verification", (accounts) => {
       from: aliceAccount,
     })
 
+    let optionPrice = blackScholes(
+      UNDERLYING_PRICE,
+      STRIKE_PRICE,
+      ONE_WEEK_DURATION,
+      ANNUALIZED_VOLATILITY + VOLATILITY_BUMP,
+      "put",
+    )
+
     // Check that AMM calculates correct bToken price
-    assertBNEq(
+    assertBNEqWithTolerance(
       (await deployedAmm.getPriceForSeries(seriesId)).toString(),
-      "71428571428571428", // 0.066 (instrinsic) + 0.033 (extrinsic)
+      optionPrice * 1e18, // 0.1101e18
+      PRICE_TOLERANCE,
       "incorrect bToken price calculated by AMM",
+    )
+    // Check that collateralIn and Our calculation is correct
+    assertBNEqWithTolerance(
+      (await deployedAmm.bTokenGetCollateralIn(seriesId, 1000)).toString(),
+      (((optionPrice * 1000 * UNDERLYING_PRICE) / 1e8) * 1e6) / 1e8,
+      2000,
+      "incorrect bTokenGetCollateralIn calculated by AMM",
+    )
+    assertBNEqWithTolerance(
+      (await deployedAmm.bTokenGetCollateralOut(seriesId, 1000)).toString(),
+      (((optionPrice * 1000 * UNDERLYING_PRICE) / 1e8) * 1e6) / 1e8,
+      2000,
+      "incorrect bTokenGetCollateralOut calculated by AMM",
     )
 
     // Buy bTokens
@@ -416,6 +380,7 @@ contract("AMM Put Verification", (accounts) => {
     ret = await deployedAmm.bTokenBuy(seriesId, bTokenBuyAmount, premium, {
       from: aliceAccount,
     })
+
     assertBNEq(
       await deployedERC1155Controller.balanceOf(aliceAccount, bTokenIndex),
       bTokenBuyAmount,
@@ -423,10 +388,10 @@ contract("AMM Put Verification", (accounts) => {
     )
     assertBNEq(
       (await collateralToken.balanceOf(aliceAccount)).toString(),
-      107031, // started with capitalCollateral, then paid 58783 USDC for 3000 tokens at (0.099 * 150) + slippage
+      89702, // started with capitalCollateral, then paid 60298 USDC for 3000 tokens at (0.11 * 150) + slippage
       "Trader should pay correct collateral amount",
     )
-    const bTokenPaymentAmount = aliceCollateral.toNumber() - 107031
+    const bTokenPaymentAmount = aliceCollateral.toNumber() - 89702
 
     // 3000 * 150
     const bTokenBuyCollateral =
@@ -461,7 +426,7 @@ contract("AMM Put Verification", (accounts) => {
     )
     assertBNEq(
       (await deployedAmm.getTotalPoolValue(true)).toString(),
-      1510719, // ammCollateralAmount + bTokenBuyCollateral * (1 - 0.099) (btw, 1513783 > 1500000 - LPs are making money!!!)
+      1542748, // ammCollateralAmount + bTokenBuyCollateral * (1 / 14 * 15 - 0.11) (btw, 1510648 > 1500000 - LPs are making money!!!)
       "Total assets value in the AMM should be correct",
     )
 
@@ -487,20 +452,20 @@ contract("AMM Put Verification", (accounts) => {
     expectEvent(ret, "LpTokensMinted", {
       minter: bobAccount,
       collateralAdded: bobCollateral,
-      lpTokensMinted: "148935",
+      lpTokensMinted: "145843",
     })
 
     assertBNEq(
       await lpToken.balanceOf(bobAccount),
-      148935,
+      145843,
       "lp tokens should have been minted",
     )
 
     // Now let's withdraw all Bobs tokens to make sure Bob doesn't make money by simply
     // depositing and withdrawing collateral
-    const bobCollateralWithdrawn = 149782
+    const bobCollateralWithdrawn = 147_227
     ret = await deployedAmm.withdrawCapital(
-      148935,
+      145843,
       true,
       bobCollateralWithdrawn,
       {
@@ -512,7 +477,7 @@ contract("AMM Put Verification", (accounts) => {
     expectEvent(ret, "LpTokensBurned", {
       redeemer: bobAccount,
       collateralRemoved: bobCollateralWithdrawn.toString(),
-      lpTokensBurned: "148935",
+      lpTokensBurned: "145843",
     })
     assertBNEq(
       await collateralToken.balanceOf(bobAccount),

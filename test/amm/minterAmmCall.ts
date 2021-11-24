@@ -25,7 +25,6 @@ import {
   setupAllTestContracts,
   setupSeries,
   ONE_WEEK_DURATION,
-  ONE_DAY_DURATION,
   blackScholes,
 } from "../util"
 

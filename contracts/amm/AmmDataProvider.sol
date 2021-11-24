@@ -72,17 +72,14 @@ contract AmmDataProvider is IAmmDataProvider {
         uint256 collateralTokenBalance,
         uint256 bTokenPrice
     ) public view override returns (uint256, uint256) {
-        uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-        uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
-
         // Get residual balances
         uint256 bTokenBalance = erc1155Controller.balanceOf(
             ammAddress,
-            bTokenIndex
+            SeriesLibrary.bTokenIndex(seriesId)
         );
         uint256 wTokenBalance = erc1155Controller.balanceOf(
             ammAddress,
-            wTokenIndex
+            SeriesLibrary.wTokenIndex(seriesId)
         );
 
         ISeriesController.Series memory series = seriesController.series(
@@ -90,6 +87,7 @@ contract AmmDataProvider is IAmmDataProvider {
         );
 
         // For put convert token balances into collateral locked in them
+        uint256 lockedUnderlyingValue = 1e18;
         if (series.isPutOption) {
             bTokenBalance = seriesController.getCollateralPerOptionToken(
                 seriesId,
@@ -99,13 +97,20 @@ contract AmmDataProvider is IAmmDataProvider {
                 seriesId,
                 wTokenBalance
             );
+            // TODO: this logic causes the underlying price to be fetched twice from the oracle. Can be optimized.
+            lockedUnderlyingValue =
+                (lockedUnderlyingValue * series.strikePrice) /
+                IPriceOracle(priceOracle).getCurrentPrice(
+                    seriesController.underlyingToken(seriesId),
+                    seriesController.priceToken(seriesId)
+                );
         }
 
         // Max amount of tokens we can get by adding current balance plus what can be minted from collateral
         uint256 bTokenBalanceMax = bTokenBalance + collateralTokenBalance;
         uint256 wTokenBalanceMax = wTokenBalance + collateralTokenBalance;
 
-        uint256 wTokenPrice = uint256(1e18) - bTokenPrice;
+        uint256 wTokenPrice = lockedUnderlyingValue - bTokenPrice;
 
         // Balance on higher reserve side is the sum of what can be minted (collateralTokenBalance)
         // plus existing balance of the token
@@ -400,7 +405,7 @@ contract AmmDataProvider is IAmmDataProvider {
     /// representing the price as a fraction of 1 collateral token unit
     /// @dev This function assumes that it will only be called on an OPEN Series; if the
     /// Series is EXPIRED, then the expirationDate - block.timestamp will throw an underflow error
-    function getPriceForExpiredSeries(uint64 seriesId, uint256 volatilityFactor)
+    function getPriceForExpiredSeries(uint64 seriesId, uint256 annualVolatility)
         public
         view
         override
@@ -418,14 +423,14 @@ contract AmmDataProvider is IAmmDataProvider {
             getPriceForExpiredSeriesInternal(
                 series,
                 underlyingPrice,
-                volatilityFactor
+                annualVolatility
             );
     }
 
     function getPriceForExpiredSeriesInternal(
         ISeriesController.Series memory series,
         uint256 underlyingPrice,
-        uint256 volatilityFactor
+        uint256 annualVolatility
     ) private view returns (uint256) {
         // Note! This function assumes the underlyingPrice is a valid series
         // price in units of underlyingToken/priceToken. If the onchain price
@@ -436,7 +441,7 @@ contract AmmDataProvider is IAmmDataProvider {
             addressesProvider.getBlackScholes()
         ).optionPrices(
                 series.expirationDate - block.timestamp,
-                volatilityFactor,
+                annualVolatility,
                 underlyingPrice,
                 series.strikePrice,
                 0
@@ -482,16 +487,13 @@ contract AmmDataProvider is IAmmDataProvider {
                 seriesId
             );
 
-            uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-            uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
-
             uint256 bTokenBalance = erc1155Controller.balanceOf(
                 ammAddress,
-                bTokenIndex
+                SeriesLibrary.bTokenIndex(seriesId)
             );
             uint256 wTokenBalance = erc1155Controller.balanceOf(
                 ammAddress,
-                wTokenIndex
+                SeriesLibrary.wTokenIndex(seriesId)
             );
 
             if (
@@ -505,7 +507,14 @@ contract AmmDataProvider is IAmmDataProvider {
                     impliedVolatility[i]
                 );
                 // wPrice = 1 - bPrice
-                uint256 wPrice = uint256(1e18) - bPrice;
+                uint256 lockedUnderlyingValue = 1e18;
+                if (series.isPutOption) {
+                    lockedUnderlyingValue =
+                        (lockedUnderlyingValue * series.strikePrice) /
+                        underlyingPrice;
+                }
+
+                uint256 wPrice = lockedUnderlyingValue - bPrice;
 
                 uint256 tokensValueCollateral = seriesController
                     .getCollateralPerOptionToken(

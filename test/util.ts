@@ -737,7 +737,7 @@ export async function setupAllTestContracts(
     isPutOption?: boolean
     strikePrice?: string
     skipCreateSeries?: boolean
-    annualizedVolatility: number
+    annualizedVolatility?: number
   } = {
     oraclePrice: 12_000 * 1e8, // 12k,
     feeReceiver: FEE_RECEIVER_ADDRESS,
@@ -858,7 +858,7 @@ export function blackScholes(
       expirationSeconds / ONE_YEAR_DURATION,
       volatility / 1e8,
       0,
-      "call",
+      callPut,
     ) /
     (underlying / 1e8)
   )
