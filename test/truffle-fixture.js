@@ -4,6 +4,7 @@ const SeriesVault = artifacts.require("SeriesVault")
 const ERC1155Controller = artifacts.require("ERC1155Controller")
 
 const MockPriceOracle = artifacts.require("MockPriceOracle")
+const MinterAmm = artifacts.require("MinterAmm")
 const AmmFactory = artifacts.require("AmmFactory")
 const AmmDataProvider = artifacts.require("AmmDataProvider")
 
