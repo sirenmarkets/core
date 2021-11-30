@@ -37,17 +37,14 @@ library AmmDataProvider {
         uint256 collateralTokenBalance,
         uint256 bTokenPrice
     ) public view returns (uint256, uint256) {
-        uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-        uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
-
         // Get residual balances
         uint256 bTokenBalance = refs.erc1155Controller.balanceOf(
             ammAddress,
-            bTokenIndex
+            SeriesLibrary.bTokenIndex(seriesId)
         );
         uint256 wTokenBalance = refs.erc1155Controller.balanceOf(
             ammAddress,
-            wTokenIndex
+            SeriesLibrary.wTokenIndex(seriesId)
         );
 
         ISeriesController.Series memory series = refs.seriesController.series(
@@ -55,6 +52,7 @@ library AmmDataProvider {
         );
 
         // For put convert token balances into collateral locked in them
+        uint256 lockedUnderlyingValue = 1e18;
         if (series.isPutOption) {
             bTokenBalance = refs.seriesController.getCollateralPerOptionToken(
                 seriesId,
@@ -64,13 +62,20 @@ library AmmDataProvider {
                 seriesId,
                 wTokenBalance
             );
+            // TODO: this logic causes the underlying price to be fetched twice from the oracle. Can be optimized.
+            lockedUnderlyingValue =
+                (lockedUnderlyingValue * series.strikePrice) /
+                IPriceOracle(refs.priceOracle).getCurrentPrice(
+                    refs.seriesController.underlyingToken(seriesId),
+                    refs.seriesController.priceToken(seriesId)
+                );
         }
 
         // Max amount of tokens we can get by adding current balance plus what can be minted from collateral
         uint256 bTokenBalanceMax = bTokenBalance + collateralTokenBalance;
         uint256 wTokenBalanceMax = wTokenBalance + collateralTokenBalance;
 
-        uint256 wTokenPrice = uint256(1e18) - bTokenPrice;
+        uint256 wTokenPrice = lockedUnderlyingValue - bTokenPrice;
 
         // Balance on higher reserve side is the sum of what can be minted (collateralTokenBalance)
         // plus existing balance of the token
@@ -416,7 +421,7 @@ library AmmDataProvider {
         References storage refs,
         ISeriesController.Series memory series,
         uint256 underlyingPrice,
-        uint256 volatilityFactor
+        uint256 annualVolatility
     ) private view returns (uint256) {
         // Note! This function assumes the underlyingPrice is a valid series
         // price in units of underlyingToken/priceToken. If the onchain price
@@ -427,7 +432,7 @@ library AmmDataProvider {
             refs.addressesProvider.getBlackScholes()
         ).optionPrices(
                 series.expirationDate - block.timestamp,
-                volatilityFactor,
+                annualVolatility,
                 underlyingPrice,
                 series.strikePrice,
                 0
@@ -503,7 +508,14 @@ library AmmDataProvider {
                     impliedVolatility[i]
                 );
                 // wPrice = 1 - bPrice
-                uint256 wPrice = uint256(1e18) - bPrice;
+                uint256 lockedUnderlyingValue = 1e18;
+                if (series.isPutOption) {
+                    lockedUnderlyingValue =
+                        (lockedUnderlyingValue * series.strikePrice) /
+                        info.underlyingPrice;
+                }
+
+                uint256 wPrice = lockedUnderlyingValue - bPrice;
 
                 uint256 tokensValueCollateral = refs
                     .seriesController

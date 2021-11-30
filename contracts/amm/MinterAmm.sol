@@ -882,7 +882,8 @@ contract MinterAmm is
 
             updateVolatility(
                 seriesId,
-                int256((collateralAmount * 1e18) / bTokenAmount - price),
+                int256((collateralAmount * 1e18) / bTokenAmount) -
+                    int256(price),
                 getVolatility(seriesId),
                 vega
             );

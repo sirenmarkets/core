@@ -25,6 +25,7 @@ import {
 } from "../typechain"
 import { artifacts, assert, ethers } from "hardhat"
 import { time, expectEvent, BN } from "@openzeppelin/test-helpers"
+import * as BS from "black-scholes"
 
 import UniswapV2Factory from "@uniswap/v2-core/build/UniswapV2Factory.json"
 import UniswapV2Router from "@uniswap/v2-periphery/build/UniswapV2Router02.json"
@@ -71,6 +72,7 @@ const AddressesProvider: AddressesProviderContract =
 const FEE_RECEIVER_ADDRESS = "0x000000000000000000000000000000000000dEaD"
 export const ONE_DAY_DURATION = 24 * 60 * 60
 export const ONE_WEEK_DURATION = 7 * ONE_DAY_DURATION
+export const ONE_YEAR_DURATION = 365 * ONE_DAY_DURATION
 
 let PERIOD = 86400
 const WINDOW_IN_DAYS = 90 // 3 month vol data
@@ -735,7 +737,7 @@ export async function setupAllTestContracts(
     isPutOption?: boolean
     strikePrice?: string
     skipCreateSeries?: boolean
-    annualizedVolatility: number
+    annualizedVolatility?: number
   } = {
     oraclePrice: 12_000 * 1e8, // 12k,
     feeReceiver: FEE_RECEIVER_ADDRESS,
@@ -840,4 +842,24 @@ export async function setupAllTestContracts(
     erc1155URI,
     restrictedMinters,
   }
+}
+
+export function blackScholes(
+  underlying: number,
+  strike: number,
+  expirationSeconds: number,
+  volatility: number,
+  callPut: string,
+) {
+  return (
+    BS.blackScholes(
+      underlying / 1e8,
+      strike / 1e8,
+      expirationSeconds / ONE_YEAR_DURATION,
+      volatility / 1e8,
+      0,
+      callPut,
+    ) /
+    (underlying / 1e8)
+  )
 }
