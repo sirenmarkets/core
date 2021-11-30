@@ -44,12 +44,7 @@ contract("MinterAmm AmmDataProvider", (accounts) => {
       deployedBlackScholes,
     } = await setupAllTestContracts({}))
 
-    newDeployedAmmDataProvider = await AmmDataProvider.new(
-      deployedSeriesController.address,
-      deployedERC1155Controller.address,
-      deployedPriceOracle.address,
-      deployedBlackScholes.address,
-    )
+    newDeployedAmmDataProvider = await AmmDataProvider.new()
   })
 
   it("Correctly updates", async () => {
