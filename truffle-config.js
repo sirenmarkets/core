@@ -88,6 +88,28 @@ module.exports = {
       timeoutBlocks: 200,
       skipDryRun: true,
     },
+    avaxTestnet: {
+      provider: () =>
+        new HDWalletProvider({
+          privateKeys: [mnemonic],
+          providerOrUrl: `https://api.avax-test.network/ext/bc/C/rpc`,
+          chainId: 43113,
+        }),
+      network_id: "*",
+      gasPrice: 28000000000,
+      skipDryRun: true,
+    },
+    avax: {
+      provider: () =>
+        new HDWalletProvider({
+          privateKeys: [mnemonic],
+          providerOrUrl: `https://api.avax.network/ext/bc/C/rpc`,
+          chainId: 43113,
+        }),
+      network_id: "*",
+      gasPrice: 28000000000,
+      skipDryRun: true,
+    },
     // Another network with more advanced options...
     // advanced: {
     // port: 8777,             // Custom port
