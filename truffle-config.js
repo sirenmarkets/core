@@ -104,7 +104,7 @@ module.exports = {
         new HDWalletProvider({
           privateKeys: [mnemonic],
           providerOrUrl: `https://api.avax.network/ext/bc/C/rpc`,
-          chainId: 43113,
+          chainId: 43114,
         }),
       network_id: "*",
       gasPrice: 28000000000,
