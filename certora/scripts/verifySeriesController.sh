@@ -23,6 +23,7 @@ certoraRun certora/harness/SeriesControllerHarness.sol \
   --loop_iter 2 --optimistic_loop \
   --packages @openzeppelin=node_modules/@openzeppelin @chainlink=node_modules/@chainlink  \
   --msg "SeriesControllerHarness $1 $2" --staging \
+  --send_only
 
 
   # --solc_args "['--optimize', '--optimize-runs', '200']" \
