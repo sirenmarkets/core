@@ -10,6 +10,7 @@ import {
   SeriesControllerInstance,
   AmmDataProviderInstance,
   BlackScholesContract,
+  AddressesProviderInstance,
 } from "../../typechain"
 
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
@@ -20,6 +21,7 @@ let deployedPriceOracle: PriceOracleInstance
 let deployedSeriesController: SeriesControllerInstance
 let deployedAmmDataProvider: AmmDataProviderInstance
 let deployedBlackScholes: BlackScholesContract
+let deployedAddressesProvider: AddressesProviderInstance
 
 let underlyingToken: SimpleTokenInstance
 let priceToken: SimpleTokenInstance
@@ -44,6 +46,7 @@ contract("AMM Upgradeability", (accounts) => {
       underlyingToken,
       priceToken,
       collateralToken,
+      deployedAddressesProvider,
     } = await setupAllTestContracts({}))
   })
 
@@ -56,7 +59,6 @@ contract("AMM Upgradeability", (accounts) => {
         underlyingToken.address,
         priceToken.address,
         collateralToken.address,
-        0,
       ),
       "AMM name already registered",
     )
@@ -81,9 +83,10 @@ contract("AMM Upgradeability", (accounts) => {
 
     const { deployedAmm: otherDeployedAmm } = await setupAmm({
       deployedAmmFactory,
+      deployedPriceOracle,
       deployedAmmDataProvider,
       deployedBlackScholes,
-      deployedPriceOracle,
+      deployedAddressesProvider,
       underlyingToken: otherUnderlyingToken,
       priceToken,
       collateralToken: otherCollateralToken,
