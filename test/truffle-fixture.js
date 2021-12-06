@@ -6,6 +6,9 @@ const ERC1155Controller = artifacts.require("ERC1155Controller")
 const MockPriceOracle = artifacts.require("MockPriceOracle")
 const MinterAmm = artifacts.require("MinterAmm")
 const AmmFactory = artifacts.require("AmmFactory")
+const AmmDataProvider = artifacts.require("AmmDataProvider")
+
+import * as hre from "hardhat"
 
 // This fixture exists to replicate truffle's "migrations" setup logic
 // but for hardhat
@@ -25,8 +28,20 @@ module.exports = async () => {
   const mockPriceOracle = await MockPriceOracle.new(8)
   MockPriceOracle.setAsDeployed(mockPriceOracle)
 
-  const minterAmm = await MinterAmm.new()
-  MinterAmm.setAsDeployed(minterAmm)
+  const ammDataProvider = await AmmDataProvider.new()
+  AmmDataProvider.setAsDeployed(ammDataProvider)
+
+  const MinterAmmContractFactory = await hre.ethers.getContractFactory(
+    "MinterAmm",
+    {
+      libraries: {
+        AmmDataProvider: ammDataProvider.address,
+      },
+    },
+  )
+
+  const ammLogic = await MinterAmmContractFactory.deploy()
+  MinterAmm.setAsDeployed(ammLogic)
 
   const ammFactory = await AmmFactory.new()
   AmmFactory.setAsDeployed(ammFactory)

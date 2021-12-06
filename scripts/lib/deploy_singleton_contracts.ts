@@ -108,7 +108,11 @@ export async function deploySingletonContracts(
     "Logic SimpleToken deployed to:       ",
     simpleTokenLogic.address.toLowerCase(),
   )
-  const MinterAmm = await hre.ethers.getContractFactory("MinterAmm")
+  const MinterAmm = await hre.ethers.getContractFactory("MinterAmm", {
+    libraries: {
+      AmmDataProvider: ammDataProvider.address,
+    },
+  })
   const ammLogic = await MinterAmm.deploy()
   await ammLogic.deployed()
   console.log(

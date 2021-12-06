@@ -8,7 +8,6 @@ import "../libraries/Math.sol";
 import "../proxy/Proxiable.sol";
 import "../proxy/Proxy.sol";
 import "./InitializeableAmm.sol";
-import "./IAmmDataProvider.sol";
 import "./IAddSeriesToAmm.sol";
 import "../series/IPriceOracle.sol";
 import "../swap/ILight.sol";
@@ -18,6 +17,7 @@ import "../series/SeriesLibrary.sol";
 import "./MinterAmmStorage.sol";
 import "../series/IVolatilityOracle.sol";
 import "./IBlackScholes.sol";
+import "./AmmDataProvider.sol";
 
 import "hardhat/console.sol";
 
@@ -270,6 +270,14 @@ contract MinterAmm is
         );
 
         __Ownable_init();
+
+        // Store the variable references for passing to libraries
+        refs = AmmDataProvider.References(
+            erc1155Controller,
+            seriesController,
+            IPriceOracle(sirenPriceOracle),
+            _addressesProvider
+        );
 
         emit AMMInitialized(
             lpToken,
@@ -622,7 +630,8 @@ contract MinterAmm is
         returns (uint256)
     {
         return
-            IAmmDataProvider(ammDataProvider).getTotalPoolValue(
+            AmmDataProvider.getTotalPoolValue(
+                refs,
                 includeUnclaimed,
                 getAllSeries(),
                 collateralToken.balanceOf(address(this)),
@@ -687,7 +696,8 @@ contract MinterAmm is
         require(openSeries.contains(seriesId), "E13");
 
         return
-            IAmmDataProvider(ammDataProvider).getVirtualReserves(
+            AmmDataProvider.getVirtualReserves(
+                refs,
                 seriesId,
                 address(this),
                 collateralToken.balanceOf(address(this)),
@@ -721,47 +731,11 @@ contract MinterAmm is
         require(openSeries.contains(seriesId), "E13");
 
         return
-            IAmmDataProvider(ammDataProvider).getPriceForExpiredSeries(
+            AmmDataProvider.getPriceForExpiredSeries(
+                refs,
                 seriesId,
                 getVolatility(seriesId)
             );
-    }
-
-    /// @dev Calculate the fee amount for a buy/sell
-    /// If params are not set, the fee amount will be 0
-    /// See contract comments above for logic explanation of fee calculations.
-    function calculateFees(uint256 bTokenAmount, uint256 collateralAmount)
-        public
-        view
-        returns (uint256)
-    {
-        // Check if fees are enabled
-        if (
-            tradeFeeBasisPoints > 0 &&
-            maxOptionFeeBasisPoints > 0 &&
-            feeDestinationAddress != address(0x0)
-        ) {
-            uint256 tradeFee = 0;
-
-            // The default fee is the basis points of the number of options being bought (e.g. bToken amount)
-            uint256 defaultFee = (bTokenAmount * tradeFeeBasisPoints) / 10_000;
-
-            // The max fee is based on the maximum percentage of the collateral being paid to buy the options
-            uint256 maxFee = (collateralAmount * maxOptionFeeBasisPoints) /
-                10_000;
-
-            // Use the smaller of the 2
-            if (defaultFee < maxFee) {
-                tradeFee = defaultFee;
-            } else {
-                tradeFee = maxFee;
-            }
-
-            return tradeFee;
-        }
-
-        // Fees are not enabled
-        return 0;
     }
 
     /// @dev Allows an owner to invoke a Direct Buy against the AMM
@@ -785,63 +759,25 @@ contract MinterAmm is
         require(openSeries.contains(seriesId), "E13");
         require(lightAirswapAddress != address(0x0), "E16");
 
-        // Get the bToken balance of the AMM
-        uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-        uint256 bTokenBalance = erc1155Controller.balanceOf(
-            address(this),
-            bTokenIndex
-        );
-
-        // Mint required number of bTokens for the direct buy (if required)
-        if (bTokenBalance < senderAmount) {
-            // Approve the collateral to mint bTokenAmount of new options
-            uint256 bTokenCollateralAmount = seriesController
-                .getCollateralPerOptionToken(
-                    seriesId,
-                    senderAmount - bTokenBalance
-                );
-
-            collateralToken.approve(
-                address(seriesController),
-                bTokenCollateralAmount
-            );
-
-            // If the AMM does not have enough collateral to mint tokens, expect revert.
-            seriesController.mintOptions(
+        AmmDataProvider.executeBTokenDirectBuy(
+            refs,
+            AmmDataProvider.DirectBuyInfo(
                 seriesId,
-                senderAmount - bTokenBalance
-            );
-        }
-
-        // Approve the bTokens to be swapped
-        erc1155Controller.setApprovalForAll(lightAirswapAddress, true);
-
-        // Now that the contract has enough bTokens, swap with the buyer
-        ILight(lightAirswapAddress).swap(
-            nonce, // Signer's nonce
-            expiry, // Expiration date of swap
-            signerWallet, // Buyer of the options
-            address(collateralToken), // Payment made by buyer
-            signerAmount, // Amount of collateral paid for options
-            address(erc1155Controller), // Address of erc1155 contract
-            bTokenIndex, // Token ID for options
-            senderAmount, // Num options to sell
-            v,
-            r,
-            s
-        ); // Sig of signer for swap
-
-        // Remove approval
-        erc1155Controller.setApprovalForAll(lightAirswapAddress, false);
-
-        // Calculate trade fees if they are enabled with all params set
-        uint256 tradeFee = calculateFees(senderAmount, signerAmount);
-
-        // If fees were taken, move them to the destination
-        if (tradeFee > 0) {
-            collateralToken.safeTransfer(feeDestinationAddress, tradeFee);
-            emit TradeFeesPaid(feeDestinationAddress, tradeFee);
-        }
+                nonce,
+                expiry,
+                signerWallet,
+                signerAmount,
+                senderAmount,
+                v,
+                r,
+                s,
+                collateralToken,
+                lightAirswapAddress,
+                tradeFeeBasisPoints,
+                maxOptionFeeBasisPoints,
+                feeDestinationAddress
+            )
+        );
 
         // Emit the event
         emit BTokensBought(signerWallet, seriesId, senderAmount, signerAmount);
@@ -888,71 +824,25 @@ contract MinterAmm is
             );
         }
 
-        // Calculate trade fees if they are enabled with all params set
-        uint256 tradeFee = calculateFees(bTokenAmount, collateralAmount);
-
-        require(
-            collateralAmount + tradeFee <= collateralMaximum,
-            "Slippage exceeded"
-        );
-
-        // Move collateral into this contract
-        collateralToken.safeTransferFrom(
-            msg.sender,
-            address(this),
-            collateralAmount + tradeFee
-        );
-
-        // If fees were taken, move them to the destination
-        if (tradeFee > 0) {
-            collateralToken.safeTransfer(feeDestinationAddress, tradeFee);
-            emit TradeFeesPaid(feeDestinationAddress, tradeFee);
-        }
-
-        // Mint new options only as needed
-        uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-        uint256 bTokenBalance = erc1155Controller.balanceOf(
-            address(this),
-            bTokenIndex
-        );
-        if (bTokenBalance < bTokenAmount) {
-            // Approve the collateral to mint bTokenAmount of new options
-            uint256 bTokenCollateralAmount = seriesController
-                .getCollateralPerOptionToken(
-                    seriesId,
-                    bTokenAmount - bTokenBalance
-                );
-
-            collateralToken.approve(
-                address(seriesController),
-                bTokenCollateralAmount
-            );
-            seriesController.mintOptions(
+        uint256 totalCollateral = AmmDataProvider.executeBTokenBuy(
+            refs,
+            AmmDataProvider.BTokenBuyInfo(
                 seriesId,
-                bTokenAmount - bTokenBalance
-            );
-        }
-
-        // Send all bTokens back
-        bytes memory data;
-        erc1155Controller.safeTransferFrom(
-            address(this),
-            msg.sender,
-            bTokenIndex,
-            bTokenAmount,
-            data
+                bTokenAmount,
+                collateralMaximum,
+                collateralAmount,
+                collateralToken,
+                tradeFeeBasisPoints,
+                maxOptionFeeBasisPoints,
+                feeDestinationAddress
+            )
         );
 
         // Emit the event
-        emit BTokensBought(
-            msg.sender,
-            seriesId,
-            bTokenAmount,
-            collateralAmount + tradeFee
-        );
+        emit BTokensBought(msg.sender, seriesId, bTokenAmount, totalCollateral);
 
         // Return the amount of collateral required to buy
-        return collateralAmount + tradeFee;
+        return totalCollateral;
     }
 
     /// @notice Sell the bToken of a given series to the AMM in exchange for collateral token
@@ -999,62 +889,25 @@ contract MinterAmm is
             );
         }
 
-        // Calculate trade fees if they are enabled with all params set
-        uint256 tradeFee = calculateFees(bTokenAmount, collateralAmount);
-
-        require(
-            collateralAmount - tradeFee >= collateralMinimum,
-            "Slippage exceeded"
+        uint256 totalCollateral = AmmDataProvider.executeBTokenSell(
+            refs,
+            AmmDataProvider.BTokenSellInfo(
+                seriesId,
+                bTokenAmount,
+                collateralMinimum,
+                collateralAmount,
+                collateralToken,
+                tradeFeeBasisPoints,
+                maxOptionFeeBasisPoints,
+                feeDestinationAddress
+            )
         );
-
-        uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-        uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
-
-        // Move bToken into this contract
-        bytes memory data;
-        erc1155Controller.safeTransferFrom(
-            msg.sender,
-            address(this),
-            bTokenIndex,
-            bTokenAmount,
-            data
-        );
-
-        // Always be closing!
-        uint256 bTokenBalance = erc1155Controller.balanceOf(
-            address(this),
-            bTokenIndex
-        );
-        uint256 wTokenBalance = erc1155Controller.balanceOf(
-            address(this),
-            wTokenIndex
-        );
-        uint256 closeAmount = Math.min(bTokenBalance, wTokenBalance);
-
-        // at this point we know it's worth calling closePosition because
-        // the close amount is greater than 0, so let's call it and burn
-        // excess option tokens in order to receive collateral tokens
-        seriesController.closePosition(seriesId, closeAmount);
-
-        // Send the tokens to the seller
-        collateralToken.safeTransfer(msg.sender, collateralAmount - tradeFee);
-
-        // If fees were taken, move them to the destination
-        if (tradeFee > 0) {
-            collateralToken.safeTransfer(feeDestinationAddress, tradeFee);
-            emit TradeFeesPaid(feeDestinationAddress, tradeFee);
-        }
 
         // Emit the event
-        emit BTokensSold(
-            msg.sender,
-            seriesId,
-            bTokenAmount,
-            collateralAmount - tradeFee
-        );
+        emit BTokensSold(msg.sender, seriesId, bTokenAmount, totalCollateral);
 
         // Return the amount of collateral received during sale
-        return collateralAmount - tradeFee;
+        return totalCollateral;
     }
 
     /// @notice Calculate premium (i.e. the option price) to buy bTokenAmount bTokens for the
@@ -1071,7 +924,8 @@ contract MinterAmm is
         uint256 bTokenPrice
     ) public view returns (uint256) {
         return
-            IAmmDataProvider(ammDataProvider).bTokenGetCollateralIn(
+            AmmDataProvider.bTokenGetCollateralIn(
+                refs,
                 seriesId,
                 address(this),
                 bTokenAmount,
@@ -1099,7 +953,13 @@ contract MinterAmm is
             bTokenAmount,
             getPriceForSeries(seriesId)
         );
-        uint256 tradeFee = calculateFees(bTokenAmount, collateralWithoutFees);
+        uint256 tradeFee = AmmDataProvider.calculateFees(
+            bTokenAmount,
+            collateralWithoutFees,
+            tradeFeeBasisPoints,
+            maxOptionFeeBasisPoints,
+            feeDestinationAddress
+        );
         return collateralWithoutFees + tradeFee;
     }
 
@@ -1150,7 +1010,13 @@ contract MinterAmm is
             getPriceForSeries(seriesId),
             true
         );
-        uint256 tradeFee = calculateFees(bTokenAmount, collateralWithoutFees);
+        uint256 tradeFee = AmmDataProvider.calculateFees(
+            bTokenAmount,
+            collateralWithoutFees,
+            tradeFeeBasisPoints,
+            maxOptionFeeBasisPoints,
+            feeDestinationAddress
+        );
         return collateralWithoutFees - tradeFee;
     }
 
@@ -1179,36 +1045,13 @@ contract MinterAmm is
         );
         require(collateralAmount >= collateralMinimum, "Slippage exceeded");
 
-        uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-        uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
-
-        // Move wToken into this contract
-        bytes memory data;
-        erc1155Controller.safeTransferFrom(
-            msg.sender,
-            address(this),
-            wTokenIndex,
+        AmmDataProvider.executeWTokenSell(
+            refs,
+            seriesId,
             wTokenAmount,
-            data
+            collateralAmount,
+            collateralToken
         );
-
-        // Always be closing!
-        uint256 bTokenBalance = erc1155Controller.balanceOf(
-            address(this),
-            bTokenIndex
-        );
-        uint256 wTokenBalance = erc1155Controller.balanceOf(
-            address(this),
-            wTokenIndex
-        );
-        uint256 closeAmount = Math.min(bTokenBalance, wTokenBalance);
-        if (closeAmount > 0) {
-            seriesController.closePosition(seriesId, closeAmount);
-        }
-
-        // Send the tokens to the seller
-        collateralToken.safeTransfer(msg.sender, collateralAmount);
-
         // Emit the event
         emit WTokensSold(msg.sender, seriesId, wTokenAmount, collateralAmount);
 
@@ -1248,7 +1091,8 @@ contract MinterAmm is
         bool isBToken
     ) private view returns (uint256) {
         return
-            IAmmDataProvider(ammDataProvider).optionTokenGetCollateralOut(
+            AmmDataProvider.optionTokenGetCollateralOut(
+                refs,
                 seriesId,
                 address(this),
                 optionTokenAmount,
@@ -1269,11 +1113,11 @@ contract MinterAmm is
         returns (uint256)
     {
         return
-            IAmmDataProvider(ammDataProvider)
-                .getCollateralValueOfAllExpiredOptionTokens(
-                    getAllSeries(),
-                    address(this)
-                );
+            AmmDataProvider.getCollateralValueOfAllExpiredOptionTokens(
+                refs,
+                getAllSeries(),
+                address(this)
+            );
     }
 
     /// @notice Calculate sale value of pro-rata LP b/wTokens in units of collateral token
@@ -1285,7 +1129,8 @@ contract MinterAmm is
         uint256 lpTokenSupply = IERC20Lib(address(lpToken)).totalSupply();
 
         return
-            IAmmDataProvider(ammDataProvider).getOptionTokensSaleValue(
+            AmmDataProvider.getOptionTokensSaleValue(
+                refs,
                 lpTokenAmount,
                 lpTokenSupply,
                 getAllSeries(),
