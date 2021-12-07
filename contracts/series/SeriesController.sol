@@ -497,9 +497,9 @@ contract SeriesController is
 
         return
             IPriceOracle(priceOracle).getSettlementPrice(
-                address(series.tokens.underlyingToken),
-                address(series.tokens.priceToken),
-                series.expirationDate
+                address(currentSeries.tokens.underlyingToken),
+                address(currentSeries.tokens.priceToken),
+                currentSeries.expirationDate
             );
     }
 
