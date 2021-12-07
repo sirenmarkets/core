@@ -24,7 +24,5 @@ interface ISeriesVault {
     /// @notice Allow the SeriesController to transfer any number of ERC1155 tokens from the SeriesVault
     /// @dev Can only be called by the seriesController
     /// @dev The ERC1155 tokens will be minted and burned by the ERC1155Controller contract
-    function setERC1155ApprovalForController(address erc1155Contract)
-        external
-        returns (bool);
+    function setERC1155ApprovalForController(address erc1155Contract) external;
 }

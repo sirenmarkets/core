@@ -19,6 +19,7 @@ import "./IPriceOracle.sol";
 import "../token/IERC20Lib.sol";
 import "../amm/IAddSeriesToAmm.sol";
 import "./SeriesLibrary.sol";
+import "hardhat/console.sol";
 
 /// @title SeriesController
 /// @notice The SeriesController implements all of the logic for minting and interacting with option tokens
@@ -134,7 +135,11 @@ contract SeriesController is
         returns (SeriesState)
     {
         // before the expiration
-        if (block.timestamp < allSeries[_seriesId].expirationDate) {
+        if (block.timestamp <= allSeries[_seriesId].expirationDate) {
+            require(
+                allSeries[_seriesId].expirationDate != 0,
+                "The provided Series must have an expirationDate"
+            );
             return SeriesState.OPEN;
         }
 
@@ -142,7 +147,7 @@ contract SeriesController is
         return SeriesState.EXPIRED;
     }
 
-    function series(uint256 seriesId)
+    function seriesGetter(uint256 seriesId)
         external
         view
         override
@@ -873,7 +878,7 @@ contract SeriesController is
             "SeriesController: strikePrice cannot equal 0"
         );
         require(
-            _expirationDate > block.timestamp,
+            _expirationDate >= block.timestamp,
             "SeriesController: _expirationDate must be in the future"
         );
         require(

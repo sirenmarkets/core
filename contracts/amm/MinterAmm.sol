@@ -636,7 +636,7 @@ contract MinterAmm is
         returns (ISeriesController.Series memory)
     {
         require(openSeries.contains(seriesId), "E13");
-        return seriesController.series(seriesId);
+        return seriesController.seriesGetter(seriesId);
     }
 
     /// This function determines reserves of a bonding curve for a specific series.
