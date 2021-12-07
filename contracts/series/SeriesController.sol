@@ -19,7 +19,6 @@ import "./IPriceOracle.sol";
 import "../token/IERC20Lib.sol";
 import "../amm/IAddSeriesToAmm.sol";
 import "./SeriesLibrary.sol";
-import "hardhat/console.sol";
 
 /// @title SeriesController
 /// @notice The SeriesController implements all of the logic for minting and interacting with option tokens
@@ -135,7 +134,7 @@ contract SeriesController is
         returns (SeriesState)
     {
         // before the expiration
-        if (block.timestamp <= allSeries[_seriesId].expirationDate) {
+        if (block.timestamp < allSeries[_seriesId].expirationDate) {
             require(
                 allSeries[_seriesId].expirationDate != 0,
                 "The provided Series must have an expirationDate"
