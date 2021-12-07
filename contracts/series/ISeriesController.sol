@@ -138,7 +138,7 @@ interface ISeriesController {
 
     function erc1155Controller() external view returns (address);
 
-    function seriesGetter(uint256 seriesId)
+    function series(uint256 seriesId)
         external
         view
         returns (ISeriesController.Series memory);

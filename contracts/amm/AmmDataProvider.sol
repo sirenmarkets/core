@@ -73,7 +73,7 @@ contract AmmDataProvider is IAmmDataProvider {
             wTokenIndex
         );
 
-        ISeriesController.Series memory series = seriesController.seriesGetter(
+        ISeriesController.Series memory series = seriesController.series(
             seriesId
         );
 
@@ -443,7 +443,7 @@ contract AmmDataProvider is IAmmDataProvider {
         override
         returns (uint256)
     {
-        ISeriesController.Series memory series = seriesController.seriesGetter(
+        ISeriesController.Series memory series = seriesController.series(
             seriesId
         );
         uint256 underlyingPrice = IPriceOracle(priceOracle).getCurrentPrice(
@@ -509,8 +509,9 @@ contract AmmDataProvider is IAmmDataProvider {
         uint256 expiredTokensValue = 0;
         for (uint256 i = 0; i < openSeries.length; i++) {
             uint64 seriesId = openSeries[i];
-            ISeriesController.Series memory series = seriesController
-                .seriesGetter(seriesId);
+            ISeriesController.Series memory series = seriesController.series(
+                seriesId
+            );
 
             uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
             uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);

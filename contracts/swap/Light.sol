@@ -184,7 +184,7 @@ contract Light is ILight, ReentrancyGuard {
         require(DOMAIN_CHAIN_ID == getChainId(), "CHAIN_ID_CHANGED");
 
         // Ensure the expiry is not passed
-        require(expiry >= block.timestamp, "EXPIRY_PASSED");
+        require(expiry > block.timestamp, "EXPIRY_PASSED");
 
         bytes32 hashed = _getOrderHash(
             nonce,

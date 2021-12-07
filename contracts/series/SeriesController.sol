@@ -135,10 +135,6 @@ contract SeriesController is
     {
         // before the expiration
         if (block.timestamp < allSeries[_seriesId].expirationDate) {
-            require(
-                allSeries[_seriesId].expirationDate != 0,
-                "The provided Series must have an expirationDate"
-            );
             return SeriesState.OPEN;
         }
 
@@ -146,7 +142,7 @@ contract SeriesController is
         return SeriesState.EXPIRED;
     }
 
-    function seriesGetter(uint256 seriesId)
+    function series(uint256 seriesId)
         external
         view
         override
@@ -198,13 +194,13 @@ contract SeriesController is
         uint256 buyerShare;
         uint256 writerShare;
 
-        Series memory series = allSeries[_seriesId];
+        Series memory currentSeries = allSeries[_seriesId];
 
         // calculate what amounts of the collateralToken locked in the Series the
         // buyer and the writer can redeem their bToken and wToken for
-        if (series.isPutOption) {
+        if (currentSeries.isPutOption) {
             // Put
-            if (settlementPrice >= series.strikePrice) {
+            if (settlementPrice >= currentSeries.strikePrice) {
                 // OTM
                 writerShare = getCollateralPerOptionToken(
                     _seriesId,
@@ -221,19 +217,19 @@ contract SeriesController is
                 buyerShare = getCollateralPerOptionTokenInternal(
                     _seriesId,
                     _optionTokenAmount,
-                    series.strikePrice - settlementPrice
+                    currentSeries.strikePrice - settlementPrice
                 );
             }
         } else {
             // Call
-            if (settlementPrice <= series.strikePrice) {
+            if (settlementPrice <= currentSeries.strikePrice) {
                 // OTM
                 writerShare = _optionTokenAmount;
                 buyerShare = 0;
             } else {
                 // ITM
                 writerShare =
-                    (_optionTokenAmount * series.strikePrice) /
+                    (_optionTokenAmount * currentSeries.strikePrice) /
                     settlementPrice;
                 buyerShare = _optionTokenAmount - writerShare;
             }
@@ -318,15 +314,15 @@ contract SeriesController is
         override
         returns (string memory)
     {
-        Series memory series = allSeries[_seriesId];
+        Series memory currentSeries = allSeries[_seriesId];
         return
             getSeriesName(
-                series.tokens.underlyingToken,
-                series.tokens.priceToken,
-                series.tokens.collateralToken,
-                series.strikePrice,
-                series.expirationDate,
-                series.isPutOption
+                currentSeries.tokens.underlyingToken,
+                currentSeries.tokens.priceToken,
+                currentSeries.tokens.collateralToken,
+                currentSeries.strikePrice,
+                currentSeries.expirationDate,
+                currentSeries.isPutOption
             );
     }
 
@@ -467,10 +463,10 @@ contract SeriesController is
         uint256 _optionTokenAmount,
         uint256 _price
     ) internal view returns (uint256) {
-        Series memory series = allSeries[_seriesId];
+        Series memory currentSeries = allSeries[_seriesId];
 
         // is it a call option?
-        if (!series.isPutOption) {
+        if (!currentSeries.isPutOption) {
             // for call options this conversion is simple, because 1 optionToken locks
             // 1 unit of collateral token
             return _optionTokenAmount;
@@ -482,9 +478,12 @@ contract SeriesController is
         return
             (((_optionTokenAmount * _price) / (uint256(10)**priceDecimals)) *
                 (uint256(10) **
-                    (IERC20Lib(series.tokens.collateralToken).decimals()))) /
+                    (
+                        IERC20Lib(currentSeries.tokens.collateralToken)
+                            .decimals()
+                    ))) /
             (uint256(10) **
-                (IERC20Lib(series.tokens.underlyingToken).decimals()));
+                (IERC20Lib(currentSeries.tokens.underlyingToken).decimals()));
     }
 
     /// @notice Returns the settlement price for this Series.
@@ -494,7 +493,7 @@ contract SeriesController is
         view
         returns (bool, uint256)
     {
-        Series memory series = allSeries[_seriesId];
+        Series memory currentSeries = allSeries[_seriesId];
 
         return
             IPriceOracle(priceOracle).getSettlementPrice(
@@ -507,12 +506,12 @@ contract SeriesController is
     /// @dev Returns the current price for this Series' underlyingToken
     /// in units of priceToken
     function getCurrentPrice(uint64 _seriesId) internal view returns (uint256) {
-        Series memory series = allSeries[_seriesId];
+        Series memory currentSeries = allSeries[_seriesId];
 
         return
             IPriceOracle(priceOracle).getCurrentPrice(
-                address(series.tokens.underlyingToken),
-                address(series.tokens.priceToken)
+                address(currentSeries.tokens.underlyingToken),
+                address(currentSeries.tokens.priceToken)
             );
     }
 
@@ -877,7 +876,7 @@ contract SeriesController is
             "SeriesController: strikePrice cannot equal 0"
         );
         require(
-            _expirationDate >= block.timestamp,
+            _expirationDate > block.timestamp,
             "SeriesController: _expirationDate must be in the future"
         );
         require(
@@ -1002,7 +1001,7 @@ contract SeriesController is
             "Only in-the-money options can be exercised"
         );
 
-        Series memory series = allSeries[_seriesId];
+        Series memory currentSeries = allSeries[_seriesId];
 
         // Burn the bToken amount from the callers account - this will be the same amount as the collateral that is requested
         IERC1155Controller(erc1155Controller).burn(
@@ -1019,7 +1018,7 @@ contract SeriesController is
             // Emit the fee event
             emit FeePaid(
                 FeeType.EXERCISE_FEE,
-                series.tokens.collateralToken,
+                currentSeries.tokens.collateralToken,
                 feeAmount
             );
         }
@@ -1074,7 +1073,7 @@ contract SeriesController is
             _wTokenAmount
         );
 
-        Series memory series = allSeries[_seriesId];
+        Series memory currentSeries = allSeries[_seriesId];
 
         // Burn the collateral token for the amount they are claiming
         IERC1155Controller(erc1155Controller).burn(
@@ -1089,7 +1088,7 @@ contract SeriesController is
             // Emit the fee event
             emit FeePaid(
                 FeeType.CLAIM_FEE,
-                address(series.tokens.collateralToken),
+                address(currentSeries.tokens.collateralToken),
                 feeAmount
             );
         }
@@ -1165,12 +1164,12 @@ contract SeriesController is
             // Send the fee Amount to the fee receiver
             transferERC20Out(_seriesId, fees.feeReceiver, feeAmount);
 
-            Series memory series = allSeries[_seriesId];
+            Series memory currentSeries = allSeries[_seriesId];
 
             // Emit the fee event
             emit FeePaid(
                 FeeType.CLOSE_FEE,
-                address(series.tokens.collateralToken),
+                address(currentSeries.tokens.collateralToken),
                 feeAmount
             );
         }
@@ -1243,12 +1242,12 @@ contract SeriesController is
     /// for the given <underlyingToken>-<priceToken> pair
     /// @param _seriesId The specific series, accessed by its index
     function setSettlementPrice(uint64 _seriesId) internal {
-        Series memory series = allSeries[_seriesId];
+        Series memory currentSeries = allSeries[_seriesId];
 
         return
             IPriceOracle(priceOracle).setSettlementPrice(
-                address(series.tokens.underlyingToken),
-                address(series.tokens.priceToken)
+                address(currentSeries.tokens.underlyingToken),
+                address(currentSeries.tokens.priceToken)
             );
     }
 }
