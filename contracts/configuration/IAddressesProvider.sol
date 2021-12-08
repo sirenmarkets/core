@@ -17,6 +17,7 @@ interface IAddressesProvider {
     event AddressSet(bytes32 id, address indexed newAddress, bool hasProxy);
     event VolatilityOracleUpdated(address indexed newAddress);
     event BlackScholesUpdated(address indexed newAddress);
+    event AirswapLightUpdated(address indexed newAddress);
 
     function setAddress(bytes32 id, address newAddress) external;
 
@@ -41,4 +42,8 @@ interface IAddressesProvider {
     function getBlackScholes() external view returns (address);
 
     function setBlackScholes(address blackScholes) external;
+
+    function getAirswapLight() external view returns (address);
+
+    function setAirswapLight(address airswapLight) external;
 }
