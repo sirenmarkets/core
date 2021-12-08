@@ -41,7 +41,7 @@ interface IAmmDataProvider {
         uint256[] memory impliedVolatility
     ) external view returns (uint256);
 
-    function getPriceForExpiredSeries(uint64 seriesId, uint256 volatilityFactor)
+    function getPriceForSeries(uint64 seriesId, uint256 volatilityFactor)
         external
         view
         returns (uint256);
@@ -58,5 +58,38 @@ interface IAmmDataProvider {
         uint64 seriesId,
         uint256 wTokenBalance,
         uint256 bTokenBalance
+    ) external view returns (uint256);
+
+    function getTotalPoolValueView(address ammAddress, bool includeUnclaimed)
+        external
+        view
+        returns (uint256);
+
+    function bTokenGetCollateralInView(
+        address ammAddress,
+        uint64 seriesId,
+        uint256 bTokenAmount
+    ) external view returns (uint256);
+
+    function bTokenGetCollateralOutView(
+        address ammAddress,
+        uint64 seriesId,
+        uint256 bTokenAmount
+    ) external view returns (uint256);
+
+    function wTokenGetCollateralOutView(
+        address ammAddress,
+        uint64 seriesId,
+        uint256 wTokenAmount
+    ) external view returns (uint256);
+
+    function getCollateralValueOfAllExpiredOptionTokensView(address ammAddress)
+        external
+        view
+        returns (uint256);
+
+    function getOptionTokensSaleValueView(
+        address ammAddress,
+        uint256 lpTokenAmount
     ) external view returns (uint256);
 }
