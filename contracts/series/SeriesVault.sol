@@ -92,7 +92,6 @@ contract SeriesVault is
         external
         override
         onlySeriesController
-        returns (bool)
     {
         IERC1155Upgradeable(erc1155Contract).setApprovalForAll(
             controller,
