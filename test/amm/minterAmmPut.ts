@@ -13,6 +13,7 @@ import {
   MockPriceOracleContract,
   MockVolatilityPriceOracleInstance,
   AddressesProviderInstance,
+  AmmDataProviderInstance,
 } from "../../typechain"
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
 
@@ -31,6 +32,7 @@ let deployedSeriesController: SeriesControllerInstance
 let deployedERC1155Controller: ERC1155ControllerInstance
 let deployedAmm: MinterAmmInstance
 let deployedAddressesProvider: AddressesProviderInstance
+let deployedAmmDataProvider: AmmDataProviderInstance
 
 let collateralToken: SimpleTokenInstance
 
@@ -81,6 +83,7 @@ contract("AMM Put Verification", (accounts) => {
       expiration,
       deployedAddressesProvider,
       deployedMockVolatilityOracle,
+      deployedAmmDataProvider,
     } = await setupAllTestContracts({
       strikePrice: STRIKE_PRICE.toString(),
       oraclePrice: UNDERLYING_PRICE,
@@ -122,7 +125,10 @@ contract("AMM Put Verification", (accounts) => {
 
     // Total assets value in the AMM should be 10k.
     assertBNEq(
-      await deployedAmm.getTotalPoolValue(true),
+      await deployedAmmDataProvider.getTotalPoolValueView(
+        deployedAmm.address,
+        true,
+      ),
       10000,
       "Total assets value in the AMM should be 10k",
     )
@@ -224,7 +230,10 @@ contract("AMM Put Verification", (accounts) => {
 
     // Total assets value in the AMM should be 10k.
     assertBNEq(
-      await deployedAmm.getTotalPoolValue(true),
+      await deployedAmmDataProvider.getTotalPoolValueView(
+        deployedAmm.address,
+        true,
+      ),
       10000,
       "Total assets value in the AMM should be 10k",
     )
@@ -320,7 +329,12 @@ contract("AMM Put Verification", (accounts) => {
 
     // Total assets value in the AMM should be .
     assertBNEq(
-      (await deployedAmm.getTotalPoolValue(true)).toString(),
+      (
+        await deployedAmmDataProvider.getTotalPoolValueView(
+          deployedAmm.address,
+          true,
+        )
+      ).toString(),
       (10_000 * STRIKE_PRICE) / (1e8 * 100), // see getCollateralPerOptionToken for this calculation
       "AMM total pool value incorrect",
     )
@@ -359,13 +373,25 @@ contract("AMM Put Verification", (accounts) => {
     )
     // Check that collateralIn and Our calculation is correct
     assertBNEqWithTolerance(
-      (await deployedAmm.bTokenGetCollateralIn(seriesId, 1000)).toString(),
+      (
+        await deployedAmmDataProvider.bTokenGetCollateralInView(
+          deployedAmm.address,
+          seriesId,
+          1000,
+        )
+      ).toString(),
       (((optionPrice * 1000 * UNDERLYING_PRICE) / 1e8) * 1e6) / 1e8,
       2000,
       "incorrect bTokenGetCollateralIn calculated by AMM",
     )
     assertBNEqWithTolerance(
-      (await deployedAmm.bTokenGetCollateralOut(seriesId, 1000)).toString(),
+      (
+        await deployedAmmDataProvider.bTokenGetCollateralOutView(
+          deployedAmm.address,
+          seriesId,
+          1000,
+        )
+      ).toString(),
       (((optionPrice * 1000 * UNDERLYING_PRICE) / 1e8) * 1e6) / 1e8,
       2000,
       "incorrect bTokenGetCollateralOut calculated by AMM",
@@ -373,7 +399,8 @@ contract("AMM Put Verification", (accounts) => {
 
     // Buy bTokens
     const bTokenBuyAmount = 3_000
-    let premium = await deployedAmm.bTokenGetCollateralIn(
+    let premium = await deployedAmmDataProvider.bTokenGetCollateralInView(
+      deployedAmm.address,
       seriesId,
       bTokenBuyAmount,
     )
@@ -425,7 +452,12 @@ contract("AMM Put Verification", (accounts) => {
       "No residual bTokens should be in the AMM",
     )
     assertBNEq(
-      (await deployedAmm.getTotalPoolValue(true)).toString(),
+      (
+        await deployedAmmDataProvider.getTotalPoolValueView(
+          deployedAmm.address,
+          true,
+        )
+      ).toString(),
       1542748, // ammCollateralAmount + bTokenBuyCollateral * (1 / 14 * 15 - 0.11) (btw, 1510648 > 1500000 - LPs are making money!!!)
       "Total assets value in the AMM should be correct",
     )
@@ -532,23 +564,6 @@ contract("AMM Put Verification", (accounts) => {
     )
   })
 
-  it("Enforces minimum trade size", async () => {
-    // Verify it fails if min trade size is not met
-    const minTradeSize = 1000
-    await expectRevert(
-      deployedAmm.bTokenBuy(seriesId, minTradeSize - 1, 1, {
-        from: aliceAccount,
-      }),
-      ERROR_MESSAGES.MIN_TRADE_SIZE,
-    )
-    await expectRevert(
-      deployedAmm.bTokenSell(seriesId, minTradeSize - 1, 1, {
-        from: aliceAccount,
-      }),
-      ERROR_MESSAGES.MIN_TRADE_SIZE,
-    )
-  })
-
   it("Works in initial state", async () => {
     assertBNEq(
       // @ts-ignore
@@ -558,13 +573,18 @@ contract("AMM Put Verification", (accounts) => {
     )
 
     assertBNEq(
-      await deployedAmm.getTotalPoolValue(true),
+      await deployedAmmDataProvider.getTotalPoolValueView(
+        deployedAmm.address,
+        true,
+      ),
       0,
       "Initial pool value should be 0",
     )
 
     const unredeemedCollateral =
-      await deployedAmm.getCollateralValueOfAllExpiredOptionTokens()
+      await deployedAmmDataProvider.getCollateralValueOfAllExpiredOptionTokensView(
+        deployedAmm.address,
+      )
     assertBNEq(
       unredeemedCollateral,
       0,
@@ -572,13 +592,19 @@ contract("AMM Put Verification", (accounts) => {
     )
 
     assertBNEq(
-      await deployedAmm.getOptionTokensSaleValue(0),
+      await deployedAmmDataProvider.getOptionTokensSaleValueView(
+        deployedAmm.address,
+        0,
+      ),
       0,
       "Initial token sale value should be 0",
     )
 
     assertBNEq(
-      await deployedAmm.getOptionTokensSaleValue(100),
+      await deployedAmmDataProvider.getOptionTokensSaleValueView(
+        deployedAmm.address,
+        100,
+      ),
       0,
       "Initial token sale value should be 0",
     )

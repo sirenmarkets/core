@@ -17,7 +17,7 @@ import "./ISeriesVault.sol";
 import "../proxy/Proxiable.sol";
 import "./IPriceOracle.sol";
 import "../token/IERC20Lib.sol";
-import "../amm/IAddSeriesToAmm.sol";
+import "../amm/IMinterAmm.sol";
 import "./SeriesLibrary.sol";
 
 /// @title SeriesController
@@ -843,12 +843,10 @@ contract SeriesController is
                 if (
                     ERC165Checker.supportsInterface(
                         _restrictedMinters[j],
-                        IAddSeriesToAmm.addSeries.selector
+                        IMinterAmm.addSeries.selector
                     )
                 ) {
-                    IAddSeriesToAmm(_restrictedMinters[j]).addSeries(
-                        _latestIndex
-                    );
+                    IMinterAmm(_restrictedMinters[j]).addSeries(_latestIndex);
                 }
             }
 

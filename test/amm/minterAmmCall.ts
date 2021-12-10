@@ -13,7 +13,7 @@ import {
   ERC1155ControllerInstance,
   AddressesProviderInstance,
   MockVolatilityPriceOracleInstance,
-  MockPriceOracleContract,
+  AmmDataProviderInstance,
 } from "../../typechain"
 
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
@@ -35,6 +35,7 @@ let deployedMockPriceOracle: MockPriceOracleInstance
 let deployedPriceOracle: PriceOracleInstance
 let deployedMockVolatilityPriceOracle: MockVolatilityPriceOracleInstance
 let deployedAddressesProvider: AddressesProviderInstance
+let deployedAmmDataProvider: AmmDataProviderInstance
 
 let deployedMockVolatilityOracle
 
@@ -85,6 +86,7 @@ contract("AMM Call Verification", (accounts) => {
       deployedERC1155Controller,
       deployedPriceOracle,
       deployedMockPriceOracle,
+      deployedAmmDataProvider,
       expiration,
       deployedAddressesProvider,
       deployedMockVolatilityOracle,
@@ -128,7 +130,10 @@ contract("AMM Call Verification", (accounts) => {
 
     // Total assets value in the AMM should be 10k.
     assertBNEq(
-      await deployedAmm.getTotalPoolValue(true),
+      await deployedAmmDataProvider.getTotalPoolValueView(
+        deployedAmm.address,
+        true,
+      ),
       10000,
       "Total assets value in the AMM should be 10k",
     )
@@ -230,7 +235,10 @@ contract("AMM Call Verification", (accounts) => {
 
     // Total assets value in the AMM should be 10k.
     assertBNEq(
-      await deployedAmm.getTotalPoolValue(true),
+      await deployedAmmDataProvider.getTotalPoolValueView(
+        deployedAmm.address,
+        true,
+      ),
       10000,
       "Total assets value in the AMM should be 10k",
     )
@@ -316,7 +324,10 @@ contract("AMM Call Verification", (accounts) => {
 
     // Total assets value in the AMM should be 10k.
     assertBNEq(
-      await deployedAmm.getTotalPoolValue(true),
+      await deployedAmmDataProvider.getTotalPoolValueView(
+        deployedAmm.address,
+        true,
+      ),
       10e8,
       "Total assets value in the AMM should be 10e8",
     )
@@ -387,7 +398,10 @@ contract("AMM Call Verification", (accounts) => {
       "No residual bTokens should be in the AMM",
     )
     assertBNEqWithTolerance(
-      await deployedAmm.getTotalPoolValue(true),
+      await deployedAmmDataProvider.getTotalPoolValueView(
+        deployedAmm.address,
+        true,
+      ),
       ammCollateral + 3e8 * (1 - optionPrice), // collateral + wTokens
       PRICE_TOLERANCE,
       "Total assets value in the AMM should be correct",
@@ -425,7 +439,11 @@ contract("AMM Call Verification", (accounts) => {
     // (8116 * 996) / 10996 ~= 736
     // 998 collateral would be removed by the .withdrawCapital below
     // 998 - 736 ~= 260
-    const tokensSaleValue = await deployedAmm.getOptionTokensSaleValue(993)
+    const tokensSaleValue =
+      await deployedAmmDataProvider.getOptionTokensSaleValueView(
+        deployedAmm.address,
+        993,
+      )
     assertBNEq(
       tokensSaleValue,
       260,
@@ -526,7 +544,10 @@ contract("AMM Call Verification", (accounts) => {
 
     // Total assets value in the AMM should be 10k.
     assertBNEq(
-      await deployedAmm.getTotalPoolValue(true),
+      await deployedAmmDataProvider.getTotalPoolValueView(
+        deployedAmm.address,
+        true,
+      ),
       10000e8,
       "Total assets value in the AMM should be 10000e8",
     )
@@ -656,7 +677,10 @@ contract("AMM Call Verification", (accounts) => {
 
     // Total assets value in the AMM should be 10k.
     assert.equal(
-      await deployedAmm.getTotalPoolValue.call(true),
+      await deployedAmmDataProvider.getTotalPoolValueView.call(
+        deployedAmm.address,
+        true,
+      ),
       1e12,
       "Total assets value in the AMM should be 1e12",
     )
@@ -804,7 +828,10 @@ contract("AMM Call Verification", (accounts) => {
 
     // Check pool value before withdrawal
     assertBNEq(
-      await deployedAmm.getTotalPoolValue(true),
+      await deployedAmmDataProvider.getTotalPoolValueView(
+        deployedAmm.address,
+        true,
+      ),
       "101563304030", // 1015e8 per 1000e8 LP tokens - looks right
       "Total assets value in the AMM should be correct",
     )
@@ -839,7 +866,10 @@ contract("AMM Call Verification", (accounts) => {
 
     // Check pool value after withdrawal
     assertBNEq(
-      await deployedAmm.getTotalPoolValue(true),
+      await deployedAmmDataProvider.getTotalPoolValueView(
+        deployedAmm.address,
+        true,
+      ),
       "101563316", // 1.01 per 1 LP tokens - looks right
       "Total assets value in the AMM should be correct",
     )
@@ -948,23 +978,6 @@ contract("AMM Call Verification", (accounts) => {
     )
   })
 
-  it("Enforces minimum trade size", async () => {
-    // Verify it fails if min trade size is not met
-    const minTradeSize = 1000
-    await expectRevert(
-      deployedAmm.bTokenBuy(seriesId, minTradeSize - 1, 1, {
-        from: aliceAccount,
-      }),
-      ERROR_MESSAGES.MIN_TRADE_SIZE,
-    )
-    await expectRevert(
-      deployedAmm.bTokenSell(seriesId, minTradeSize - 1, 1, {
-        from: aliceAccount,
-      }),
-      ERROR_MESSAGES.MIN_TRADE_SIZE,
-    )
-  })
-
   it("Works in initial state", async () => {
     assertBNEq(
       // @ts-ignore
@@ -974,13 +987,18 @@ contract("AMM Call Verification", (accounts) => {
     )
 
     assertBNEq(
-      await deployedAmm.getTotalPoolValue(true),
+      await deployedAmmDataProvider.getTotalPoolValueView(
+        deployedAmm.address,
+        true,
+      ),
       0,
       "Initial pool value should be 0",
     )
 
     const unredeemedCollateral =
-      await deployedAmm.getCollateralValueOfAllExpiredOptionTokens()
+      await deployedAmmDataProvider.getCollateralValueOfAllExpiredOptionTokensView(
+        deployedAmm.address,
+      )
     assertBNEq(
       unredeemedCollateral,
       0,
@@ -988,13 +1006,19 @@ contract("AMM Call Verification", (accounts) => {
     )
 
     assertBNEq(
-      await deployedAmm.getOptionTokensSaleValue(0),
+      await deployedAmmDataProvider.getOptionTokensSaleValueView(
+        deployedAmm.address,
+        0,
+      ),
       0,
       "Initial token sale value should be 0",
     )
 
     assertBNEq(
-      await deployedAmm.getOptionTokensSaleValue(100),
+      await deployedAmmDataProvider.getOptionTokensSaleValueView(
+        deployedAmm.address,
+        100,
+      ),
       0,
       "Initial token sale value should be 0",
     )
@@ -1032,7 +1056,10 @@ contract("AMM Call Verification", (accounts) => {
 
     // Total assets value in the AMM should be 10k.
     assertBNEq(
-      await deployedAmm.getTotalPoolValue(true),
+      await deployedAmmDataProvider.getTotalPoolValueView(
+        deployedAmm.address,
+        true,
+      ),
       10000,
       "Total assets value in the AMM should be 10k",
     )
@@ -1098,7 +1125,10 @@ contract("AMM Call Verification", (accounts) => {
       "No residual bTokens should be in the AMM",
     )
     assertBNEq(
-      await deployedAmm.getTotalPoolValue(true),
+      await deployedAmmDataProvider.getTotalPoolValueView(
+        deployedAmm.address,
+        true,
+      ),
       10042, // 7159 + 3000 * (1 - 0.0386) (btw, 10042 > 10000 - LPs are making money!!!)
       "Total assets value in the AMM should be correct",
     )
@@ -1174,7 +1204,12 @@ contract("AMM Call Verification", (accounts) => {
     )
 
     assertBNEq(
-      (await deployedAmm.getTotalPoolValue(true)).toNumber(),
+      (
+        await deployedAmmDataProvider.getTotalPoolValueView(
+          deployedAmm.address,
+          true,
+        )
+      ).toNumber(),
       8960, // 4460 (collateral) + (3000 * (15_000 / 20_000)) (wToken)
       // + (3000 * (15_000 / 20_000)) (anotherWToken)
       "Total assets value in the AMM should be correct",
@@ -1201,7 +1236,12 @@ contract("AMM Call Verification", (accounts) => {
     )
 
     assertBNEq(
-      (await deployedAmm.getTotalPoolValue(true)).toNumber(),
+      (
+        await deployedAmmDataProvider.getTotalPoolValueView(
+          deployedAmm.address,
+          true,
+        )
+      ).toNumber(),
       9460, // 8960 (previous pool value) + (1000 - (1000 * (15_000 / 20_000))) (bToken)
       // + (1000 - (1000 * (15_000 / 20_000))) (anotherBToken)
       "Total assets value in the AMM should be correct",

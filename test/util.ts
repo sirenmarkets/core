@@ -22,6 +22,7 @@ import {
   VolatilityOracleInstance,
   MockVolatilityOracleInstance,
   MockVolatilityOracleContract,
+  LightContract,
 } from "../typechain"
 import { artifacts, assert, ethers } from "hardhat"
 import { time, expectEvent, BN } from "@openzeppelin/test-helpers"
@@ -68,6 +69,8 @@ const BlackScholes: BlackScholesContract = artifacts.require("BlackScholes")
 
 const AddressesProvider: AddressesProviderContract =
   artifacts.require("AddressesProvider")
+
+const Light: LightContract = artifacts.require("Light")
 
 const FEE_RECEIVER_ADDRESS = "0x000000000000000000000000000000000000dEaD"
 export const ONE_DAY_DURATION = 24 * 60 * 60
@@ -358,17 +361,24 @@ export async function setupSingletonTestContracts(
     await priceToken.initialize("USD Coin", "USDC", 6)
   }
 
+  const deployedAddressesProvider: AddressesProviderInstance =
+    await AddressesProvider.new()
+
   const proxyContract = await Proxy.new(seriesControllerLogic.address)
   const deployedSeriesController = await SeriesController.at(
     proxyContract.address,
   )
 
+  await deployedAddressesProvider.setSeriesController(
+    deployedSeriesController.address,
+  )
+
   const deployedBlackScholes: BlackScholesInstance = await BlackScholes.new()
 
-  const deployedAddressesProvider: AddressesProviderInstance =
-    await AddressesProvider.new()
+  await deployedAddressesProvider.setBlackScholes(deployedBlackScholes.address)
 
-  deployedAddressesProvider.setBlackScholes(deployedBlackScholes.address)
+  const deployedLightAirswap = await Light.new()
+  await deployedAddressesProvider.setAirswapLight(deployedLightAirswap.address)
 
   // Create a new proxy contract pointing at the series vault logic for testing
   const vaultProxy = await Proxy.new(seriesVaultLogic.address)
@@ -422,6 +432,10 @@ export async function setupSingletonTestContracts(
     deployedERC1155Controller.address,
     deployedPriceOracle.address,
     deployedAddressesProvider.address,
+  )
+
+  await deployedAddressesProvider.setAmmDataProvider(
+    deployedAmmDataProvider.address,
   )
 
   const controllerInitResp =
@@ -494,6 +508,7 @@ export async function setupSingletonTestContracts(
     deployedBlackScholes,
     deployedAddressesProvider,
     deployedMockVolatilityOracle,
+    deployedLightAirswap,
     oraclePrice,
     expiration,
     exerciseFee,
@@ -505,7 +520,7 @@ export async function setupSingletonTestContracts(
 
 export async function setUpUniswap(
   collateralToken: SimpleTokenInstance,
-  deployedERC1155Controller: ERC1155ControllerInstance,
+  deployedAddressesProvider: AddressesProviderInstance,
 ) {
   const SimpleTokenFactory = await ethers.getContractFactory("SimpleToken")
 
@@ -631,7 +646,7 @@ export async function setUpUniswap(
   ]
 
   const deployedSirenExchange = await SirenExchange.new(
-    deployedERC1155Controller.address,
+    deployedAddressesProvider.address,
   )
   const uniswapV2RouterAddress = uniswapV2Router.address
 
@@ -656,7 +671,6 @@ export async function setupAmm({
 }) {
   const createAmmResp = await deployedAmmFactory.createAmm(
     deployedPriceOracle.address,
-    deployedAmmDataProvider.address,
     underlyingToken.address,
     priceToken.address,
     collateralToken.address,
@@ -766,6 +780,7 @@ export async function setupAllTestContracts(
     deployedAmmDataProvider,
     deployedBlackScholes,
     deployedAddressesProvider,
+    deployedLightAirswap,
     expiration,
     erc1155URI,
   } = await setupSingletonTestContracts({
@@ -830,6 +845,7 @@ export async function setupAllTestContracts(
     deployedAmmDataProvider,
     deployedBlackScholes,
     deployedAddressesProvider,
+    deployedLightAirswap,
     deployedAmm,
     oraclePrice,
     expiration,
