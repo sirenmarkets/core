@@ -18,6 +18,7 @@ contract AddressesProvider is Ownable, IAddressesProvider {
     bytes32 private constant SERIES_CONTROLLER = "SERIES_CONTROLLER";
     bytes32 private constant VOLATILITY_ORACLE = "VOLATILITY_ORACLE";
     bytes32 private constant BLACKSCHOLES = "BLACKSCHOLES";
+    bytes32 private constant AIRSWAP_LIGHT = "AIRSWAP_LIGHT";
 
     /**
      * @dev Sets an address for an id replacing the address saved in the addresses map
@@ -102,5 +103,14 @@ contract AddressesProvider is Ownable, IAddressesProvider {
     function setBlackScholes(address blackScholes) external override onlyOwner {
         _addresses[BLACKSCHOLES] = blackScholes;
         emit BlackScholesUpdated(blackScholes);
+    }
+
+    function getAirswapLight() external view override returns (address) {
+        return getAddress(AIRSWAP_LIGHT);
+    }
+
+    function setAirswapLight(address airswapLight) external override onlyOwner {
+        _addresses[AIRSWAP_LIGHT] = airswapLight;
+        emit AirswapLightUpdated(airswapLight);
     }
 }

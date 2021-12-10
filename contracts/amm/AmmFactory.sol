@@ -6,8 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "../proxy/Proxy.sol";
 import "../proxy/Proxiable.sol";
-import "./InitializeableAmm.sol";
-import "./IAddSeriesToAmm.sol";
+import "./IMinterAmm.sol";
 import "../series/ISeriesController.sol";
 import "../configuration/IAddressesProvider.sol";
 
@@ -152,7 +151,6 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
     /// @param _tradeFeeBasisPoints The fees to charge on option token trades
     function createAmm(
         address _sirenPriceOracle,
-        address _ammDataProvider,
         IERC20 _underlyingToken,
         IERC20 _priceToken,
         IERC20 _collateralToken,
@@ -161,10 +159,6 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
         require(
             address(_sirenPriceOracle) != address(0x0),
             "Invalid _sirenPriceOracle"
-        );
-        require(
-            address(_ammDataProvider) != address(0x0),
-            "Invalid _ammDataProvider"
         );
         require(
             address(_underlyingToken) != address(0x0),
@@ -189,12 +183,11 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
 
         // Deploy a new proxy pointing at the AMM impl
         Proxy ammProxy = new Proxy(ammImplementation);
-        InitializeableAmm newAmm = InitializeableAmm(address(ammProxy));
+        IMinterAmm newAmm = IMinterAmm(address(ammProxy));
 
         newAmm.initialize(
             seriesController,
             _sirenPriceOracle,
-            _ammDataProvider,
             addressesProvider,
             _underlyingToken,
             _priceToken,

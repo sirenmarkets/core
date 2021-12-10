@@ -6,13 +6,12 @@ import {
   MinterAmmInstance,
   MinterAmmContract,
   SimpleTokenInstance,
-  LightContract,
+  LightInstance,
+  AddressesProviderInstance,
 } from "../../typechain"
 import { createSignedOrder } from "../airswap/helper"
 import helpers from "../testHelpers"
 const { ethers } = require("hardhat")
-
-const Light: LightContract = artifacts.require("Light")
 
 import { setupAllTestContracts, ONE_WEEK_DURATION, assertBNEq } from "../util"
 
@@ -29,6 +28,8 @@ let deployedSeriesController: SeriesControllerInstance
 let expiration: number
 let seriesId: string
 let underlyingToken: SimpleTokenInstance
+let deployedLightAirswap: LightInstance
+let deployedAddressesProvider: AddressesProviderInstance
 
 /**
  * Testing MinterAmm volatility factor updates
@@ -48,48 +49,9 @@ contract("AMM Direct Buy", (accounts) => {
       expiration,
       seriesId,
       underlyingToken,
+      deployedLightAirswap,
+      deployedAddressesProvider,
     } = await setupAllTestContracts({}))
-  })
-
-  it("Updates light swap address", async () => {
-    let deployedFeeAmm: MinterAmmInstance = await MinterAmmFeeBased.at(
-      deployedAmm.address,
-    )
-
-    await expectRevert(
-      deployedFeeAmm.updateLightAirswapAddress(accounts[4], {
-        from: accounts[5],
-      }),
-      ERROR_MESSAGES.UNAUTHORIZED,
-    )
-
-    // Set it from the owner account
-    let ret = await deployedFeeAmm.updateLightAirswapAddress(accounts[4], {
-      from: ownerAccount,
-    })
-
-    expectEvent(ret, "NewLightAirswapAddress", {
-      newLightAirswapAddress: accounts[4],
-    })
-
-    // Verify it got set correctly
-    assert.equal(
-      await deployedFeeAmm.lightAirswapAddress(),
-      accounts[4],
-      "Airswap lib should be set",
-    )
-
-    // Set it back to 0
-    await deployedFeeAmm.updateLightAirswapAddress(helpers.ADDRESS_ZERO, {
-      from: ownerAccount,
-    })
-
-    // Verify it got set correctly
-    assert.equal(
-      await deployedFeeAmm.lightAirswapAddress(),
-      helpers.ADDRESS_ZERO,
-      "Airswap lib should be set to 0x0",
-    )
   })
 
   it("Checks restrictions on direct buy", async () => {
@@ -139,6 +101,8 @@ contract("AMM Direct Buy", (accounts) => {
     )
 
     // Verify lightswap is set
+    await deployedAddressesProvider.setAirswapLight(helpers.ADDRESS_ZERO)
+
     await expectRevert(
       deployedAmm.bTokenDirectBuy(
         seriesId,
@@ -165,11 +129,6 @@ contract("AMM Direct Buy", (accounts) => {
 
     // Provide capital - just a small amt
     await deployedAmm.provideCapital(1000, 0)
-
-    // Set the lib to a random addr... shouldn't get to that logic
-    await deployedAmm.updateLightAirswapAddress(accounts[4], {
-      from: ownerAccount,
-    })
 
     // Verify fails to mint
     await expectRevert(
@@ -203,12 +162,6 @@ contract("AMM Direct Buy", (accounts) => {
 
     // Provide capital - just a small amt
     await deployedAmm.provideCapital(10000e8, 0)
-
-    // Deploy Light Airswap contract
-    const deployedLightAirswap = await Light.new()
-
-    // Update Light contract
-    await deployedAmm.updateLightAirswapAddress(deployedLightAirswap.address)
 
     // Approve payment tokens from Alice to the Light contract
     const signerAmount = 1000e8
@@ -287,12 +240,6 @@ contract("AMM Direct Buy", (accounts) => {
 
     // Provide capital - just a small amt
     await deployedAmm.provideCapital(10000e8, 0)
-
-    // Deploy Light Airswap contract
-    const deployedLightAirswap = await Light.new()
-
-    // Update Light contract
-    await deployedAmm.updateLightAirswapAddress(deployedLightAirswap.address)
 
     // Update Fees
     await deployedAmm.setTradingFeeParams(

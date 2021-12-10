@@ -8,6 +8,7 @@ import {
   SimpleTokenContract,
   ERC1155ControllerInstance,
   SeriesControllerInstance,
+  AddressesProviderInstance,
 } from "../../typechain"
 
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
@@ -26,6 +27,8 @@ let deployedERC1155Controller: ERC1155ControllerInstance
 let uniswapRouterPath: Array<string>
 
 let deployedSeriesController: SeriesControllerInstance
+
+let deployedAddressesProvider: AddressesProviderInstance
 
 let uniswapV2RouterAddress: string
 
@@ -64,12 +67,13 @@ contract("Siren Exchange Verification", (accounts) => {
       seriesId,
       deployedERC1155Controller,
       deployedSeriesController,
+      deployedAddressesProvider,
     } = await setupAllTestContracts({
       strikePrice: STRIKE_PRICE.toString(),
       oraclePrice: BTC_ORACLE_PRICE,
     })),
       ({ uniswapV2RouterAddress, deployedSirenExchange, uniswapRouterPath } =
-        await setUpUniswap(collateralToken, deployedERC1155Controller))
+        await setUpUniswap(collateralToken, deployedAddressesProvider))
 
     //Below we provide capital for our AMMs so we can do trading on them
     userTokenAddress = uniswapRouterPath[0]
