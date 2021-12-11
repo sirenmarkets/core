@@ -17,7 +17,7 @@ import {
   toBN,
 } from "../testHelpers/blackScholes"
 
-const TOLERANCE_LEVEL = 0.5 * 1e18
+const TOLERANCE_LEVEL = 0.08 * 1e18
 
 const YEAR_SEC = 31536000
 const DAY_SEC = 86400
@@ -159,8 +159,8 @@ describe("BlackScholes - values", () => {
       const call = prices[0]
       const put = prices[1]
 
-      assertBNEqWithTolerance(call, toBN("675.3066775"), TOLERANCE_LEVEL)
-      assertBNEqWithTolerance(put, toBN("502.7372001"), TOLERANCE_LEVEL)
+      assertBNEqWithTolerance(call, toBN("675.3066775"), 0.5 * 1e18)
+      assertBNEqWithTolerance(put, toBN("502.7372001"), 0.5 * 1e18)
     })
     it("Inverting spot and strike with no risk free rate swaps the prices", async () => {
       const pricesA = await deployedBlackScholes.optionPrices(
