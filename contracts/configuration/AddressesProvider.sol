@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.8.0;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import {IAddressesProvider} from "./IAddressesProvider.sol";
 
@@ -10,7 +10,7 @@ import {IAddressesProvider} from "./IAddressesProvider.sol";
  * @dev Main registry of addresses part of or connected to the protocol, including permissioned roles
  * @author Dakra-Mystic
  **/
-contract AddressesProvider is Ownable, IAddressesProvider {
+contract AddressesProvider is OwnableUpgradeable, IAddressesProvider {
     mapping(bytes32 => address) private _addresses;
 
     bytes32 private constant PRICE_ORACLE = "PRICE_ORACLE";
