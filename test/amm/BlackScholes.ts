@@ -17,6 +17,8 @@ import {
   toBN,
 } from "../testHelpers/blackScholes"
 
+const TOLERANCE_LEVEL = 0.5 * 1e18
+
 const YEAR_SEC = 31536000
 const DAY_SEC = 86400
 type BigNumberFive = [BigNumber, BigNumber, BigNumber, BigNumber, BigNumber]
@@ -78,12 +80,12 @@ describe("BlackScholes - values", () => {
         assertBNEqWithTolerance(
           toBN(expectedCall.toString()),
           result[0].toString(),
-          0.06 * 1e18,
+          TOLERANCE_LEVEL,
         )
         assertBNEqWithTolerance(
           toBN(expectedPut.toString()),
           result[1].toString(),
-          0.06 * 1e18,
+          TOLERANCE_LEVEL,
         )
       }
     })
@@ -137,12 +139,12 @@ describe("BlackScholes - values", () => {
       assertBNEqWithTolerance(
         call,
         toBN(expectedPrices[0].toString()),
-        0.03 * 1e18,
+        TOLERANCE_LEVEL,
       )
       assertBNEqWithTolerance(
         put,
         toBN(expectedPrices[1].toString()),
-        0.03 * 1e18,
+        TOLERANCE_LEVEL,
       )
     })
 
@@ -157,8 +159,8 @@ describe("BlackScholes - values", () => {
       const call = prices[0]
       const put = prices[1]
 
-      assertBNEqWithTolerance(call, toBN("675.3066775"), 0.5 * 1e18)
-      assertBNEqWithTolerance(put, toBN("502.7372001"), 0.5 * 1e18)
+      assertBNEqWithTolerance(call, toBN("675.3066775"), TOLERANCE_LEVEL)
+      assertBNEqWithTolerance(put, toBN("502.7372001"), TOLERANCE_LEVEL)
     })
     it("Inverting spot and strike with no risk free rate swaps the prices", async () => {
       const pricesA = await deployedBlackScholes.optionPrices(
