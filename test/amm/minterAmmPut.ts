@@ -458,7 +458,7 @@ contract("AMM Put Verification", (accounts) => {
           true,
         )
       ).toString(),
-      1542748, // ammCollateralAmount + bTokenBuyCollateral * (1 / 14 * 15 - 0.11) (btw, 1510648 > 1500000 - LPs are making money!!!)
+      1514055, // ammCollateralAmount + bTokenBuyCollateral * (1 / 14 * 15 - 0.11) (btw, 1514055 > 1500000 - LPs are making money!!!)
       "Total assets value in the AMM should be correct",
     )
 
@@ -484,20 +484,20 @@ contract("AMM Put Verification", (accounts) => {
     expectEvent(ret, "LpTokensMinted", {
       minter: bobAccount,
       collateralAdded: bobCollateral,
-      lpTokensMinted: "145843",
+      lpTokensMinted: "148607",
     })
 
     assertBNEq(
       await lpToken.balanceOf(bobAccount),
-      145843,
+      148607,
       "lp tokens should have been minted",
     )
 
     // Now let's withdraw all Bobs tokens to make sure Bob doesn't make money by simply
     // depositing and withdrawing collateral
-    const bobCollateralWithdrawn = 147_227
+    const bobCollateralWithdrawn = 149_821
     ret = await deployedAmm.withdrawCapital(
-      145843,
+      148607,
       true,
       bobCollateralWithdrawn,
       {
@@ -509,7 +509,7 @@ contract("AMM Put Verification", (accounts) => {
     expectEvent(ret, "LpTokensBurned", {
       redeemer: bobAccount,
       collateralRemoved: bobCollateralWithdrawn.toString(),
-      lpTokensBurned: "145843",
+      lpTokensBurned: "148607",
     })
     assertBNEq(
       await collateralToken.balanceOf(bobAccount),

@@ -15,6 +15,8 @@ import "../libraries/Math.sol";
 import "./IBlackScholes.sol";
 import "../configuration/IAddressesProvider.sol";
 
+import "hardhat/console.sol";
+
 contract AmmDataProvider is IAmmDataProvider {
     ISeriesController public seriesController;
     IERC1155 public erc1155Controller;
@@ -516,13 +518,16 @@ contract AmmDataProvider is IAmmDataProvider {
                         underlyingPrice;
                 }
 
-                uint256 wPrice = lockedUnderlyingValue - bPrice;
-
+                // uint256 wPrice = lockedUnderlyingValue - bPrice;
                 uint256 tokensValueCollateral = seriesController
-                    .getCollateralPerOptionToken(
+                    .getCollateralPerUnderlying(
                         seriesId,
-                        (bTokenBalance * bPrice + wTokenBalance * wPrice) / 1e18
-                    );
+                        (bTokenBalance *
+                            bPrice +
+                            wTokenBalance *
+                            (lockedUnderlyingValue - bPrice)),
+                        underlyingPrice
+                    ) / 1e18;
 
                 activeTokensValue += tokensValueCollateral;
             } else if (

@@ -209,12 +209,12 @@ contract SeriesController is
                 buyerShare = 0;
             } else {
                 // ITM
-                writerShare = getCollateralPerOptionTokenInternal(
+                writerShare = getCollateralPerUnderlying(
                     _seriesId,
                     _optionTokenAmount,
                     settlementPrice
                 );
-                buyerShare = getCollateralPerOptionTokenInternal(
+                buyerShare = getCollateralPerUnderlying(
                     _seriesId,
                     _optionTokenAmount,
                     series.strikePrice - settlementPrice
@@ -445,38 +445,38 @@ contract SeriesController is
         uint256 _optionTokenAmount
     ) public view override returns (uint256) {
         return
-            getCollateralPerOptionTokenInternal(
+            getCollateralPerUnderlying(
                 _seriesId,
                 _optionTokenAmount,
                 allSeries[_seriesId].strikePrice
             );
     }
 
-    /// @dev Given a Series and an amount of bToken/wToken, return the amount of collateral token received when exercising this amount of option token
+    /// @dev Given a Series and an amount of underlying, return the amount of collateral adjusted for decimals
     /// @dev In almost every callsite of this function the price is equal to the strike price, except in Series.getSettlementAmounts where we use the settlementPrice
     /// @param _seriesId The Series ID
-    /// @param _optionTokenAmount The amount of bToken/wToken
+    /// @param _underlyingAmount The amount of underlying
     /// @param _price The price of the collateral token in units of price token
-    /// @return The amount of collateral received when exercising this amount of option token
-    function getCollateralPerOptionTokenInternal(
+    /// @return The amount of collateral
+    function getCollateralPerUnderlying(
         uint64 _seriesId,
-        uint256 _optionTokenAmount,
+        uint256 _underlyingAmount,
         uint256 _price
-    ) internal view returns (uint256) {
+    ) public view override returns (uint256) {
         Series memory series = allSeries[_seriesId];
 
         // is it a call option?
         if (!series.isPutOption) {
             // for call options this conversion is simple, because 1 optionToken locks
             // 1 unit of collateral token
-            return _optionTokenAmount;
+            return _underlyingAmount;
         }
 
         // for put options we need to convert from the optionToken's underlying units
         // to the collateral token units. This way 1 put bToken/wToken is exercisable
         // for the value of 1 underlying token in units of collateral
         return
-            (((_optionTokenAmount * _price) / (uint256(10)**priceDecimals)) *
+            (((_underlyingAmount * _price) / (uint256(10)**priceDecimals)) *
                 (uint256(10) **
                     (IERC20Lib(series.tokens.collateralToken).decimals()))) /
             (uint256(10) **

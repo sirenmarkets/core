@@ -54,11 +54,10 @@ contract("AMM Upgradeability", (accounts) => {
     await expectRevert(
       deployedAmmFactory.createAmm(
         deployedPriceOracle.address,
-        deployedAmmDataProvider.address,
-        deployedBlackScholes.address,
         underlyingToken.address,
         priceToken.address,
         collateralToken.address,
+        0,
       ),
       "AMM name already registered",
     )
@@ -125,9 +124,8 @@ contract("AMM Upgradeability", (accounts) => {
     await expectRevert(
       deployedAmm.initialize(
         deployedSeriesController.address,
-        deployedAmmDataProvider.address,
-        deployedBlackScholes.address,
         deployedPriceOracle.address,
+        deployedAddressesProvider.address,
         underlyingToken.address,
         priceToken.address,
         collateralToken.address,

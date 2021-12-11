@@ -198,6 +198,12 @@ interface ISeriesController {
         uint256 _optionTokenAmount
     ) external view returns (uint256);
 
+    function getCollateralPerUnderlying(
+        uint64 _seriesId,
+        uint256 _underlyingAmount,
+        uint256 _price
+    ) external view returns (uint256);
+
     /// @notice Returns the amount of collateralToken held in the vault on behalf of the Series at _seriesId
     /// @param _seriesId The index of the Series in the SeriesController
     function getSeriesERC20Balance(uint64 _seriesId)
