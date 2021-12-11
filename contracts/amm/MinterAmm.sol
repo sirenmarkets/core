@@ -18,7 +18,7 @@ import "./MinterAmmStorage.sol";
 import "../series/IVolatilityOracle.sol";
 import "./IBlackScholes.sol";
 
-// import "hardhat/console.sol";
+import "hardhat/console.sol";
 
 /// This is an implementation of a minting/redeeming AMM (Automated Market Maker) that trades a list of series with the same
 /// collateral token. For example, a single WBTC Call AMM contract can trade all strikes of WBTC calls using
@@ -805,7 +805,11 @@ contract MinterAmm is
         );
         uint256 collateralAmount;
         {
-            (uint256 price, uint256 vega) = calculatePriceAndVega(seriesId);
+            uint256 underlyingPrice = getCurrentUnderlyingPrice();
+            (uint256 price, uint256 vega) = calculatePriceAndVega(
+                seriesId,
+                underlyingPrice
+            );
             collateralAmount = getAmmDataProvider().bTokenGetCollateralIn(
                 seriesId,
                 address(this),
@@ -814,7 +818,12 @@ contract MinterAmm is
                 price
             );
             require(
-                collateralAmount * 1e18 >= price * bTokenAmount,
+                collateralAmount * 1e18 >=
+                    seriesController.getCollateralPerUnderlying(
+                        seriesId,
+                        price * bTokenAmount,
+                        underlyingPrice
+                    ),
                 "Buy amount is too low"
             );
 
@@ -919,7 +928,11 @@ contract MinterAmm is
         );
         uint256 collateralAmount;
         {
-            (uint256 price, uint256 vega) = calculatePriceAndVega(seriesId);
+            uint256 underlyingPrice = getCurrentUnderlyingPrice();
+            (uint256 price, uint256 vega) = calculatePriceAndVega(
+                seriesId,
+                underlyingPrice
+            );
 
             collateralAmount = optionTokenGetCollateralOutInternal(
                 seriesId,
@@ -928,9 +941,13 @@ contract MinterAmm is
                 price,
                 true
             );
-
             require(
-                collateralAmount * 1e18 <= price * bTokenAmount,
+                collateralAmount * 1e18 <=
+                    seriesController.getCollateralPerUnderlying(
+                        seriesId,
+                        price * bTokenAmount,
+                        underlyingPrice
+                    ),
                 "Sell amount is too low"
             );
 
@@ -1019,21 +1036,25 @@ contract MinterAmm is
             "Series has expired"
         );
 
-        (uint256 price, ) = calculatePriceAndVega(seriesId);
+        uint256 underlyingPrice = getCurrentUnderlyingPrice();
+        (uint256 price, ) = calculatePriceAndVega(seriesId, underlyingPrice);
 
-        // Get initial stats
-        uint256 collateralAmount = optionTokenGetCollateralOutInternal(
-            seriesId,
-            wTokenAmount,
-            collateralToken.balanceOf(address(this)),
-            price,
-            false
-        );
+        uint256 collateralAmount;
+        {
+            collateralAmount = optionTokenGetCollateralOutInternal(
+                seriesId,
+                wTokenAmount,
+                collateralToken.balanceOf(address(this)),
+                price,
+                false
+            );
 
-        require(
-            collateralAmount * 1e18 <= (1e18 - price) * wTokenAmount,
-            "Sell amount is too low"
-        );
+            // TODO: implement the collateral check here
+            // require(
+            //     collateralAmount * 1e18 <= seriesController.getCollateralPerUnderlying(seriesId, (1e18 - price) * wTokenAmount, underlyingPrice),
+            //     "Sell amount is too low"
+            // );
+        }
 
         require(collateralAmount >= collateralMinimum, "Slippage exceeded");
 
@@ -1128,7 +1149,7 @@ contract MinterAmm is
             super.supportsInterface(interfaceId);
     }
 
-    function calculatePriceAndVega(uint64 seriesId)
+    function calculatePriceAndVega(uint64 seriesId, uint256 underlyingPrice)
         internal
         view
         returns (uint256 price, uint256 vega)
@@ -1144,7 +1165,7 @@ contract MinterAmm is
             .pricesStdVegaInUnderlying(
                 series.expirationDate - block.timestamp,
                 getVolatility(seriesId),
-                getCurrentUnderlyingPrice(),
+                underlyingPrice,
                 series.strikePrice,
                 0,
                 series.isPutOption

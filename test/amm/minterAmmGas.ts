@@ -92,6 +92,10 @@ contract("Minter AMM Gas Measurement", (accounts) => {
     await measureGas(8, 12)
   })
 
+  xit("Measures gas for 100 series: 50 open and 50 expired", async () => {
+    await measureGas(50, 50)
+  }).timeout(10000)
+
   const measureGas = async (
     numOpenSeries: number,
     numExpiredSeries: number,
@@ -136,8 +140,8 @@ contract("Minter AMM Gas Measurement", (accounts) => {
     )
 
     // Now let's do some trading from another account
-    await underlyingToken.mint(aliceAccount, 5000 * numSeries)
-    await underlyingToken.approve(deployedAmm.address, 5000 * numSeries, {
+    await underlyingToken.mint(aliceAccount, 50000 * numSeries)
+    await underlyingToken.approve(deployedAmm.address, 50000 * numSeries, {
       from: aliceAccount,
     })
 
@@ -146,24 +150,24 @@ contract("Minter AMM Gas Measurement", (accounts) => {
       const bTokenIndex = await deployedSeriesController.bTokenIndex(seriesId)
 
       // Buy bTokens
-      ret = await deployedAmm.bTokenBuy(seriesId, 3000, 3000, {
+      ret = await deployedAmm.bTokenBuy(seriesId, 30000, 30000, {
         from: aliceAccount,
       })
       printGasLog("bTokenBuy 1", ret.receipt.gasUsed)
       assert.isBelow(
         ret.receipt.gasUsed,
-        390_000, // TODO: this is too high, we should aim for <= 200K
+        550_000,
         "bTokenBuy gas should be below threshold",
       )
 
       // Buy more bTokens
-      ret = await deployedAmm.bTokenBuy(seriesId, 3000, 3000, {
+      ret = await deployedAmm.bTokenBuy(seriesId, 30000, 30000, {
         from: aliceAccount,
       })
       printGasLog("bTokenBuy 2", ret.receipt.gasUsed)
       assert.isBelow(
         ret.receipt.gasUsed,
-        290_000, // TODO: this is too high, we should aim for <= 200K
+        550_000,
         "bTokenBuy gas should be below threshold",
       )
 
@@ -175,24 +179,24 @@ contract("Minter AMM Gas Measurement", (accounts) => {
           from: aliceAccount,
         },
       )
-      ret = await deployedAmm.bTokenSell(seriesId, 1000, 0, {
+      ret = await deployedAmm.bTokenSell(seriesId, 10000, 0, {
         from: aliceAccount,
       })
       printGasLog("bTokenSell 1", ret.receipt.gasUsed)
       assert.isBelow(
         ret.receipt.gasUsed,
-        300_000, // TODO: this is too high, we should aim for <= 200K
+        550_000,
         "bTokenSell gas should be below threshold",
       )
 
       // Sell more bTokens
-      ret = await deployedAmm.bTokenSell(seriesId, 1000, 0, {
+      ret = await deployedAmm.bTokenSell(seriesId, 10000, 0, {
         from: aliceAccount,
       })
       printGasLog("bTokenSell 2", ret.receipt.gasUsed)
       assert.isBelow(
         ret.receipt.gasUsed,
-        270_000, // TODO: this is too high, we should aim for <= 200K
+        550_000,
         "bTokenSell gas should be below threshold",
       )
     }
@@ -202,7 +206,7 @@ contract("Minter AMM Gas Measurement", (accounts) => {
     printGasLog("Post-sale LP withdrawal", ret.receipt.gasUsed)
     assert.isBelow(
       ret.receipt.gasUsed,
-      2_000_000, // TODO: try bringing this lower
+      2_000_000,
       "withdrawCapital gas should be below threshold",
     )
 
@@ -248,7 +252,7 @@ contract("Minter AMM Gas Measurement", (accounts) => {
     printGasLog("Post-expiry withdrawal 1", ret.receipt.gasUsed)
     assert.isBelow(
       ret.receipt.gasUsed,
-      2_000_000, // TODO: too high for 8 series
+      2_000_000,
       "Post-expiry withdrawal 1 gas should be below threshold",
     )
 
@@ -261,7 +265,7 @@ contract("Minter AMM Gas Measurement", (accounts) => {
     printGasLog("Post-expiry withdrawal 2", ret.receipt.gasUsed)
     assert.isBelow(
       ret.receipt.gasUsed,
-      2_000_000, // TODO: too high for 4-8 series
+      2_000_000,
       "Post-expiry withdrawal 2 gas should be below threshold",
     )
 
