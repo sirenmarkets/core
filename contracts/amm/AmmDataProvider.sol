@@ -15,8 +15,6 @@ import "../libraries/Math.sol";
 import "./IBlackScholes.sol";
 import "../configuration/IAddressesProvider.sol";
 
-import "hardhat/console.sol";
-
 contract AmmDataProvider is IAmmDataProvider {
     ISeriesController public seriesController;
     IERC1155 public erc1155Controller;

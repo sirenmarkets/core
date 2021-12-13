@@ -8,7 +8,6 @@ import {VolatilityOracle} from "../series/VolatilityOracle.sol";
 import {Math} from "../libraries/Math.sol";
 import {PRBMathSD59x18} from "../libraries/PRBMathSD59x18.sol";
 import "../series/IPriceOracle.sol";
-import "hardhat/console.sol";
 
 contract MockVolatilityOracle is DSMath, VolatilityOracle {
     using SafeMath for uint256;
