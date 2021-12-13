@@ -48,7 +48,7 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
     /// @param _dateOffset the time length in seconds between successive settlement dates. MUST
     /// be either 1 day or 1 week. On mainnet networks we always use 1 week, but for testnets in order
     /// to have faster testing iterations we reduce the interval to 1 day
-    function initialize(uint256 _dateOffset) external {
+    function initialize(uint256 _dateOffset) external initializer {
         require(
             _dateOffset == 1 days || _dateOffset == 1 weeks,
             "PriceOracle: _dateOffset must align to 1 day or 1 week"
@@ -162,7 +162,7 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
 
         // the settlement date must be in the past, otherwise any address will be able to set future settlement prices,
         // which we cannot allow
-        require(date < block.timestamp, "date must be in the past");
+        require(date <= block.timestamp, "date must be in the past");
 
         // we cannot allow gaps in the settlement date prices, otherwise PriceOracle.setSettlementDate will not be
         // able to set the gap settlement price. For example, if time T were to have a price set, T + offset
