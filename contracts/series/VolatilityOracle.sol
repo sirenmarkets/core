@@ -23,17 +23,6 @@ contract VolatilityOracle is DSMath, OwnableUpgradeable {
     uint256 public immutable annualizationConstant;
     uint256 internal constant commitPhaseDuration = 3600; // 1 hour from every period
 
-    event AccumulatorSet(
-        address underlyingToken,
-        address priceToken,
-        uint8 currentObservationIndex,
-        uint32 lastTimestamp,
-        int96 mean,
-        uint256 dsq
-    );
-
-    event TokenPairAdded(address underlyingToken, address priceToken);
-
     /**
      * Storage
      */
@@ -60,6 +49,23 @@ contract VolatilityOracle is DSMath, OwnableUpgradeable {
     /***
      * Events
      */
+
+    event AccumulatorSet(
+        address underlyingToken,
+        address priceToken,
+        uint8 currentObservationIndex,
+        uint32 lastTimestamp,
+        int96 mean,
+        uint256 dsq
+    );
+
+    event TokenPairAdded(address underlyingToken, address priceToken);
+
+    event LastPriceSet(
+        address underlyingToken,
+        address priceToken,
+        uint256 price
+    );
 
     event Commit(
         uint32 commitTimestamp,
@@ -159,7 +165,7 @@ contract VolatilityOracle is DSMath, OwnableUpgradeable {
         );
 
         require(newMean < type(int96).max, ">I96");
-        // require(int256(newDSQ) < type(uint256).max, ">U120");
+        require(uint256(newDSQ) < type(uint256).max, ">U120");
 
         accum.mean = int96(newMean);
         accum.dsq = uint256(newDSQ);
@@ -265,7 +271,6 @@ contract VolatilityOracle is DSMath, OwnableUpgradeable {
         bool isInc
     ) internal view returns (uint256 obvCount) {
         uint256 size = windowSize; // cache for gas
-        // console.log(observations[underlyingToken][priceToken][size - 1] );
         obvCount = observations[underlyingToken][priceToken][size - 1] != 0
             ? size
             : accumulators[underlyingToken][priceToken]
@@ -289,8 +294,6 @@ contract VolatilityOracle is DSMath, OwnableUpgradeable {
         int96 mean,
         uint256 dsq
     ) external onlyOwner {
-        //require(accumulators[underlyingToken][priceToken] , "This Token Pair Should exist");
-
         Accumulator memory newAccumulator = Accumulator({
             currentObservationIndex: currentObservationIndex,
             lastTimestamp: lastTimestamp,
@@ -307,5 +310,15 @@ contract VolatilityOracle is DSMath, OwnableUpgradeable {
             mean,
             dsq
         );
+    }
+
+    function setLastPrice(
+        address underlyingToken,
+        address priceToken,
+        uint256 price
+    ) external onlyOwner {
+        lastPrices[underlyingToken][priceToken] = price;
+
+        emit LastPriceSet(underlyingToken, priceToken, price);
     }
 }

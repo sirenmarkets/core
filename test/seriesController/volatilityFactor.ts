@@ -143,7 +143,6 @@ contract("Volatility Factor", (accounts) => {
         await deployedMockVolatilityOracle.setPrice(values[i])
         const topOfPeriod = (await getTopOfPeriod()) + PERIOD
         await time.increaseTo(topOfPeriod)
-        console.log(time)
         await deployedMockVolatilityOracle.commit(
           underlyingToken.address,
           priceToken.address,
@@ -167,7 +166,6 @@ contract("Volatility Factor", (accounts) => {
     } else {
       topOfPeriod = latestTimestamp + rem + PERIOD
     }
-    console.log(topOfPeriod)
     return topOfPeriod
   }
 })

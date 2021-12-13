@@ -1,8 +1,6 @@
 /* global artifacts contract it assert */
 import { time, expectEvent, expectRevert, BN } from "@openzeppelin/test-helpers"
 import { artifacts, contract, ethers } from "hardhat"
-import { BigNumber } from "@ethersproject/bignumber"
-const { provider } = ethers
 import {
   SimpleTokenContract,
   MockPriceOracleInstance,

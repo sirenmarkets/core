@@ -87,7 +87,7 @@ export async function setupPriceOracle(
 ): Promise<PriceOracleInstance> {
   const deployedPriceOracle: PriceOracleInstance = await PriceOracle.new()
 
-  await deployedPriceOracle.initialize(ONE_DAY_DURATION)
+  await deployedPriceOracle.initialize(ONE_WEEK_DURATION)
 
   await deployedPriceOracle.addTokenPair(
     underlyingAddress,

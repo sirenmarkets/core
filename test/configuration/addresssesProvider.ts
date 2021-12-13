@@ -10,6 +10,8 @@ import { artifacts, contract, assert } from "hardhat"
 import {
   SeriesControllerInstance,
   AddressesProviderInstance,
+  AddressesProviderContract,
+  ProxyContract,
 } from "../../typechain"
 
 import { setupAllTestContracts, assertBNEq, ONE_WEEK_DURATION } from "../util"
@@ -48,9 +50,21 @@ contract("Address Provider Set/Get Verification", (accounts) => {
   })
 
   it("Address is not set yet so it returns an empty address", async () => {
-    // Providing capital before approving should fail
+    //WE need to set up a second addresses provider to make sure that our addresses are not set when contract is initalized
+    const Proxy: ProxyContract = artifacts.require("Proxy")
+    const AddressesProvider: AddressesProviderContract =
+      artifacts.require("AddressesProvider")
+    const addressesProviderLogic = await AddressesProvider.deployed()
+    const proxyAddressesProvider = await Proxy.new(
+      addressesProviderLogic.address,
+    )
+    const deployedAddressesProvider2 = await AddressesProvider.at(
+      proxyAddressesProvider.address,
+    )
 
-    let getAddress = await deployedAddressesProvider.getSeriesController()
+    deployedAddressesProvider2.__AddressessProvider_init()
+
+    let getAddress = await deployedAddressesProvider2.getSeriesController()
 
     // Total assets value in the AMM should be 10k.
     assertBNEq(

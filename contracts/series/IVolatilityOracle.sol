@@ -12,4 +12,23 @@ interface IVolatilityOracle {
         external
         view
         returns (uint256 annualStdev);
+
+    function commit(address underlyingToken, address priceToken) external;
+
+    function addTokenPair(address underlyingToken, address priceToken) external;
+
+    function setAccumulator(
+        address underlyingToken,
+        address priceToken,
+        uint8 currentObservationIndex,
+        uint32 lastTimestamp,
+        int96 mean,
+        uint256 dsq
+    ) external;
+
+    function setLastPrice(
+        address underlyingToken,
+        address priceToken,
+        uint256 price
+    ) external;
 }

@@ -463,7 +463,7 @@ contract SeriesController is
         uint256 _underlyingAmount,
         uint256 _price
     ) public view override returns (uint256) {
-        Series memory series = allSeries[_seriesId];
+        Series memory currentSeries = allSeries[_seriesId];
 
         // is it a call option?
         if (!currentSeries.isPutOption) {

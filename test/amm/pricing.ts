@@ -87,10 +87,6 @@ contract("AMM Pricing", (accounts) => {
     await collateralToken.approve(deployedAmm.address, 1e6, {
       from: aliceAccount,
     })
-    console.log(
-      "ALICE ====",
-      (await collateralToken.balanceOf(aliceAccount)).toString(),
-    )
     // Buy bTokens
     const maximumCollateral =
       await deployedAmmDataProvider.bTokenGetCollateralInView(

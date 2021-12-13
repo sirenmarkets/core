@@ -18,8 +18,6 @@ import "./MinterAmmStorage.sol";
 import "../series/IVolatilityOracle.sol";
 import "./IBlackScholes.sol";
 
-import "hardhat/console.sol";
-
 /// This is an implementation of a minting/redeeming AMM (Automated Market Maker) that trades a list of series with the same
 /// collateral token. For example, a single WBTC Call AMM contract can trade all strikes of WBTC calls using
 /// WBTC as the collateral, and a single WBTC Put AMM contract can trade all strikes of WBTC puts, using
@@ -841,7 +839,6 @@ contract MinterAmm is
 
         // Calculate trade fees if they are enabled with all params set
         uint256 tradeFee = calculateFees(bTokenAmount, collateralAmount);
-
         require(
             collateralAmount + tradeFee <= collateralMaximum,
             "Slippage exceeded"
