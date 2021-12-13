@@ -16,6 +16,7 @@ import "../series/SeriesLibrary.sol";
 import "./MinterAmmStorage.sol";
 import "../series/IVolatilityOracle.sol";
 import "./IBlackScholes.sol";
+import "./IWTokenVault.sol";
 
 /// This is an implementation of a minting/redeeming AMM (Automated Market Maker) that trades a list of series with the same
 /// collateral token. For example, a single WBTC Call AMM contract can trade all strikes of WBTC calls using
@@ -73,7 +74,7 @@ contract MinterAmm is
     Proxiable,
     ERC1155HolderUpgradeable,
     OwnableUpgradeable,
-    MinterAmmStorageV2
+    MinterAmmStorageV3
 {
     /// @dev NOTE: No local variables should be added here.  Instead see MinterAmmStorageV*.sol
 
@@ -257,6 +258,11 @@ contract MinterAmm is
         override
         returns (uint256)
     {
+        // TODO: implement dynamic per-series volatility
+        return getBaselineVolatility();
+    }
+
+    function getBaselineVolatility() public view override returns (uint256) {
         return
             uint256(
                 IVolatilityOracle(addressesProvider.getVolatilityOracle())
@@ -351,7 +357,7 @@ contract MinterAmm is
         uint256 poolValue = getAmmDataProvider().getTotalPoolValue(
             false,
             getAllSeries(),
-            collateralToken.balanceOf(address(this)),
+            collateralBalance(),
             address(this),
             getAllVolatilities()
         );
@@ -394,9 +400,7 @@ contract MinterAmm is
         // Claim all expired wTokens
         claimAllExpiredTokens();
 
-        uint256 collateralTokenBalance = collateralToken.balanceOf(
-            address(this)
-        );
+        uint256 collateralTokenBalance = collateralBalance();
 
         // Withdraw pro-rata collateral token
         // We withdraw this collateral here instead of at the end,
@@ -405,14 +409,27 @@ contract MinterAmm is
         uint256 ammCollateralBalance = collateralTokenBalance -
             ((collateralTokenBalance * lpTokenAmount) / lpTokenSupply);
 
-        // Sell pro-rata active tokens or withdraw if no collateral left
-        ammCollateralBalance = _sellOrWithdrawActiveTokens(
-            lpTokenAmount,
-            lpTokenSupply,
-            msg.sender,
-            sellTokens,
-            ammCollateralBalance
-        );
+        if (sellTokens) {
+            // Sell pro-rata active tokens
+            require(
+                lpTokenAmount < lpTokenSupply,
+                "Last LP can't sell wTokens to the pool"
+            );
+            ammCollateralBalance = _sellActiveTokens(
+                lpTokenAmount,
+                lpTokenSupply,
+                msg.sender,
+                ammCollateralBalance
+            );
+        } else {
+            // Lock tokens
+            IWTokenVault(addressesProvider.getWTokenVault()).lockActiveWTokens(
+                lpTokenAmount,
+                lpTokenSupply,
+                msg.sender,
+                getBaselineVolatility()
+            );
+        }
 
         // Send all accumulated collateralTokens
         collateralToken.safeTransfer(
@@ -429,6 +446,42 @@ contract MinterAmm is
 
         // Emit the event
         emit LpTokensBurned(msg.sender, collateralTokenSent, lpTokenAmount);
+    }
+
+    function withdrawLockedCollateral(uint64 expirationId) external {
+        uint256 claimableCollateral = IWTokenVault(
+            addressesProvider.getWTokenVault()
+        ).redeemCollateral(expirationId, msg.sender);
+
+        lockedCollateral -= claimableCollateral;
+
+        collateralToken.safeTransfer(msg.sender, claimableCollateral);
+
+        // TODO: emit event
+    }
+
+    function lockCollateral(
+        uint64 seriesId,
+        uint256 collateralAmountMax,
+        uint256 wTokenAmountMax
+    ) internal {
+        IWTokenVault wTokenVault = IWTokenVault(
+            addressesProvider.getWTokenVault()
+        );
+
+        uint256 lockedWTokenBalance = wTokenVault.getWTokenBalance(
+            address(this),
+            seriesId
+        );
+        uint256 closedWTokens = Math.min(lockedWTokenBalance, wTokenAmountMax);
+        uint256 collateralToLock = (collateralAmountMax * closedWTokens) /
+            wTokenAmountMax;
+
+        wTokenVault.addCollateral(seriesId, collateralToLock, closedWTokens);
+
+        lockedCollateral += collateralToLock;
+
+        // TODO: emit event
     }
 
     /// @notice Claims any remaining collateral from all expired series whose wToken is held by the AMM, and removes
@@ -476,7 +529,12 @@ contract MinterAmm is
             wTokenIndex
         );
         if (wTokenBalance > 0) {
-            seriesController.claimCollateral(seriesId, wTokenBalance);
+            uint256 collateralClaimed = seriesController.claimCollateral(
+                seriesId,
+                wTokenBalance
+            );
+
+            lockCollateral(seriesId, collateralClaimed, wTokenBalance);
         }
         // Remove the expired series to free storage and reduce gas fee
         // NOTE: openSeries.remove will remove the series from the i’th position in the EnumerableSet by
@@ -488,13 +546,11 @@ contract MinterAmm is
         emit SeriesEvicted(seriesId);
     }
 
-    /// During liquidity withdrawal we either sell pro-rata active tokens back to the pool
-    /// or withdraw them to the LP
-    function _sellOrWithdrawActiveTokens(
+    /// During liquidity withdrawal pro-rata active tokens back to the pool
+    function _sellActiveTokens(
         uint256 lpTokenAmount,
         uint256 lpTokenSupply,
         address redeemer,
-        bool sellTokens,
         uint256 collateralLeft
     ) internal returns (uint256) {
         for (uint256 i = 0; i < openSeries.length(); i++) {
@@ -503,54 +559,20 @@ contract MinterAmm is
                 seriesController.state(seriesId) ==
                 ISeriesController.SeriesState.OPEN
             ) {
-                uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
                 uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
 
-                uint256 bTokenToSell = (erc1155Controller.balanceOf(
-                    address(this),
-                    bTokenIndex
-                ) * lpTokenAmount) / lpTokenSupply;
-                uint256 wTokenToSell = (erc1155Controller.balanceOf(
+                uint256 wTokenAmount = (erc1155Controller.balanceOf(
                     address(this),
                     wTokenIndex
                 ) * lpTokenAmount) / lpTokenSupply;
-                if (!sellTokens || lpTokenAmount == lpTokenSupply) {
-                    // Full LP token withdrawal for the last LP in the pool
-                    // or if auto-sale is disabled
-                    if (bTokenToSell > 0) {
-                        bytes memory data;
-                        erc1155Controller.safeTransferFrom(
-                            address(this),
-                            redeemer,
-                            bTokenIndex,
-                            bTokenToSell,
-                            data
-                        );
-                    }
-                    if (wTokenToSell > 0) {
-                        bytes memory data;
-                        erc1155Controller.safeTransferFrom(
-                            address(this),
-                            redeemer,
-                            wTokenIndex,
-                            wTokenToSell,
-                            data
-                        );
-                    }
-                } else {
+
+                if (wTokenAmount > 0) {
                     // The LP sells their bToken and wToken to the AMM. The AMM
                     // pays the LP by reducing collateralLeft, which is what the
                     // AMM's collateral balance will be after executing this
                     // transaction (see MinterAmm.withdrawCapital to see where
-                    // _sellOrWithdrawActiveTokens gets called)
+                    // _sellActiveTokens gets called)
                     uint256 bTokenPrice = getPriceForSeries(seriesId);
-                    uint256 collateralAmountB = optionTokenGetCollateralOutInternal(
-                            seriesId,
-                            bTokenToSell,
-                            collateralLeft,
-                            bTokenPrice,
-                            true
-                        );
 
                     // Note! It's possible that either of the two subraction operations
                     // below will underflow and return an error. This will only
@@ -558,10 +580,9 @@ contract MinterAmm is
                     // balance to buy the bToken and wToken from the LP. If this
                     // happens, this transaction will revert with a
                     // "revert" error message
-                    collateralLeft -= collateralAmountB;
                     uint256 collateralAmountW = optionTokenGetCollateralOutInternal(
                             seriesId,
-                            wTokenToSell,
+                            wTokenAmount,
                             collateralLeft,
                             bTokenPrice,
                             false
@@ -817,7 +838,7 @@ contract MinterAmm is
                 seriesId,
                 address(this),
                 bTokenAmount,
-                collateralToken.balanceOf(address(this)),
+                collateralBalance(),
                 price
             );
             require(
@@ -929,7 +950,7 @@ contract MinterAmm is
             collateralAmount = optionTokenGetCollateralOutInternal(
                 seriesId,
                 bTokenAmount,
-                collateralToken.balanceOf(address(this)),
+                collateralBalance(),
                 price,
                 true
             );
@@ -953,7 +974,6 @@ contract MinterAmm is
         );
 
         uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-        uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
 
         // Move bToken into this contract
         bytes memory data;
@@ -972,14 +992,20 @@ contract MinterAmm is
         );
         uint256 wTokenBalance = erc1155Controller.balanceOf(
             address(this),
-            wTokenIndex
+            SeriesLibrary.wTokenIndex(seriesId)
         );
         uint256 closeAmount = Math.min(bTokenBalance, wTokenBalance);
 
         // at this point we know it's worth calling closePosition because
         // the close amount is greater than 0, so let's call it and burn
         // excess option tokens in order to receive collateral tokens
-        seriesController.closePosition(seriesId, closeAmount);
+        // and lock collateral in the WTokenVault
+        lockCollateral(
+            seriesId,
+            seriesController.closePosition(seriesId, closeAmount) -
+                collateralAmount,
+            closeAmount
+        );
 
         // Send the tokens to the seller
         collateralToken.safeTransfer(msg.sender, collateralAmount - tradeFee);
@@ -1035,7 +1061,7 @@ contract MinterAmm is
     function addSeries(uint64 _seriesId) external override {
         require(msg.sender == address(seriesController), "E11");
         // Prevents out of gas error, occuring at 250 series, from locking
-        // in LPs when we cycle over openSeries in _sellOrWithdrawActiveTokens.
+        // in LPs when we cycle over openSeries in _sellActiveTokens.
         // We further lower the limit to 100 series for extra safety.
         require(openSeries.length() <= 100, "Too many open series");
         openSeries.add(_seriesId);
@@ -1078,5 +1104,9 @@ contract MinterAmm is
                 series.isPutOption
             );
         return (pricesStdVega.price, pricesStdVega.stdVega);
+    }
+
+    function collateralBalance() public view override returns (uint256) {
+        return collateralToken.balanceOf(address(this)) - lockedCollateral;
     }
 }

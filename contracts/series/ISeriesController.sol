@@ -224,12 +224,15 @@ interface ISeriesController {
         uint64 _seriesId,
         uint256 _bTokenAmount,
         bool _revertOtm
-    ) external;
+    ) external returns (uint256);
 
-    function claimCollateral(uint64 _seriesId, uint256 _wTokenAmount) external;
+    function claimCollateral(uint64 _seriesId, uint256 _wTokenAmount)
+        external
+        returns (uint256);
 
     function closePosition(uint64 _seriesId, uint256 _optionTokenAmount)
-        external;
+        external
+        returns (uint256);
 
     function createSeries(
         ISeriesController.Tokens calldata _tokens,

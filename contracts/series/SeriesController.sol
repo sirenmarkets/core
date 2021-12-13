@@ -908,7 +908,7 @@ contract SeriesController is
         uint64 _seriesId,
         uint256 _bTokenAmount,
         bool _revertOtm
-    ) external override whenNotPaused nonReentrant {
+    ) external override whenNotPaused nonReentrant returns (uint256) {
         // We support only European style options so we exercise only after expiry, and only using
         // the settlement price set at expiration
         require(state(_seriesId) == SeriesState.EXPIRED, "!Expired");
@@ -971,6 +971,8 @@ contract SeriesController is
             totalSupplies[1],
             collateralAmount
         );
+
+        return collateralAmount;
     }
 
     /// @notice Redeem the wToken for collateral token for the given Series
@@ -982,6 +984,7 @@ contract SeriesController is
         override
         whenNotPaused
         nonReentrant
+        returns (uint256)
     {
         require(state(_seriesId) == SeriesState.EXPIRED, "!Expired");
 
@@ -1036,6 +1039,8 @@ contract SeriesController is
             totalSupplies[1],
             collateralAmount
         );
+
+        return collateralAmount;
     }
 
     /// @notice Close the position and take back collateral for the given Series
@@ -1047,6 +1052,7 @@ contract SeriesController is
         override
         whenNotPaused
         nonReentrant
+        returns (uint256)
     {
         require(state(_seriesId) == SeriesState.OPEN, "!Open");
 
@@ -1111,6 +1117,8 @@ contract SeriesController is
             totalSupplies[1],
             collateralAmount
         );
+
+        return collateralAmount;
     }
 
     /// @notice update the logic contract for this proxy contract

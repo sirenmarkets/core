@@ -556,7 +556,7 @@ contract AmmDataProvider is IAmmDataProvider {
             getTotalPoolValue(
                 includeUnclaimed,
                 amm.getAllSeries(),
-                amm.collateralToken().balanceOf(ammAddress),
+                amm.collateralBalance(),
                 ammAddress,
                 amm.getAllVolatilities()
             );
@@ -582,7 +582,7 @@ contract AmmDataProvider is IAmmDataProvider {
             seriesId,
             ammAddress,
             bTokenAmount,
-            amm.collateralToken().balanceOf(ammAddress),
+            amm.collateralBalance(),
             getPriceForSeries(seriesId, amm.getVolatility(seriesId))
         );
         uint256 tradeFee = amm.calculateFees(
@@ -613,7 +613,7 @@ contract AmmDataProvider is IAmmDataProvider {
             seriesId,
             ammAddress,
             bTokenAmount,
-            amm.collateralToken().balanceOf(ammAddress),
+            amm.collateralBalance(),
             getPriceForSeries(seriesId, amm.getVolatility(seriesId)),
             true
         );
@@ -638,7 +638,7 @@ contract AmmDataProvider is IAmmDataProvider {
                 seriesId,
                 ammAddress,
                 wTokenAmount,
-                amm.collateralToken().balanceOf(ammAddress),
+                amm.collateralBalance(),
                 getPriceForSeries(seriesId, amm.getVolatility(seriesId)),
                 false
             );
@@ -679,7 +679,7 @@ contract AmmDataProvider is IAmmDataProvider {
                 lpTokenSupply,
                 amm.getAllSeries(),
                 ammAddress,
-                amm.collateralToken().balanceOf(ammAddress),
+                amm.collateralBalance(),
                 amm.getAllVolatilities()
             );
     }
