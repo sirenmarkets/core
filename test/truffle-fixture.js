@@ -1,8 +1,8 @@
 const SimpleToken = artifacts.require("SimpleToken")
 const SeriesController = artifacts.require("SeriesController")
 const SeriesVault = artifacts.require("SeriesVault")
+const AddressesProvider = artifacts.require("AddressesProvider")
 const ERC1155Controller = artifacts.require("ERC1155Controller")
-
 const MockPriceOracle = artifacts.require("MockPriceOracle")
 const MinterAmm = artifacts.require("MinterAmm")
 const AmmFactory = artifacts.require("AmmFactory")
@@ -30,4 +30,7 @@ module.exports = async () => {
 
   const ammFactory = await AmmFactory.new()
   AmmFactory.setAsDeployed(ammFactory)
+
+  const addressesProvider = await AddressesProvider.new()
+  AddressesProvider.setAsDeployed(addressesProvider)
 }

@@ -4,13 +4,18 @@ pragma solidity 0.8.0;
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import {IAddressesProvider} from "./IAddressesProvider.sol";
+import "../proxy/Proxiable.sol";
 
 /**
  * @title AddressesProvider contract
  * @dev Main registry of addresses part of or connected to the protocol, including permissioned roles
  * @author Dakra-Mystic
  **/
-contract AddressesProvider is OwnableUpgradeable, IAddressesProvider {
+contract AddressesProvider is
+    IAddressesProvider,
+    Proxiable,
+    OwnableUpgradeable
+{
     mapping(bytes32 => address) private _addresses;
 
     bytes32 private constant PRICE_ORACLE = "PRICE_ORACLE";
@@ -19,6 +24,13 @@ contract AddressesProvider is OwnableUpgradeable, IAddressesProvider {
     bytes32 private constant VOLATILITY_ORACLE = "VOLATILITY_ORACLE";
     bytes32 private constant BLACKSCHOLES = "BLACKSCHOLES";
     bytes32 private constant AIRSWAP_LIGHT = "AIRSWAP_LIGHT";
+
+    ///////////////////// MUTATING FUNCTIONS /////////////////////
+
+    /// @notice Perform inherited contracts' initializations
+    function __AddressessProvider_init() external initializer {
+        __Ownable_init_unchained();
+    }
 
     /**
      * @dev Sets an address for an id replacing the address saved in the addresses map

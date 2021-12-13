@@ -16,8 +16,8 @@ import {
   SirenExchangeContract,
   MockVolatilityPriceOracleInstance,
   MockVolatilityPriceOracleContract,
-  AddressesProviderInstance,
   AddressesProviderContract,
+  AddressesProviderInstance,
   VolatilityOracleContract,
   VolatilityOracleInstance,
   MockVolatilityOracleInstance,
@@ -346,6 +346,7 @@ export async function setupSingletonTestContracts(
   const ammFactoryLogic = await AmmFactory.deployed()
   const ammLogic = await MinterAmm.deployed()
   const erc20Logic = await SimpleToken.deployed()
+  const addressesProviderLogic = await AddressesProvider.deployed()
 
   if (!underlyingToken) {
     underlyingToken = await SimpleToken.new()
@@ -361,8 +362,12 @@ export async function setupSingletonTestContracts(
     await priceToken.initialize("USD Coin", "USDC", 6)
   }
 
-  const deployedAddressesProvider: AddressesProviderInstance =
-    await AddressesProvider.new()
+  const proxyAddressesProvider = await Proxy.new(addressesProviderLogic.address)
+  const deployedAddressesProvider = await AddressesProvider.at(
+    proxyAddressesProvider.address,
+  )
+
+  deployedAddressesProvider.__AddressessProvider_init()
 
   const proxyContract = await Proxy.new(seriesControllerLogic.address)
   const deployedSeriesController = await SeriesController.at(
