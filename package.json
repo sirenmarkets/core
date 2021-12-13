@@ -21,6 +21,7 @@
     "deploy-kovan": "NETWORK=kovan npm run deploy-local",
     "deploy-rinkeby": "NETWORK=rinkeby npm run deploy-local",
     "deploy-mumbai": "NETWORK=mumbai npm run deploy-local",
+    "get-vol-data": "npx hardhat run scripts/util/CalculateTokenVolatility.ts",
     "clean:dependencies": "rm -rf ./node_modules && rm -rf ./*/**/node_modules",
     "clean:dist": "rm -rf ./dist/** && rm -rf ./src/ethers/**",
     "clean": "npx hardhat clean && npm run clean:dist && npm run clean:dependencies",
@@ -83,6 +84,7 @@
     "web3": "^1.3.0"
   },
   "dependencies": {
+    "axios": "^0.24.0",
     "mathjs": "^9.4.5"
   }
 }

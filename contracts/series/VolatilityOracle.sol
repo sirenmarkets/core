@@ -7,9 +7,10 @@ import {Welford} from "../libraries/Welford.sol";
 import {Math} from "../libraries/Math.sol";
 import {PRBMathSD59x18} from "../libraries/PRBMathSD59x18.sol";
 import "./IPriceOracle.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "hardhat/console.sol";
 
-contract VolatilityOracle is DSMath {
+contract VolatilityOracle is DSMath, OwnableUpgradeable {
     using SafeMath for uint256;
 
     IPriceOracle public priceOracleAddress;
@@ -21,6 +22,17 @@ contract VolatilityOracle is DSMath {
     uint256 public immutable windowSize;
     uint256 public immutable annualizationConstant;
     uint256 internal constant commitPhaseDuration = 3600; // 1 hour from every period
+
+    event AccumulatorSet(
+        address underlyingToken,
+        address priceToken,
+        uint8 currentObservationIndex,
+        uint32 lastTimestamp,
+        int96 mean,
+        uint256 dsq
+    );
+
+    event TokenPairAdded(address underlyingToken, address priceToken);
 
     /**
      * Storage
@@ -80,6 +92,8 @@ contract VolatilityOracle is DSMath {
         // For e.g. if period = 1 day = 86400 seconds
         // It would be 31536000/86400 = 365 days.
         annualizationConstant = Math.sqrt(uint256(31536000).div(_period));
+
+        __Ownable_init();
     }
 
     /**
@@ -87,12 +101,15 @@ contract VolatilityOracle is DSMath {
      */
     function addTokenPair(address underlyingToken, address priceToken)
         external
+        onlyOwner
     {
         require(
             observations[underlyingToken][priceToken].length == 0,
             "Pool initialized"
         );
         observations[underlyingToken][priceToken] = new int256[](windowSize);
+
+        emit TokenPairAdded(underlyingToken, priceToken);
     }
 
     /**
@@ -106,7 +123,7 @@ contract VolatilityOracle is DSMath {
 
         (uint32 commitTimestamp, uint32 gapFromPeriod) = secondsFromPeriod();
 
-        // require(gapFromPeriod < commitPhaseDuration, "Not commit phase");
+        require(gapFromPeriod < commitPhaseDuration, "Not commit phase");
 
         uint256 price = IPriceOracle(priceOracleAddress).getCurrentPrice(
             underlyingToken,
@@ -253,5 +270,42 @@ contract VolatilityOracle is DSMath {
             ? size
             : accumulators[underlyingToken][priceToken]
                 .currentObservationIndex + (isInc ? 1 : 0);
+    }
+
+    /**
+     * Sets the Accumulator for a token pair
+     * @param underlyingToken Should be equal to the Series' underlyingToken field
+     * @param priceToken Should be equal to the Series' priceToken field
+     * @param currentObservationIndex Stores the index of next observation
+     * @param lastTimestamp Timestamp of the last record
+     * @param mean Smaller size because prices denominated in USDC, max 7.9e27
+     * @param dsq Stores the dsquared (variance * count)
+     */
+    function setAccumulator(
+        address underlyingToken,
+        address priceToken,
+        uint8 currentObservationIndex,
+        uint32 lastTimestamp,
+        int96 mean,
+        uint256 dsq
+    ) external onlyOwner {
+        //require(accumulators[underlyingToken][priceToken] , "This Token Pair Should exist");
+
+        Accumulator memory newAccumulator = Accumulator({
+            currentObservationIndex: currentObservationIndex,
+            lastTimestamp: lastTimestamp,
+            mean: mean,
+            dsq: dsq
+        });
+        accumulators[underlyingToken][priceToken] = newAccumulator;
+
+        emit AccumulatorSet(
+            underlyingToken,
+            priceToken,
+            currentObservationIndex,
+            lastTimestamp,
+            mean,
+            dsq
+        );
     }
 }

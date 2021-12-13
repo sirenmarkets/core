@@ -1,5 +1,10 @@
 {
-  "include": ["scripts", "test", "typechain"],
+  "include": [
+    "scripts",
+    "test",
+    "typechain",
+    "scripts/util/CalculateTokenVolatility.ts"
+  ],
   "exclude": ["node_modules", "build", "cache", "artifacts"],
   "files": ["./hardhat.config.ts"],
   "compilerOptions": {

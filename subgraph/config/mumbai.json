@@ -9,5 +9,7 @@
   "erc1155ControllerAddress": "0x0c575c519345db3171d58caf2b94eabb190c9c28",
   "erc1155ControllerStartBlock": 17431847,
   "priceOracleAddress": "0xfe3f286f7cb57402fd44596a1170896f32f5a267",
-  "priceOracleStartBlock": 17431847
+  "priceOracleStartBlock": 17431847,
+  "volatilityOracleAddress": "0xb7b4b527718bce195a4404529530daf273bd0c86",
+  "volatilityOracleBlock": 21841278
 }

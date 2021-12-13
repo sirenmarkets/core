@@ -94,19 +94,19 @@ contract("Volatility Factor", (accounts) => {
         "!pool initialize",
       )
 
-      await deployedVolatilityOracle.initPool(
+      await deployedVolatilityOracle.addTokenPair(
         underlyingToken.address,
         priceToken.address,
       )
     })
 
     it("reverts when pool has already been initialized", async function () {
-      await deployedVolatilityOracle.initPool(
+      await deployedVolatilityOracle.addTokenPair(
         underlyingToken.address,
         priceToken.address,
       )
       await expectRevert(
-        deployedVolatilityOracle.initPool(
+        deployedVolatilityOracle.addTokenPair(
           underlyingToken.address,
           priceToken.address,
         ),
@@ -133,7 +133,7 @@ contract("Volatility Factor", (accounts) => {
       const topOfPeriod = (await getTopOfPeriod()) + PERIOD
       await time.increaseTo(topOfPeriod)
 
-      await deployedMockVolatilityOracle.initPool(
+      await deployedMockVolatilityOracle.addTokenPair(
         underlyingToken.address,
         priceToken.address,
       )
@@ -144,7 +144,7 @@ contract("Volatility Factor", (accounts) => {
         const topOfPeriod = (await getTopOfPeriod()) + PERIOD
         await time.increaseTo(topOfPeriod)
         console.log(time)
-        await deployedMockVolatilityOracle.mockCommit(
+        await deployedMockVolatilityOracle.commit(
           underlyingToken.address,
           priceToken.address,
         )
