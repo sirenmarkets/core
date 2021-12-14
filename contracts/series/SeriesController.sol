@@ -19,6 +19,7 @@ import "./IPriceOracle.sol";
 import "../token/IERC20Lib.sol";
 import "../amm/IMinterAmm.sol";
 import "./SeriesLibrary.sol";
+import "./SeriesControllerStorage.sol";
 
 /// @title SeriesController
 /// @notice The SeriesController implements all of the logic for minting and interacting with option tokens
@@ -38,55 +39,13 @@ import "./SeriesLibrary.sol";
 /// on gas deployment costs by storing individual Series structs in an array
 contract SeriesController is
     Initializable,
-    ISeriesController,
+    SeriesControllerStorageV1,
     PausableUpgradeable,
     AccessControlUpgradeable,
     Proxiable
 {
     /** Use safe ERC20 functions for any token transfers since people don't follow the ERC20 standard */
     using SafeERC20 for IERC20;
-
-    /// @dev The price oracle consulted for any price data needed by the individual Series
-    address internal priceOracle;
-
-    /// @dev The address of the SeriesVault that stores all of this SeriesController's tokens
-    address internal vault;
-
-    /// @dev The fees charged for different methods on the SeriesController
-    ISeriesController.Fees internal fees;
-
-    /// @notice Monotonically incrementing index, used when creating Series.
-    uint64 public latestIndex;
-
-    /// @dev The address of the ERC1155Controler that performs minting and burning of option tokens
-    address public override erc1155Controller;
-
-    /// @dev An array of all the Series structs ever created by the SeriesController
-    ISeriesController.Series[] internal allSeries;
-
-    /// @dev Stores the balance of a Series' ERC20 collateralToken
-    /// e.g. seriesBalances[_seriesId] = 1,337,000,000
-    mapping(uint64 => uint256) internal seriesBalances;
-
-    /// @dev Price decimals
-    uint8 public constant override priceDecimals = 8;
-
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
-
-    /// @dev These contract variables, as well as the `nonReentrant` modifier further down below,
-    /// are copied from OpenZeppelin's ReentrancyGuard contract. We chose to copy ReentrancyGuard instead of
-    /// having SeriesController inherit it because we intend use this SeriesController contract to upgrade already-deployed
-    /// SeriesController contracts. If the SeriesController were to inherit from ReentrancyGuard, the ReentrancyGuard's
-    /// contract storage variables would overwrite existing storage variables on the contract and it would
-    /// break the contract. So by manually implementing ReentrancyGuard's logic we have full control over
-    /// the position of the variable in the contract's storage, and we can ensure the SeriesController's contract
-    /// storage variables are only ever appended to. See this OpenZeppelin article about contract upgradeability
-    /// for more info on the contract storage variable requirement:
-    /// https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable#modifying-your-contracts
-    uint256 private constant _NOT_ENTERED = 1;
-    uint256 private constant _ENTERED = 2;
-    uint256 private _status;
 
     ///////////////////// MODIFIER FUNCTIONS /////////////////////
 
@@ -1247,5 +1206,48 @@ contract SeriesController is
                 address(currentSeries.tokens.underlyingToken),
                 address(currentSeries.tokens.priceToken)
             );
+    }
+
+    /// @notice This function allows the owner address to update allowed expirations for the auto series creation feature
+    /// @param timestamps timestamps to update
+    /// @dev Only the owner address should be allowed to call this
+    /// Expirations must be added in ascending order
+    /// Expirations must be aligned 8 AM weekly or daily
+    function updateAllowedExpirations(uint256[] calldata timestamps)
+        public
+        onlyOwner
+    {
+        // Save off the expiration list length as the next expiration ID to be added
+        uint256 nextExpirationID = allowedExpirationsList.length;
+
+        for (uint256 i = 0; i < timestamps.length; i++) {
+            // Verify the next timestamp added is newer than the last one (or list is empty)
+            require(
+                (allowedExpirationsList[nextExpirationID - 1] <
+                    timestamps[i]) || (nextExpirationID == 0),
+                "Out of order"
+            );
+
+            // Ensure the date is aligned
+            require(
+                timestamps[i] ==
+                    IPriceOracle(priceOracle).get8amWeeklyOrDailyAligned(
+                        timestamps[i]
+                    ),
+                "Non aligned"
+            );
+
+            // Update the mapping of ExpirationDate => ExpirationID
+            allowedExpirationsMap[timestamps[i]] = nextExpirationID;
+
+            // Add the expiration to the array, index is ExpirationID and value is ExpirationDate
+            allowedExpirationsList.push(timestamps[i]);
+
+            // Increment the counter
+            nextExpirationID++;
+
+            // Emit the event for the new expiration
+            emit AllowedExpirationUpdated(timestamps[i]);
+        }
     }
 }
