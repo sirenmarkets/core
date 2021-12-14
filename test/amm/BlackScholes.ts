@@ -89,6 +89,59 @@ describe("BlackScholes - values", () => {
         )
       }
     })
+  })
+  describe("optionPrices - spot == strike", async () => {
+    const timeToExp = [
+      // 0,
+      1, 2, 100, 100000, 250000, 500000, 1000000, 9848575333047,
+    ]
+    const spotPrices = [2000, 2100, 2200, 2300, 5000]
+    const strikePrices = [2000, 2100, 2200, 2300, 5000]
+    it("calculates optionPrices with respect to changes in time to expiry, spot, and strike ", async () => {
+      for (const val of timeToExp) {
+        for (const spot of spotPrices) {
+          for (const strike of strikePrices) {
+            const volatility = toBN("1")
+            const spotBN = toBN(spot.toString())
+            const strikeBN = toBN(strike.toString())
+            const rate = toBN("0.1")
+            const result = await deployedBlackScholes.optionPrices(
+              val,
+              volatility.toString(),
+              spotBN.toString(),
+              strikeBN.toString(),
+              rate.toString(),
+            )
+
+            const tAnnualised = val / YEAR_SEC
+            const expectedCall = callPrice(
+              tAnnualised,
+              Number(1),
+              Number(spot),
+              Number(strike),
+              Number(0.1),
+            )
+            const expectedPut = putPrice(
+              tAnnualised,
+              1,
+              Number(spot),
+              Number(strike),
+              0.1,
+            )
+            assertBNEqWithTolerance(
+              toBN(expectedCall.toString()),
+              result[0].toString(),
+              0.3 * 1e18,
+            )
+            assertBNEqWithTolerance(
+              toBN(expectedPut.toString()),
+              result[1].toString(),
+              0.3 * 1e18,
+            )
+          }
+        }
+      }
+    })
     it("calculates somewhat correctly for 0", async () => {
       const volatility = toBN("1")
       const spot = toBN("2000")
@@ -110,6 +163,7 @@ describe("BlackScholes - values", () => {
       )
     })
   })
+  //Add dynamic tests for price ranges
 
   describe("Prices", async () => {
     const defaultTime = 30 * DAY_SEC,

@@ -46,4 +46,6 @@ interface IMinterAmm {
         external
         view
         returns (uint256);
+
+    function updateAddressesProvider(address _addressesProvider) external;
 }

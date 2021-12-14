@@ -150,6 +150,9 @@ contract MinterAmm is
     // Emitted when fees are paid
     event TradeFeesPaid(address indexed feePaidTo, uint256 feeAmount);
 
+    //Emitted when AddressesProvider is updated
+    event AddressesProviderUpdated(address addressesProvider);
+
     // Error codes. We only use error code because we need to reduce the size of this contract's deployed
     // bytecode in order for it to be deployable
 
@@ -254,6 +257,16 @@ contract MinterAmm is
             _sirenPriceOracle,
             address(_seriesController)
         );
+    }
+
+    function updateAddressesProvider(address _addressesProvider)
+        external
+        override
+        onlyOwner
+    {
+        //How do we want to handle when we update the addressProvider that it has the proper contracts set
+        addressesProvider = IAddressesProvider(_addressesProvider);
+        emit AddressesProviderUpdated(_addressesProvider);
     }
 
     /// The owner can set the volatility factor used to price the options

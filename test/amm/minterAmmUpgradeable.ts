@@ -11,6 +11,8 @@ import {
   AmmDataProviderInstance,
   BlackScholesContract,
   AddressesProviderInstance,
+  AddressesProviderContract,
+  ProxyContract,
 } from "../../typechain"
 
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
@@ -28,6 +30,9 @@ let priceToken: SimpleTokenInstance
 let collateralToken: SimpleTokenInstance
 
 const MinterAmm: MinterAmmContract = artifacts.require("MinterAmm")
+
+const AddressesProvider: AddressesProviderContract =
+  artifacts.require("AddressesProvider")
 
 import { setupAllTestContracts, setupAmm } from "../util"
 
@@ -103,6 +108,45 @@ contract("AMM Upgradeability", (accounts) => {
       await upgradedAmm.collateralToken(),
       otherCollateralToken.address,
     )
+  })
+
+  it("should update the addressesProvider Address and be able to call function on upgraded contract", async () => {
+    // create some new ERC20 tokens so we do not create an AMM with the same tokens (which would
+    // cause a revert)
+
+    const otherUnderlyingToken = await SimpleToken.new()
+    await otherUnderlyingToken.initialize("Wrapped BTC", "WBTC", 8)
+    const otherCollateralToken = otherUnderlyingToken
+
+    const { deployedAmm: otherDeployedAmm } = await setupAmm({
+      deployedAmmFactory,
+      deployedPriceOracle,
+      deployedAmmDataProvider,
+      deployedBlackScholes,
+      deployedAddressesProvider,
+      underlyingToken: otherUnderlyingToken,
+      priceToken,
+      collateralToken: otherCollateralToken,
+    })
+
+    const addressesProviderLogic = await AddressesProvider.deployed()
+
+    const Proxy: ProxyContract = artifacts.require("Proxy")
+
+    const proxyAddressesProvider = await Proxy.new(
+      addressesProviderLogic.address,
+    )
+    const deployedAddressesProvider2 = await AddressesProvider.at(
+      proxyAddressesProvider.address,
+    )
+
+    deployedAddressesProvider2.__AddressessProvider_init()
+
+    let ret = await deployedAmm.updateAddressesProvider(
+      deployedAddressesProvider2.address,
+    )
+
+    expectEvent(ret, "AddressesProviderUpdated")
   })
 
   it("should fail to call function when upgrading to a non-MinterAmm implementation contract", async () => {
