@@ -569,10 +569,7 @@ contract SeriesController is
         pure
         returns (string memory)
     {
-        require(
-            dateComponent < 100,
-            "SeriesController: cannot format numbers greater than 99"
-        );
+        require(dateComponent < 100, "Invalid dateComponent");
 
         string memory componentStr = StringsUpgradeable.toString(dateComponent);
         if (dateComponent < 10) {
@@ -599,14 +596,11 @@ contract SeriesController is
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(PAUSER_ROLE, msg.sender);
 
-        require(
-            _priceOracle != address(0x0),
-            "MarketController: Invalid _priceOracle"
-        );
-        require(_vault != address(0x0), "MarketController: Invalid _vault");
+        require(_priceOracle != address(0x0), "Invalid _priceOracle");
+        require(_vault != address(0x0), "Invalid _vault");
         require(
             _erc1155Controller != address(0x0),
-            "MarketController: Invalid _erc1155Controller"
+            "Invalid _erc1155Controller"
         );
 
         // validate fee data
@@ -614,7 +608,7 @@ contract SeriesController is
             _fees.exerciseFeeBasisPoints <= 10000 &&
                 _fees.closeFeeBasisPoints <= 10000 &&
                 _fees.claimFeeBasisPoints <= 10000,
-            "SeriesController: _fees must not be greater than 10000"
+            "Invalid _fees"
         );
 
         // set the state variables
@@ -637,19 +631,13 @@ contract SeriesController is
 
     /// @notice Pauses all non-admin functions
     function pause() external virtual {
-        require(
-            hasRole(PAUSER_ROLE, msg.sender),
-            "SeriesController: must have pauser role to pause"
-        );
+        require(hasRole(PAUSER_ROLE, msg.sender), "Invalid PAUSER_ROLE");
         _pause();
     }
 
     /// @notice Unpauses all non-admin functions
     function unpause() external virtual {
-        require(
-            hasRole(PAUSER_ROLE, msg.sender),
-            "SeriesController: must have pauser role to unpause"
-        );
+        require(hasRole(PAUSER_ROLE, msg.sender), "Invalid PAUSER_ROLE");
         _unpause();
     }
 
@@ -718,37 +706,34 @@ contract SeriesController is
         address[] calldata _restrictedMinters,
         bool _isPutOption
     ) external onlyOwner {
-        require(
-            _strikePrices.length != 0,
-            "SeriesController: _strikePrices length must be nonzero"
-        );
+        require(_strikePrices.length != 0, "Invalid _strikePrices");
 
         require(
             _strikePrices.length == _expirationDates.length,
-            "SeriesController: must have the same number of strike prices and expiration dates"
+            "Invalid Array Len"
         );
 
         // validate token data
         require(
             _tokens.underlyingToken != address(0x0),
-            "SeriesController: Invalid underlyingToken"
+            "Invalid underlyingToken"
         );
         require(_tokens.priceToken != address(0x0), "Invalid priceToken");
         require(
             _tokens.collateralToken != address(0x0),
-            "SeriesController: Invalid collateralToken"
+            "Invalid collateralToken"
         );
 
         // validate that the token data makes sense given whether it's a Put or a Call
         if (_isPutOption) {
             require(
                 _tokens.underlyingToken != _tokens.collateralToken,
-                "SeriesController: Tokens must not match for Put"
+                "Invalid Put Tokens"
             );
         } else {
             require(
                 _tokens.underlyingToken == _tokens.collateralToken,
-                "SeriesController: Tokens must match for Call"
+                "Invalid Call Tokens"
             );
         }
 
@@ -757,10 +742,7 @@ contract SeriesController is
         // mint option tokens for that Series. However, this would not be the case because down in
         // SeriesController.mintOptions we check if the caller has the MINTER_ROLE, and so the original intent
         // of having anyone allowed to mint option tokens for that Series would not be honored.
-        require(
-            _restrictedMinters.length != 0,
-            "SeriesController: Must specify Series' restricted minters"
-        );
+        require(_restrictedMinters.length != 0, "Invalid _restrictedMinters");
 
         // add the privileged minters if they haven't already been added
         for (uint256 i = 0; i < _restrictedMinters.length; i++) {
@@ -828,20 +810,14 @@ contract SeriesController is
         uint256 _strikePrice
     ) private view returns (Series memory) {
         // validate price and expiration
-        require(
-            _strikePrice != 0,
-            "SeriesController: strikePrice cannot equal 0"
-        );
-        require(
-            _expirationDate > block.timestamp,
-            "SeriesController: _expirationDate must be in the future"
-        );
+        require(_strikePrice != 0, "Invalid _strikePrice");
+        require(_expirationDate > block.timestamp, "Invalid _expirationDate");
         require(
             _expirationDate ==
                 IPriceOracle(priceOracle).get8amWeeklyOrDailyAligned(
                     _expirationDate
                 ),
-            "SeriesController: _expirationDate must be aligned to Friday 8am UTC"
+            "Nonaligned"
         );
 
         return
@@ -865,21 +841,12 @@ contract SeriesController is
     {
         // NOTE: this assumes that values in the allSeries array are never removed,
         // which is fine because there's currently no way to remove Series
-        require(
-            allSeries.length > _seriesId,
-            "SeriesController: Series at this _seriesId does not exist"
-        );
+        require(allSeries.length > _seriesId, "Invalid _seriesId");
 
-        require(
-            state(_seriesId) == SeriesState.OPEN,
-            "SeriesController: Option contract must be in Open State to mint"
-        );
+        require(state(_seriesId) == SeriesState.OPEN, "Series Not Open");
 
         // Is the caller one of the AMM pools, which are the only addresses with the MINTER_ROLE?
-        require(
-            hasRole(MINTER_ROLE, msg.sender),
-            "SeriesController: caller must have MINTER_ROLE"
-        );
+        require(hasRole(MINTER_ROLE, msg.sender), "Not Minter Role");
 
         uint256 wIndex = SeriesLibrary.wTokenIndex(_seriesId);
         uint256 bIndex = SeriesLibrary.bTokenIndex(_seriesId);
@@ -935,10 +902,7 @@ contract SeriesController is
     ) external override whenNotPaused nonReentrant {
         // We support only European style options so we exercise only after expiry, and only using
         // the settlement price set at expiration
-        require(
-            state(_seriesId) == SeriesState.EXPIRED,
-            "SeriesController: Option contract must be in EXPIRED State to exercise"
-        );
+        require(state(_seriesId) == SeriesState.EXPIRED, "Series Not Expired");
 
         // Save off the caller
         address redeemer = msg.sender;
@@ -953,10 +917,7 @@ contract SeriesController is
         );
 
         // Only ITM exercise results in payoff
-        require(
-            !_revertOtm || collateralAmount > 0,
-            "Only in-the-money options can be exercised"
-        );
+        require(!_revertOtm || collateralAmount > 0, "Not ITM");
 
         Series memory currentSeries = allSeries[_seriesId];
 
@@ -1013,10 +974,7 @@ contract SeriesController is
         whenNotPaused
         nonReentrant
     {
-        require(
-            state(_seriesId) == SeriesState.EXPIRED,
-            "SeriesController: Option contract must be in EXPIRED State to claim collateral"
-        );
+        require(state(_seriesId) == SeriesState.EXPIRED, "Series Not Expired");
 
         // Save off the caller
         address redeemer = msg.sender;
@@ -1081,10 +1039,7 @@ contract SeriesController is
         whenNotPaused
         nonReentrant
     {
-        require(
-            state(_seriesId) == SeriesState.OPEN,
-            "SeriesController: Option contract must be in Open State to close a position"
-        );
+        require(state(_seriesId) == SeriesState.OPEN, "Series Not Open");
 
         // Save off the caller
         address redeemer = msg.sender;
@@ -1163,10 +1118,7 @@ contract SeriesController is
     /// @param _newAdmin the address of the new DEFAULT_ADMIN_ROLE and PAUSER_ROLE holder
     /// @dev only the admin address may call this function
     function transferOwnership(address _newAdmin) external onlyOwner {
-        require(
-            _newAdmin != msg.sender,
-            "SeriesController: cannot transfer ownership to existing owner"
-        );
+        require(_newAdmin != msg.sender, "Invalid Owner");
 
         // first make _newAdmin the a pauser
         grantRole(PAUSER_ROLE, _newAdmin);
@@ -1187,10 +1139,7 @@ contract SeriesController is
     /// @dev This means the new price oracle must have settlement prices set such that all
     /// existing Series can get their settlement price
     function setPriceOracle(address _priceOracle) external onlyOwner {
-        require(
-            _priceOracle != address(0x0),
-            "SeriesController: _priceOracle cannot be 0x0 address"
-        );
+        require(_priceOracle != address(0x0), "Invalid Address");
 
         priceOracle = _priceOracle;
     }
@@ -1221,11 +1170,12 @@ contract SeriesController is
         uint256 nextExpirationID = allowedExpirationsList.length;
 
         for (uint256 i = 0; i < timestamps.length; i++) {
-            // Verify the next timestamp added is newer than the last one (or list is empty)
+            // Verify the next timestamp added is newer than the last one (empty should return 0)
             require(
-                (allowedExpirationsList[nextExpirationID - 1] <
-                    timestamps[i]) || (nextExpirationID == 0),
-                "Out of order"
+                (nextExpirationID == 0) ||
+                    (allowedExpirationsList[nextExpirationID - 1] <
+                        timestamps[i]),
+                "Order!"
             );
 
             // Ensure the date is aligned
@@ -1234,7 +1184,7 @@ contract SeriesController is
                     IPriceOracle(priceOracle).get8amWeeklyOrDailyAligned(
                         timestamps[i]
                     ),
-                "Non aligned"
+                "Nonaligned"
             );
 
             // Update the mapping of ExpirationDate => ExpirationID

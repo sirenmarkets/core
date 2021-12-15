@@ -471,7 +471,7 @@ contract("Cash Settlement", (accounts) => {
     )
     await expectRevert(
       deployedSeriesController.claimCollateral(seriesId, MINT_AMOUNT),
-      "Option contract must be in EXPIRED State to claim collateral",
+      "Series Not Expired",
     )
 
     // Move the block time into the future so the contract is expired

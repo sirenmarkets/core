@@ -46,13 +46,10 @@ const STATE_EXPIRED = 1
 
 const ERROR_MESSAGES = {
   CANNOT_EXERCISE_EXPIRED: "Option contract must be in Open State to exercise",
-  CANNOT_EXERCISE_PRIOR_EXERCISE_WINDOW:
-    "Option contract must be in EXPIRED State to exercise",
-  CANNOT_CLAIM_OPEN:
-    "Option contract must be in EXPIRED State to claim collateral",
-  CANNOT_CLOSE_EXPIRED:
-    "Option contract must be in Open State to close a position",
-  CANNOT_MINT_NOT_OPEN: "Option contract must be in Open State to mint",
+  CANNOT_EXERCISE_PRIOR_EXERCISE_WINDOW: "Series Not Expired",
+  CANNOT_CLAIM_OPEN: "Series Not Expired",
+  CANNOT_CLOSE_EXPIRED: "Series Not Open",
+  CANNOT_MINT_NOT_OPEN: "Series Not Open",
   NOT_ENOUGH_BALANCE: "ERC20: transfer amount exceeds balance",
   NOT_APPROVED_BALANCE: "ERC20: transfer amount exceeds allowance",
   NON_MINTER: "mintOptions: only restrictedMinter can mint",
@@ -449,7 +446,7 @@ contract("Proxy Series Verification", (accounts) => {
         [],
         isPutOption,
       ),
-      "SeriesController: Must specify Series' restricted minters",
+      "Invalid _restrictedMinters",
     )
   })
 
@@ -507,13 +504,13 @@ contract("Proxy Series Verification", (accounts) => {
       deployedSeriesController.mintOptions(1337, MINT_AMOUNT, {
         from: aliceAccount,
       }),
-      "SeriesController: Series at this _seriesId does not exist",
+      "Invalid _seriesId",
     )
 
     // It should fail to mint when minter is not one of the restricted minters
     await expectRevert(
       deployedSeriesController.mintOptions(seriesId, MINT_AMOUNT),
-      "SeriesController: caller must have MINTER_ROLE",
+      "Not Minter Role",
     )
 
     // It should succeed
