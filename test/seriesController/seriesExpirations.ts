@@ -23,31 +23,33 @@ contract("Series Expirations", (accounts) => {
     ;({ deployedSeriesController, expiration } =
       await setupSingletonTestContracts())
 
+    const date1 = getNextFriday8amUTCTimestamp(expiration + 1000)
+
     // Verify ownership check
     await expectRevert(
-      deployedSeriesController.updateAllowedExpirations([expiration], {
+      deployedSeriesController.updateAllowedExpirations([date1], {
         from: aliceAccount,
       }),
       "SeriesController: Caller is not the owner",
     )
 
     // Verify setting an expiration works from owner acct
-    await deployedSeriesController.updateAllowedExpirations([expiration])
+    await deployedSeriesController.updateAllowedExpirations([date1])
 
     // Verify adding the same one doesn't work since it is not greater than the last
     await expectRevert(
-      deployedSeriesController.updateAllowedExpirations([expiration]),
+      deployedSeriesController.updateAllowedExpirations([date1]),
       "Order!",
     )
 
     // Verify adding a later non-aligned (not 8 AM) gets rejected
     await expectRevert(
-      deployedSeriesController.updateAllowedExpirations([expiration + 500]),
+      deployedSeriesController.updateAllowedExpirations([date1 + 500]),
       "Nonaligned",
     )
 
     // Add a second and third one
-    const date2 = getNextFriday8amUTCTimestamp(expiration + 1000)
+    const date2 = getNextFriday8amUTCTimestamp(date1 + 1000)
     const date3 = getNextFriday8amUTCTimestamp(date2 + 1000)
     let ret = await deployedSeriesController.updateAllowedExpirations([
       date2,
@@ -65,32 +67,43 @@ contract("Series Expirations", (accounts) => {
     // Verify the list and map are updated
     assertBNEq(
       await deployedSeriesController.allowedExpirationsMap(expiration),
-      0,
-      "map should be set",
-    )
-    assertBNEq(
-      await deployedSeriesController.allowedExpirationsMap(date2),
       1,
       "map should be set",
     )
     assertBNEq(
-      await deployedSeriesController.allowedExpirationsMap(date3),
+      await deployedSeriesController.allowedExpirationsMap(date1),
       2,
+      "map should be set",
+    )
+    assertBNEq(
+      await deployedSeriesController.allowedExpirationsMap(date2),
+      3,
+      "map should be set",
+    )
+    assertBNEq(
+      await deployedSeriesController.allowedExpirationsMap(date3),
+      4,
       "map should be set",
     )
 
     assertBNEq(
-      await deployedSeriesController.allowedExpirationsList(0),
+      await deployedSeriesController.allowedExpirationsList(1),
       expiration,
       "list should be set",
     )
+
     assertBNEq(
-      await deployedSeriesController.allowedExpirationsList(1),
+      await deployedSeriesController.allowedExpirationsList(2),
+      date1,
+      "list should be set",
+    )
+    assertBNEq(
+      await deployedSeriesController.allowedExpirationsList(3),
       date2,
       "list should be set",
     )
     assertBNEq(
-      await deployedSeriesController.allowedExpirationsList(2),
+      await deployedSeriesController.allowedExpirationsList(4),
       date3,
       "list should be set",
     )

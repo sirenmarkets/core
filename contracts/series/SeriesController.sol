@@ -812,12 +812,11 @@ contract SeriesController is
         // validate price and expiration
         require(_strikePrice != 0, "Invalid _strikePrice");
         require(_expirationDate > block.timestamp, "Invalid _expirationDate");
+
+        // Validate the expiration has been added to the list by the owner
         require(
-            _expirationDate ==
-                IPriceOracle(priceOracle).get8amWeeklyOrDailyAligned(
-                    _expirationDate
-                ),
-            "Nonaligned"
+            allowedExpirationsMap[_expirationDate] > 0,
+            "_expirationDate not set"
         );
 
         return
@@ -1169,12 +1168,16 @@ contract SeriesController is
         // Save off the expiration list length as the next expiration ID to be added
         uint256 nextExpirationID = allowedExpirationsList.length;
 
+        // First time through, increment counter since we don't want to allow an ID of 0
+        if (nextExpirationID == 0) {
+            allowedExpirationsList.push(0);
+            nextExpirationID++;
+        }
+
         for (uint256 i = 0; i < timestamps.length; i++) {
             // Verify the next timestamp added is newer than the last one (empty should return 0)
             require(
-                (nextExpirationID == 0) ||
-                    (allowedExpirationsList[nextExpirationID - 1] <
-                        timestamps[i]),
+                (allowedExpirationsList[nextExpirationID - 1] < timestamps[i]),
                 "Order!"
             );
 

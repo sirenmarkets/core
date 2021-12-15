@@ -139,6 +139,9 @@ contract("Minter AMM Remove expired series", (accounts) => {
   it("3 open series 2 expired series", async () => {
     // 3 series will have expiry of 32 days and 2 series will have expiry of 30 days
 
+    // Add the expirations
+    await deployedSeriesController.updateAllowedExpirations([expirationLong])
+
     const STRIKE_PRICE_2 = 15001 * 1e8
     const STRIKE_PRICE_3 = 15002 * 1e8
     const STRIKE_PRICE_4 = 15003 * 1e8
@@ -226,6 +229,9 @@ contract("Minter AMM Remove expired series", (accounts) => {
   it("1 open & 1 series expired(last one added to the open series)", async () => {
     const STRIKE_PRICE_2 = 15001 * 1e8
 
+    // Add the new expirations
+    await deployedSeriesController.updateAllowedExpirations([expirationLong])
+
     let ret = await deployedSeriesController.createSeries(
       {
         underlyingToken: collateralToken.address,
@@ -309,6 +315,9 @@ contract("Minter AMM Remove expired series", (accounts) => {
         skipCreateSeries: true,
       }))
       expirationLong = expiration + ONE_WEEK_DURATION
+
+      // Add the expirations
+      await deployedSeriesController.updateAllowedExpirations([expirationLong])
 
       let numClosedSeries = 0
 
