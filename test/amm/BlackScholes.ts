@@ -95,53 +95,62 @@ describe("BlackScholes - values", () => {
       // 0,
       1, 2, 100, 100000, 250000, 500000, 1000000, 9848575333047,
     ]
-    const spotPrices = [2000, 2100, 2200, 2300, 5000]
-    const strikePrices = [2000, 2100, 2200, 2300, 5000]
+    //We loop a lot here so I needed to expand our time frame for the promise
+    const spotPrices = [2000, 2100, 2200, 5000, 42999, 100000]
+    const strikePrices = [2000, 2100, 2200, 5000, 42999, 100000]
+    const volatilities = [0.1, 0.5, 1, 2.5, 3]
     it("calculates optionPrices with respect to changes in time to expiry, spot, and strike ", async () => {
-      for (const val of timeToExp) {
+      for (const time of timeToExp) {
         for (const spot of spotPrices) {
           for (const strike of strikePrices) {
-            const volatility = toBN("1")
-            const spotBN = toBN(spot.toString())
-            const strikeBN = toBN(strike.toString())
-            const rate = toBN("0.1")
-            const result = await deployedBlackScholes.optionPrices(
-              val,
-              volatility.toString(),
-              spotBN.toString(),
-              strikeBN.toString(),
-              rate.toString(),
-            )
+            for (const vol of volatilities) {
+              const volatilityBN = toBN(vol.toString())
+              const spotBN = toBN(spot.toString())
+              const strikeBN = toBN(strike.toString())
+              const rate = toBN("0.1")
+              const result = await deployedBlackScholes.optionPrices(
+                time,
+                volatilityBN.toString(),
+                spotBN.toString(),
+                strikeBN.toString(),
+                rate.toString(),
+              )
 
-            const tAnnualised = val / YEAR_SEC
-            const expectedCall = callPrice(
-              tAnnualised,
-              Number(1),
-              Number(spot),
-              Number(strike),
-              Number(0.1),
-            )
-            const expectedPut = putPrice(
-              tAnnualised,
-              1,
-              Number(spot),
-              Number(strike),
-              0.1,
-            )
-            assertBNEqWithTolerance(
-              toBN(expectedCall.toString()),
-              result[0].toString(),
-              0.3 * 1e18,
-            )
-            assertBNEqWithTolerance(
-              toBN(expectedPut.toString()),
-              result[1].toString(),
-              0.3 * 1e18,
-            )
+              const tAnnualised = time / YEAR_SEC
+              const expectedCall =
+                callPrice(
+                  tAnnualised,
+                  Number(vol),
+                  Number(spot),
+                  Number(strike),
+                  Number(0.1),
+                ) / spot
+              const expectedPut =
+                putPrice(
+                  tAnnualised,
+                  Number(vol),
+                  Number(spot),
+                  Number(strike),
+                  0.1,
+                ) / spot
+              let bnSpot: BN = web3.utils.toBN(spot)
+              let callResult = result[0].div(bnSpot)
+              let putResult = result[1].div(bnSpot)
+              assertBNEqWithTolerance(
+                toBN(expectedCall.toString()),
+                callResult.toString(),
+                0.001 * 1e18,
+              )
+              assertBNEqWithTolerance(
+                toBN(expectedPut.toString()),
+                putResult.toString(),
+                0.001 * 1e18,
+              )
+            }
           }
         }
       }
-    })
+    }).timeout(100000)
     it("calculates somewhat correctly for 0", async () => {
       const volatility = toBN("1")
       const spot = toBN("2000")
