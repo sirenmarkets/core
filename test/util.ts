@@ -456,6 +456,9 @@ export async function setupSingletonTestContracts(
       },
     )
 
+  // Add the expiration as valid to the series controller
+  await deployedSeriesController.updateAllowedExpirations([expiration])
+
   const deployedMockVolatilityPriceOracle =
     await setupMockVolatilityPriceOracle(
       underlyingToken.address,
@@ -705,6 +708,15 @@ export async function setupSeries({
   isPutOption = false,
   strikePrice = (10_000e8).toString(),
 }) {
+  // Verify the expiration is added
+  let expirationId: number
+  expirationId = await deployedSeriesController.allowedExpirationsMap(
+    expiration,
+  )
+  if (expirationId == 0) {
+    await deployedSeriesController.updateAllowedExpirations([expiration])
+  }
+
   const createSeriesResp = await deployedSeriesController.createSeries(
     {
       underlyingToken: underlyingToken.address,
