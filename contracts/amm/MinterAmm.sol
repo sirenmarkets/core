@@ -8,7 +8,6 @@ import "../libraries/Math.sol";
 import "../proxy/Proxiable.sol";
 import "../proxy/Proxy.sol";
 import "./IAmmDataProvider.sol";
-import "./IMinterAmm.sol";
 import "../series/IPriceOracle.sol";
 import "../swap/ILight.sol";
 import "../token/IERC20Lib.sol";
@@ -74,8 +73,7 @@ contract MinterAmm is
     Proxiable,
     ERC1155HolderUpgradeable,
     OwnableUpgradeable,
-    MinterAmmStorageV2,
-    IMinterAmm
+    MinterAmmStorageV2
 {
     /// @dev NOTE: No local variables should be added here.  Instead see MinterAmmStorageV*.sol
 
@@ -171,6 +169,7 @@ contract MinterAmm is
     // E14: Invalid _newAmmDataProvider
     // E15: Invalid _ammDataProvider
     // E16: Invalid lightAirswapAddress
+    // E17: Option price is 0
 
     /// @dev Prevents a contract from calling itself, directly or indirectly.
     /// Calling a `nonReentrant` function from another `nonReentrant`
@@ -821,6 +820,8 @@ contract MinterAmm is
                 seriesId,
                 underlyingPrice
             );
+            require(price > 0, "E17");
+
             collateralAmount = getAmmDataProvider().bTokenGetCollateralIn(
                 seriesId,
                 address(this),
@@ -943,6 +944,7 @@ contract MinterAmm is
                 seriesId,
                 underlyingPrice
             );
+            require(price > 0, "E17");
 
             collateralAmount = optionTokenGetCollateralOutInternal(
                 seriesId,

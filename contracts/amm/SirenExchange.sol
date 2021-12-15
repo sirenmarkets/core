@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity >=0.5.0 <=0.8.0;
 import "../amm/IMinterAmm.sol";
-import "../amm/MinterAmmStorage.sol";
 import "../amm/IAmmDataProvider.sol";
 import "../series/SeriesLibrary.sol";
 import "../series/ISeriesController.sol";
@@ -89,7 +88,7 @@ contract SirenExchange is ERC1155Holder, ReentrancyGuard {
     ) external nonReentrant returns (uint256[] memory amounts) {
         require(
             path[path.length - 1] ==
-                address(MinterAmmStorageV2(sirenAmmAddress).collateralToken()),
+                address(IMinterAmm(sirenAmmAddress).collateralToken()),
             "SirenExchange: Path does not route to collateral Token"
         );
 
@@ -179,8 +178,7 @@ contract SirenExchange is ERC1155Holder, ReentrancyGuard {
         address _router
     ) external nonReentrant returns (uint256[] memory amounts) {
         require(
-            path[0] ==
-                address(MinterAmmStorageV2(sirenAmmAddress).collateralToken()),
+            path[0] == address(IMinterAmm(sirenAmmAddress).collateralToken()),
             "SirenExchange: Path does not begin at collateral Token"
         );
 
@@ -269,8 +267,7 @@ contract SirenExchange is ERC1155Holder, ReentrancyGuard {
         address _router
     ) external nonReentrant returns (uint256[] memory amounts) {
         require(
-            path[0] ==
-                address(MinterAmmStorageV2(sirenAmmAddress).collateralToken()),
+            path[0] == address(IMinterAmm(sirenAmmAddress).collateralToken()),
             "SirenExchange: Path does not begin at collateral Token"
         );
 

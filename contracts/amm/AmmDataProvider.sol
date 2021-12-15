@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "./IAmmDataProvider.sol";
 import "./IMinterAmm.sol";
-import "./MinterAmmStorage.sol";
 import "../token/IERC20Lib.sol";
 import "../series/ISeriesController.sol";
 import "../series/IPriceOracle.sol";
@@ -557,13 +556,12 @@ contract AmmDataProvider is IAmmDataProvider {
         returns (uint256)
     {
         IMinterAmm amm = IMinterAmm(ammAddress);
-        MinterAmmStorageV2 ammStorage = MinterAmmStorageV2(ammAddress);
 
         return
             getTotalPoolValue(
                 includeUnclaimed,
                 amm.getAllSeries(),
-                ammStorage.collateralToken().balanceOf(ammAddress),
+                amm.collateralToken().balanceOf(ammAddress),
                 ammAddress,
                 amm.getAllVolatilities()
             );
@@ -584,13 +582,12 @@ contract AmmDataProvider is IAmmDataProvider {
         uint256 bTokenAmount
     ) external view override returns (uint256) {
         IMinterAmm amm = IMinterAmm(ammAddress);
-        MinterAmmStorageV2 ammStorage = MinterAmmStorageV2(ammAddress);
 
         uint256 collateralWithoutFees = bTokenGetCollateralIn(
             seriesId,
             ammAddress,
             bTokenAmount,
-            ammStorage.collateralToken().balanceOf(ammAddress),
+            amm.collateralToken().balanceOf(ammAddress),
             getPriceForSeries(seriesId, amm.getVolatility(seriesId))
         );
         uint256 tradeFee = amm.calculateFees(
@@ -616,13 +613,12 @@ contract AmmDataProvider is IAmmDataProvider {
         uint256 bTokenAmount
     ) external view override returns (uint256) {
         IMinterAmm amm = IMinterAmm(ammAddress);
-        MinterAmmStorageV2 ammStorage = MinterAmmStorageV2(ammAddress);
 
         uint256 collateralWithoutFees = optionTokenGetCollateralOut(
             seriesId,
             ammAddress,
             bTokenAmount,
-            ammStorage.collateralToken().balanceOf(ammAddress),
+            amm.collateralToken().balanceOf(ammAddress),
             getPriceForSeries(seriesId, amm.getVolatility(seriesId)),
             true
         );
@@ -641,14 +637,13 @@ contract AmmDataProvider is IAmmDataProvider {
         uint256 wTokenAmount
     ) external view override returns (uint256) {
         IMinterAmm amm = IMinterAmm(ammAddress);
-        MinterAmmStorageV2 ammStorage = MinterAmmStorageV2(ammAddress);
 
         return
             optionTokenGetCollateralOut(
                 seriesId,
                 ammAddress,
                 wTokenAmount,
-                ammStorage.collateralToken().balanceOf(ammAddress),
+                amm.collateralToken().balanceOf(ammAddress),
                 getPriceForSeries(seriesId, amm.getVolatility(seriesId)),
                 false
             );
@@ -680,10 +675,8 @@ contract AmmDataProvider is IAmmDataProvider {
         uint256 lpTokenAmount
     ) external view override returns (uint256) {
         IMinterAmm amm = IMinterAmm(ammAddress);
-        MinterAmmStorageV2 ammStorage = MinterAmmStorageV2(ammAddress);
 
-        uint256 lpTokenSupply = IERC20Lib(address(ammStorage.lpToken()))
-            .totalSupply();
+        uint256 lpTokenSupply = IERC20Lib(address(amm.lpToken())).totalSupply();
 
         return
             getOptionTokensSaleValue(
@@ -691,7 +684,7 @@ contract AmmDataProvider is IAmmDataProvider {
                 lpTokenSupply,
                 amm.getAllSeries(),
                 ammAddress,
-                ammStorage.collateralToken().balanceOf(ammAddress),
+                amm.collateralToken().balanceOf(ammAddress),
                 amm.getAllVolatilities()
             );
     }

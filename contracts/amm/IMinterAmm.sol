@@ -1,10 +1,19 @@
 pragma solidity 0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../token/ISimpleToken.sol";
 import "../series/ISeriesController.sol";
 import "../configuration/IAddressesProvider.sol";
 
 interface IMinterAmm {
+    function lpToken() external view returns (ISimpleToken);
+
+    function underlyingToken() external view returns (IERC20);
+
+    function priceToken() external view returns (IERC20);
+
+    function collateralToken() external view returns (IERC20);
+
     function initialize(
         ISeriesController _seriesController,
         address _priceOracle,

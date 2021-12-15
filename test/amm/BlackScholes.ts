@@ -50,101 +50,70 @@ describe("BlackScholes - values", () => {
   describe("optionPrices - spot == strike", async () => {
     const timeToExp = [
       // 0,
-      1, 2, 100, 100000, 250000, 500000, 1000000, 9848575333047,
-    ]
-    it("calculates optionPrices with respect to changes in time to expiry", async () => {
-      for (const val of timeToExp) {
-        const volatility = toBN("1")
-        const spot = toBN("2000")
-        const strike = toBN("2000")
-        const rate = toBN("0.1")
-
-        const result = await deployedBlackScholes.optionPrices(
-          val,
-          volatility.toString(),
-          spot.toString(),
-          strike.toString(),
-          rate.toString(),
-        )
-
-        const tAnnualised = val / YEAR_SEC
-        const expectedCall = callPrice(
-          tAnnualised,
-          Number(1),
-          Number(2000),
-          Number(2000),
-          Number(0.1),
-        )
-        const expectedPut = putPrice(tAnnualised, 1, 2000, 2000, 0.1)
-
-        assertBNEqWithTolerance(
-          toBN(expectedCall.toString()),
-          result[0].toString(),
-          TOLERANCE_LEVEL,
-        )
-        assertBNEqWithTolerance(
-          toBN(expectedPut.toString()),
-          result[1].toString(),
-          TOLERANCE_LEVEL,
-        )
-      }
-    })
-  })
-  describe("optionPrices - spot == strike", async () => {
-    const timeToExp = [
-      // 0,
-      1, 2, 100, 100000, 250000, 500000, 1000000, 9848575333047,
+      1,
+      100,
+      100000,
+      1000000,
+      31556952,
+      2 * 31556952,
     ]
     //We loop a lot here so I needed to expand our time frame for the promise
-    const spotPrices = [2000, 2100, 2200, 5000, 42999, 100000]
-    const strikePrices = [2000, 2100, 2200, 5000, 42999, 100000]
+    const spotPrices = [0.1, 1.1, 200, 5000, 42999, 100000]
+    const strikeRatios = [0.1, 0.5, 1, 2, 5]
     const volatilities = [0.1, 0.5, 1, 2.5, 3]
+
     it("calculates optionPrices with respect to changes in time to expiry, spot, and strike ", async () => {
       for (const time of timeToExp) {
         for (const spot of spotPrices) {
-          for (const strike of strikePrices) {
+          for (const strikeRatio of strikeRatios) {
             for (const vol of volatilities) {
+              const strike = spot * strikeRatio
+              const rate = 0
+
               const volatilityBN = toBN(vol.toString())
               const spotBN = toBN(spot.toString())
               const strikeBN = toBN(strike.toString())
-              const rate = toBN("0.1")
+              const rateBN = toBN(rate.toString())
+
               const result = await deployedBlackScholes.optionPrices(
                 time,
                 volatilityBN.toString(),
                 spotBN.toString(),
                 strikeBN.toString(),
-                rate.toString(),
+                rateBN.toString(),
               )
 
               const tAnnualised = time / YEAR_SEC
               const expectedCall =
-                callPrice(
-                  tAnnualised,
-                  Number(vol),
-                  Number(spot),
-                  Number(strike),
-                  Number(0.1),
-                ) / spot
+                callPrice(tAnnualised, vol, spot, strike, rate) / spot
               const expectedPut =
-                putPrice(
-                  tAnnualised,
-                  Number(vol),
-                  Number(spot),
-                  Number(strike),
-                  0.1,
-                ) / spot
-              let bnSpot: BN = web3.utils.toBN(spot)
-              let callResult = result[0].div(bnSpot)
-              let putResult = result[1].div(bnSpot)
+                putPrice(tAnnualised, vol, spot, strike, rate) / spot
+
+              let callResult = BigNumber.from(result[0].toString())
+                .mul((1e18).toString())
+                .div(spotBN)
+              let putResult = BigNumber.from(result[1].toString())
+                .mul((1e18).toString())
+                .div(spotBN)
+
+              // console.log('time', time)
+              // console.log('spot', spot)
+              // console.log('strike', strike)
+              // console.log('callResult', callResult.toString())
+              // console.log('expectedCall', toBN(expectedCall.toString()).toString())
+              // console.log('')
+
+              const tolerance = 0.0001e18
+
               assertBNEqWithTolerance(
                 toBN(expectedCall.toString()),
-                callResult.toString(),
-                0.001 * 1e18,
+                callResult,
+                tolerance,
               )
               assertBNEqWithTolerance(
                 toBN(expectedPut.toString()),
-                putResult.toString(),
-                0.001 * 1e18,
+                putResult,
+                tolerance,
               )
             }
           }
