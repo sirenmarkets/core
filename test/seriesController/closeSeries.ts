@@ -121,7 +121,7 @@ contract("SeriesController close", (accounts) => {
 
     await expectRevert(
       deployedSeriesController.closePosition(seriesId, MINT_AMOUNT),
-      "SeriesController: Option contract must be in Open State to close a position",
+      "Series Not Open",
     )
   })
 
