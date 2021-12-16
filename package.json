@@ -25,7 +25,8 @@
     "clean:dependencies": "rm -rf ./node_modules && rm -rf ./*/**/node_modules",
     "clean:dist": "rm -rf ./dist/** && rm -rf ./src/ethers/**",
     "clean": "npx hardhat clean && npm run clean:dist && npm run clean:dependencies",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "storage-layout": "npx hardhat run ./scripts/storage_layout.ts"
   },
   "peerDependencies": {
     "ethers": ">5.0.0"
@@ -64,6 +65,7 @@
     "hardhat-contract-sizer": "^2.0.3",
     "hardhat-log-remover": "^2.0.0",
     "hardhat-preprocessor": "^0.1.2",
+    "hardhat-storage-layout": "^0.1.6",
     "husky": "^7.0.1",
     "prettier": "^2.3.2",
     "prettier-plugin-solidity": "^1.0.0-beta.17",
