@@ -39,10 +39,10 @@ import "./SeriesControllerStorage.sol";
 /// on gas deployment costs by storing individual Series structs in an array
 contract SeriesController is
     Initializable,
-    SeriesControllerStorageV2,
     PausableUpgradeable,
     AccessControlUpgradeable,
-    Proxiable
+    Proxiable,
+    SeriesControllerStorageV2
 {
     /** Use safe ERC20 functions for any token transfers since people don't follow the ERC20 standard */
     using SafeERC20 for IERC20;
