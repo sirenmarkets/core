@@ -27,9 +27,9 @@ const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
 
 const wbtcDecimals = 8
 /**
- * Testing MinterAmm volatility factor updates
+ * Testing MinterAmm volatility oracle updates
  */
-contract("Volatility Factor", (accounts) => {
+contract("Volatility Oracle", (accounts) => {
   let deployedMockVolatilityPriceOracle: MockVolatilityPriceOracleInstance
   let priceToken: SimpleTokenInstance
   let underlyingToken: SimpleTokenInstance

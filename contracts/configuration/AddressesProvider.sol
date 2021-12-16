@@ -32,6 +32,20 @@ contract AddressesProvider is
         __Ownable_init_unchained();
     }
 
+    /// @notice update the logic contract for this proxy contract
+    /// @param _newImplementation the address of the new AddressesProvider implementation
+    /// @dev only the admin address may call this function
+    function updateImplementation(address _newImplementation)
+        external
+        onlyOwner
+    {
+        require(
+            _newImplementation != address(0x0),
+            "Invalid _newImplementation address"
+        );
+        _updateCodeAddress(_newImplementation);
+    }
+
     /**
      * @dev Sets an address for an id replacing the address saved in the addresses map
      * IMPORTANT Use this function carefully, as it will do a hard replacement

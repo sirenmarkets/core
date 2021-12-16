@@ -17,20 +17,17 @@ import "../configuration/IAddressesProvider.sol";
 contract AmmDataProvider is IAmmDataProvider {
     ISeriesController public seriesController;
     IERC1155 public erc1155Controller;
-    IPriceOracle public priceOracle;
     IAddressesProvider public addressesProvider;
 
     event AmmDataProviderCreated(
         ISeriesController seriesController,
         IERC1155 erc1155Controller,
-        IPriceOracle priceOracle,
         IAddressesProvider addressesProvider
     );
 
     constructor(
         ISeriesController _seriesController,
         IERC1155 _erc1155Controller,
-        IPriceOracle _priceOracle,
         IAddressesProvider _addressProvider
     ) {
         require(
@@ -46,20 +43,14 @@ contract AmmDataProvider is IAmmDataProvider {
             address(_erc1155Controller) != address(0x0),
             "AmmDataProvider: _erc1155Controller cannot be the 0x0 address"
         );
-        require(
-            address(_priceOracle) != address(0x0),
-            "AmmDataProvider: _priceOracle cannot be the 0x0 address"
-        );
 
         seriesController = _seriesController;
         erc1155Controller = _erc1155Controller;
-        priceOracle = _priceOracle;
         addressesProvider = _addressProvider;
 
         emit AmmDataProviderCreated(
             _seriesController,
             _erc1155Controller,
-            _priceOracle,
             _addressProvider
         );
     }
@@ -101,10 +92,11 @@ contract AmmDataProvider is IAmmDataProvider {
             // TODO: this logic causes the underlying price to be fetched twice from the oracle. Can be optimized.
             lockedUnderlyingValue =
                 (lockedUnderlyingValue * series.strikePrice) /
-                IPriceOracle(priceOracle).getCurrentPrice(
-                    seriesController.underlyingToken(seriesId),
-                    seriesController.priceToken(seriesId)
-                );
+                IPriceOracle(addressesProvider.getPriceOracle())
+                    .getCurrentPrice(
+                        seriesController.underlyingToken(seriesId),
+                        seriesController.priceToken(seriesId)
+                    );
         }
 
         // Max amount of tokens we can get by adding current balance plus what can be minted from collateral
@@ -326,7 +318,7 @@ contract AmmDataProvider is IAmmDataProvider {
         uint64[] memory openSeries,
         address ammAddress,
         uint256 collateralTokenBalance,
-        uint256[] memory impliedVolatility
+        uint256[] memory volatilities
     ) public view override returns (uint256) {
         if (lpTokenAmount == 0) return 0;
         if (lpTokenSupply == 0) return 0;
@@ -366,7 +358,7 @@ contract AmmDataProvider is IAmmDataProvider {
 
                 uint256 bTokenPrice = getPriceForSeries(
                     seriesId,
-                    impliedVolatility[i]
+                    volatilities[i]
                 );
 
                 uint256 collateralAmountB = optionTokenGetCollateralOut(
@@ -415,10 +407,12 @@ contract AmmDataProvider is IAmmDataProvider {
         ISeriesController.Series memory series = seriesController.series(
             seriesId
         );
-        uint256 underlyingPrice = IPriceOracle(priceOracle).getCurrentPrice(
-            seriesController.underlyingToken(seriesId),
-            seriesController.priceToken(seriesId)
-        );
+        uint256 underlyingPrice = IPriceOracle(
+            addressesProvider.getPriceOracle()
+        ).getCurrentPrice(
+                seriesController.underlyingToken(seriesId),
+                seriesController.priceToken(seriesId)
+            );
 
         return
             getPriceForSeriesInternal(
@@ -473,10 +467,11 @@ contract AmmDataProvider is IAmmDataProvider {
             // we assume the openSeries are all from the same AMM, and thus all its Series
             // use the same underlying and price tokens, so we can arbitrarily choose the first
             // when fetching the necessary token addresses
-            underlyingPrice = IPriceOracle(priceOracle).getCurrentPrice(
-                seriesController.underlyingToken(openSeries[0]),
-                seriesController.priceToken(openSeries[0])
-            );
+            underlyingPrice = IPriceOracle(addressesProvider.getPriceOracle())
+                .getCurrentPrice(
+                    seriesController.underlyingToken(openSeries[0]),
+                    seriesController.priceToken(openSeries[0])
+                );
         }
 
         // First, determine the value of all residual b/wTokens

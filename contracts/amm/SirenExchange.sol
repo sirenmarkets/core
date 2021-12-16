@@ -51,15 +51,6 @@ contract SirenExchange is ERC1155Holder, ReentrancyGuard {
         address trader
     );
 
-    event WTokenSell(
-        uint256[] amounts,
-        address[] path,
-        address indexed sirenAmmAddress,
-        uint256 optionTokenAmount,
-        uint64 indexed seriesId,
-        address trader
-    );
-
     /// @dev Returns bytes to be used in safeTransferFrom ( prevents stack to deep error )
     function dataReturn() public pure returns (bytes memory data) {
         return data;
@@ -239,95 +230,6 @@ contract SirenExchange is ERC1155Holder, ReentrancyGuard {
             path,
             sirenAmmAddress,
             bTokenAmount,
-            seriesId,
-            msg.sender
-        );
-
-        getErc1155Controller().setApprovalForAll(sirenAmmAddress, false);
-
-        return amounts;
-    }
-
-    /// @notice Sell the wToken of a given series to the AMM in exchange for user tokens
-    /// @param seriesId The ID of the Series to buy wToken on
-    /// @param wTokenAmount The amount of wToken to sell
-    /// @param path The path of the collateral token of the series to the user tokens the caller wishes to receive
-    /// @param tokenAmountOutMinimum The lowest amount of user tokens the caller is willing to receive as payment
-    /// @param sirenAmmAddress address of the amm that we wish to call
-    /// @param deadline deadline the transaction must be completed by
-    /// @param _router address of the router we wish to use ( QuickSwap or SushiSwap )
-    /// We supply a wToken and then select which user tokens we wish to receive as our payment
-    function wTokenSell(
-        uint64 seriesId,
-        uint256 wTokenAmount,
-        address[] calldata path,
-        uint256 tokenAmountOutMinimum,
-        address sirenAmmAddress,
-        uint256 deadline,
-        address _router
-    ) external nonReentrant returns (uint256[] memory amounts) {
-        require(
-            path[0] == address(IMinterAmm(sirenAmmAddress).collateralToken()),
-            "SirenExchange: Path does not begin at collateral Token"
-        );
-
-        // Calculate the amount of collateral we will receive from our provided wTokens on the amm
-        // The naming is reversed because its from the routers perspective
-        uint256 wTokenSaleCollateral = getAmmDataProvider()
-            .wTokenGetCollateralOutView(
-                sirenAmmAddress,
-                seriesId,
-                wTokenAmount
-            );
-
-        // Calculate the amount of token we will receive for the collateral we are providing from the amm
-        uint256[] memory amountsOut = IUniswapV2Router02(_router).getAmountsOut(
-            wTokenSaleCollateral,
-            path
-        );
-
-        // Check to make sure our amountsOut is larger or equal to our min requested
-        require(
-            amountsOut[amountsOut.length - 1] >= tokenAmountOutMinimum,
-            "SirenExchange: Minimum token amount out not met"
-        );
-
-        // IERC1155 erc1155Controller = getErc1155Controller();
-
-        // Transfer wTokens from the user to the exchange
-        getErc1155Controller().safeTransferFrom(
-            msg.sender,
-            address(this),
-            SeriesLibrary.wTokenIndex(seriesId),
-            wTokenAmount,
-            dataReturn()
-        );
-
-        getErc1155Controller().setApprovalForAll(sirenAmmAddress, true);
-
-        // Sell the wTokens back to the Amm
-        IMinterAmm(sirenAmmAddress).wTokenSell(
-            seriesId,
-            wTokenAmount,
-            wTokenSaleCollateral
-        );
-
-        TransferHelper.safeApprove(path[0], _router, amountsOut[0]);
-
-        // Executes the swap returning the desired user tokens directly back to the sender
-        amounts = IUniswapV2Router02(_router).swapExactTokensForTokens(
-            wTokenSaleCollateral,
-            amountsOut[amountsOut.length - 1],
-            path,
-            msg.sender,
-            deadline
-        );
-
-        emit WTokenSell(
-            amounts,
-            path,
-            sirenAmmAddress,
-            wTokenAmount,
             seriesId,
             msg.sender
         );

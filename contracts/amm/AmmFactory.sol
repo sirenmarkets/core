@@ -187,7 +187,6 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
 
         newAmm.initialize(
             seriesController,
-            _sirenPriceOracle,
             addressesProvider,
             _underlyingToken,
             _priceToken,

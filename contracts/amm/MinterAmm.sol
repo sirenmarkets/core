@@ -84,11 +84,7 @@ contract MinterAmm is
     using EnumerableSet for EnumerableSet.UintSet;
 
     /// Emitted when the amm is created
-    event AMMInitialized(
-        ISimpleToken lpToken,
-        address sirenPriceOracle,
-        address controller
-    );
+    event AMMInitialized(ISimpleToken lpToken, address controller);
 
     /// Emitted when an LP deposits collateral
     event LpTokensMinted(
@@ -127,13 +123,6 @@ contract MinterAmm is
         uint256 wTokensSold,
         uint256 collateralPaid
     );
-
-    /// Emitted when the owner updates volatilityFactor
-    /// TODO: update this to emmit the series id and the volatility
-    event VolatilityFactorUpdated(uint256 newVolatilityFactor);
-
-    /// Emitted when a new sirenPriceOracle gets set on an upgraded AMM
-    event NewSirenPriceOracle(address newSirenPriceOracle);
 
     /// @notice Emitted when an expired series has been removed
     event SeriesEvicted(uint64 seriesId);
@@ -193,7 +182,6 @@ contract MinterAmm is
     /// Initialize the contract, and create an lpToken to track ownership
     function initialize(
         ISeriesController _seriesController,
-        address _sirenPriceOracle,
         IAddressesProvider _addressesProvider,
         IERC20 _underlyingToken,
         IERC20 _priceToken,
@@ -201,7 +189,6 @@ contract MinterAmm is
         address _tokenImplementation,
         uint16 _tradeFeeBasisPoints
     ) public override {
-        require(address(_sirenPriceOracle) != address(0x0), "E02");
         require(address(_underlyingToken) != address(0x0), "E03");
         require(address(_priceToken) != address(0x0), "E04");
         require(address(_collateralToken) != address(0x0), "E05");
@@ -220,7 +207,6 @@ contract MinterAmm is
         // Approve seriesController to move tokens
         erc1155Controller.setApprovalForAll(address(seriesController), true);
 
-        sirenPriceOracle = _sirenPriceOracle;
         tradeFeeBasisPoints = _tradeFeeBasisPoints;
 
         // Save off series tokens
@@ -251,11 +237,7 @@ contract MinterAmm is
 
         __Ownable_init();
 
-        emit AMMInitialized(
-            lpToken,
-            _sirenPriceOracle,
-            address(_seriesController)
-        );
+        emit AMMInitialized(lpToken, address(_seriesController));
     }
 
     function updateAddressesProvider(address _addressesProvider)
@@ -648,7 +630,7 @@ contract MinterAmm is
     /// 4500000000000 ($45_000 in human readable units)
     function getCurrentUnderlyingPrice() private view returns (uint256) {
         return
-            IPriceOracle(sirenPriceOracle).getCurrentPrice(
+            IPriceOracle(addressesProvider.getPriceOracle()).getCurrentPrice(
                 address(underlyingToken),
                 address(priceToken)
             );
@@ -838,17 +820,6 @@ contract MinterAmm is
                     ),
                 "Buy amount is too low"
             );
-
-            uint256 priceImpact = (collateralAmount * 1e18) /
-                bTokenAmount -
-                price;
-
-            updateVolatility(
-                seriesId,
-                int256(priceImpact),
-                getVolatility(seriesId),
-                vega
-            );
         }
 
         // Calculate trade fees if they are enabled with all params set
@@ -962,14 +933,6 @@ contract MinterAmm is
                     ),
                 "Sell amount is too low"
             );
-
-            updateVolatility(
-                seriesId,
-                int256((collateralAmount * 1e18) / bTokenAmount) -
-                    int256(price),
-                getVolatility(seriesId),
-                vega
-            );
         }
 
         // Calculate trade fees if they are enabled with all params set
@@ -1028,83 +991,6 @@ contract MinterAmm is
 
         // Return the amount of collateral received during sale
         return collateralAmount - tradeFee;
-    }
-
-    /// @notice Sell the wToken of a given series to the AMM in exchange for collateral token
-    /// @param seriesId The ID of the Series to buy wToken on
-    /// @param wTokenAmount The amount of wToken to sell (wToken has the same decimals as the underlying)
-    /// @param collateralMinimum The lowest amount of collateral the caller is willing to receive as payment
-    /// for their wToken. The actual amount of wToken received may be lower than this due to slippage
-    function wTokenSell(
-        uint64 seriesId,
-        uint256 wTokenAmount,
-        uint256 collateralMinimum
-    ) external override nonReentrant returns (uint256) {
-        require(openSeries.contains(seriesId), "E13");
-
-        require(
-            seriesController.state(seriesId) ==
-                ISeriesController.SeriesState.OPEN,
-            "Series has expired"
-        );
-
-        uint256 underlyingPrice = getCurrentUnderlyingPrice();
-        (uint256 price, ) = calculatePriceAndVega(seriesId, underlyingPrice);
-
-        uint256 collateralAmount;
-        {
-            collateralAmount = optionTokenGetCollateralOutInternal(
-                seriesId,
-                wTokenAmount,
-                collateralToken.balanceOf(address(this)),
-                price,
-                false
-            );
-
-            // TODO: implement the collateral check here
-            // require(
-            //     collateralAmount * 1e18 <= seriesController.getCollateralPerUnderlying(seriesId, (1e18 - price) * wTokenAmount, underlyingPrice),
-            //     "Sell amount is too low"
-            // );
-        }
-
-        require(collateralAmount >= collateralMinimum, "Slippage exceeded");
-
-        uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-        uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
-
-        // Move wToken into this contract
-        bytes memory data;
-        erc1155Controller.safeTransferFrom(
-            msg.sender,
-            address(this),
-            wTokenIndex,
-            wTokenAmount,
-            data
-        );
-
-        // Always be closing!
-        uint256 bTokenBalance = erc1155Controller.balanceOf(
-            address(this),
-            bTokenIndex
-        );
-        uint256 wTokenBalance = erc1155Controller.balanceOf(
-            address(this),
-            wTokenIndex
-        );
-        uint256 closeAmount = Math.min(bTokenBalance, wTokenBalance);
-        if (closeAmount > 0) {
-            seriesController.closePosition(seriesId, closeAmount);
-        }
-
-        // Send the tokens to the seller
-        collateralToken.safeTransfer(msg.sender, collateralAmount);
-
-        // Emit the event
-        emit WTokensSold(msg.sender, seriesId, wTokenAmount, collateralAmount);
-
-        // Return the amount of collateral received during sale
-        return collateralAmount;
     }
 
     /// @dev Calculates the amount of collateral token a seller will receive for selling their option tokens,

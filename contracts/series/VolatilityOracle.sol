@@ -223,25 +223,6 @@ contract VolatilityOracle is DSMath, OwnableUpgradeable {
     }
 
     /**
-     * @notice Gets the time weighted average tick
-     * @return timeWeightedAverageTick is the tick which was resolved to be the time-weighted average
-     */
-    function getTimeWeightedAverageTick(
-        int56 olderTickCumulative,
-        int56 newerTickCumulative,
-        uint32 duration
-    ) private pure returns (int24 timeWeightedAverageTick) {
-        int56 tickCumulativesDelta = newerTickCumulative - olderTickCumulative;
-        int24 _timeWeightedAverageTick = int24(tickCumulativesDelta / duration);
-
-        // Always round to negative infinity
-        if (tickCumulativesDelta < 0 && (tickCumulativesDelta % duration != 0))
-            _timeWeightedAverageTick--;
-
-        return _timeWeightedAverageTick;
-    }
-
-    /**
      * @notice Returns the closest period from the current block.timestamp
      * @return closestPeriod is the closest period timestamp
      * @return gapFromPeriod is the gap between now and the closest period: abs(periodTimestamp - block.timestamp)

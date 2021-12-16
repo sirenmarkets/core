@@ -16,7 +16,6 @@ interface IMinterAmm {
 
     function initialize(
         ISeriesController _seriesController,
-        address _priceOracle,
         IAddressesProvider _addressesProvider,
         IERC20 _underlyingToken,
         IERC20 _priceToken,
@@ -34,12 +33,6 @@ interface IMinterAmm {
     function bTokenSell(
         uint64 seriesId,
         uint256 bTokenAmount,
-        uint256 collateralMinimum
-    ) external returns (uint256);
-
-    function wTokenSell(
-        uint64 seriesId,
-        uint256 wTokenAmount,
         uint256 collateralMinimum
     ) external returns (uint256);
 

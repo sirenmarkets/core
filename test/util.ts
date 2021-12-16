@@ -432,10 +432,11 @@ export async function setupSingletonTestContracts(
     deployedMockPriceOracle.address,
   )
 
+  await deployedAddressesProvider.setPriceOracle(deployedPriceOracle.address)
+
   const deployedAmmDataProvider = await AmmDataProvider.new(
     deployedSeriesController.address,
     deployedERC1155Controller.address,
-    deployedPriceOracle.address,
     deployedAddressesProvider.address,
   )
 
