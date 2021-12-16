@@ -1,4 +1,9 @@
-import { now, getNextFriday8amUTCTimestamp } from "../util"
+import {
+  now,
+  getNextFriday8amUTCTimestamp,
+  setupAllTestContracts,
+  setupMockPriceOracle,
+} from "../util"
 
 import { time, BN } from "@openzeppelin/test-helpers"
 import { artifacts, contract, assert, ethers } from "hardhat"
@@ -10,6 +15,7 @@ import {
   SimpleTokenContract,
   SimpleTokenInstance,
   MockPriceOracleInstance,
+  PriceOracleInstance,
 } from "../../typechain"
 
 let deployedVolatilityOracle
@@ -27,10 +33,11 @@ const wbtcDecimals = 8
 contract("Volatility Oracle", (accounts) => {
   let priceToken: SimpleTokenInstance
   let underlyingToken: SimpleTokenInstance
-  let deployedMockPriceOracle: MockPriceOracleInstance
+  let deployedMockPriceOracle
   let nextFriday8amUTC: number
+  let deployedPriceOracle
 
-  let PERIOD = 86400
+  let PERIOD = 8640
   const WINDOW_IN_DAYS = 90 // 3 month vol data
   const COMMIT_PHASE_DURATION = 3600 // 30 mins
 
@@ -46,11 +53,17 @@ contract("Volatility Oracle", (accounts) => {
 
   beforeEach(async () => {
     // create the price oracle fresh for each test
-    deployedMockPriceOracle = await MockPriceOracle.new(wbtcDecimals)
 
+    deployedPriceOracle = await MockPriceOracle.new(wbtcDecimals)
     const humanCollateralPrice2 = new BN(22_000 * 10 ** 8) // 22k
 
-    await deployedMockPriceOracle.setLatestAnswer(humanCollateralPrice2)
+    await deployedPriceOracle.setLatestAnswer(humanCollateralPrice2)
+
+    deployedMockPriceOracle = await setupMockPriceOracle(
+      underlyingToken.address,
+      priceToken.address,
+      deployedPriceOracle.address,
+    )
 
     nextFriday8amUTC = getNextFriday8amUTCTimestamp(await now())
 
@@ -128,7 +141,7 @@ contract("Volatility Oracle", (accounts) => {
       )
 
       for (let i = 0; i < values.length; i++) {
-        await deployedMockPriceOracle.setLatestAnswer(values[i].toString())
+        await deployedPriceOracle.setLatestAnswer(values[i].toString())
         await deployedMockVolatilityOracle.setPrice(values[i])
         const topOfPeriod = (await getTopOfPeriod()) + PERIOD
         await time.increaseTo(topOfPeriod)

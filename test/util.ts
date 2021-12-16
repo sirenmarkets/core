@@ -21,6 +21,7 @@ import {
   MockVolatilityOracleInstance,
   MockVolatilityOracleContract,
   LightContract,
+  MockPriceOracleInstance,
 } from "../typechain"
 import { artifacts, assert, ethers, network } from "hardhat"
 import { time, expectEvent, BN } from "@openzeppelin/test-helpers"
@@ -83,6 +84,24 @@ export async function setupPriceOracle(
   const deployedPriceOracle: PriceOracleInstance = await PriceOracle.new()
 
   await deployedPriceOracle.initialize(ONE_WEEK_DURATION)
+
+  await deployedPriceOracle.addTokenPair(
+    underlyingAddress,
+    priceAddress,
+    mockOracleAddress,
+  )
+  return deployedPriceOracle
+}
+
+export async function setupMockPriceOracle(
+  underlyingAddress: string,
+  priceAddress: string,
+  mockOracleAddress: string,
+): Promise<MockPriceOracleInstance> {
+  const deployedPriceOracle: MockPriceOracleInstance =
+    await MockPriceOracle.new(8)
+
+  await deployedPriceOracle.initialize(ONE_DAY_DURATION)
 
   await deployedPriceOracle.addTokenPair(
     underlyingAddress,
