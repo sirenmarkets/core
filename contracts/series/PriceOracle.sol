@@ -228,9 +228,6 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
         oracles[underlyingToken][priceToken] = oracle;
 
         uint256 currentPrice = getCurrentPrice(underlyingToken, priceToken);
-
-        require(currentPrice != 0);
-
         // We need to initially set the price on some offset-aligned date prior to the current date, so that
         // in the loop in PriceOracle.setSettlementDate it will eventually stop looping when it finds a
         // non-zero price. If we do not add set this price, then the first call to PriceOracle.setSettlementDate the first
@@ -239,7 +236,6 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
         uint256 earliestSettlementDate = get8amWeeklyOrDailyAligned(
             block.timestamp
         );
-
         settlementPrices[underlyingToken][priceToken][
             earliestSettlementDate
         ] = currentPrice;
