@@ -39,7 +39,7 @@ import "./SeriesControllerStorage.sol";
 /// on gas deployment costs by storing individual Series structs in an array
 contract SeriesController is
     Initializable,
-    SeriesControllerStorageV1,
+    SeriesControllerStorageV2,
     PausableUpgradeable,
     AccessControlUpgradeable,
     Proxiable
@@ -1134,13 +1134,14 @@ contract SeriesController is
         renounceRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    /// @notice Update the priceOracle used when creating new Series
-    /// @dev This means the new price oracle must have settlement prices set such that all
-    /// existing Series can get their settlement price
-    function setPriceOracle(address _priceOracle) external onlyOwner {
-        require(_priceOracle != address(0x0), "Invalid Address");
+    /// @notice Update the addressProvider used for other contract lookups
+    function setAddressesProvider(address _addressesProvider)
+        external
+        onlyOwner
+    {
+        require(_addressesProvider != address(0x0), "Invalid Address");
 
-        priceOracle = _priceOracle;
+        addressesProvider = _addressesProvider;
     }
 
     /// @notice Sets the settlement price for all settlement dates prior to the current block timestamp

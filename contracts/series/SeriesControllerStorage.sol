@@ -3,6 +3,7 @@
 pragma solidity 0.8.0;
 
 import "./ISeriesController.sol";
+import "../configuration/IAddressesProvider.sol";
 
 /// This contract stores all new local variables for the SeriesController.sol contract.
 /// This allows us to upgrade the contract and add new variables without worrying about
@@ -65,6 +66,10 @@ abstract contract SeriesControllerStorageV1 is ISeriesController {
     // @note The 0th element in the list (first one) is a place holder, since we do not want any
     // expirations with ID 0 (we need to verify in the mapping that 0 means it is not set)
     uint256[] public allowedExpirationsList;
+}
+
+abstract contract SeriesControllerStorageV2 is SeriesControllerStorageV1 {
+    IAddressesProvider public addressesProvider;
 }
 
 // Next version example:
