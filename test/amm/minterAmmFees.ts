@@ -8,7 +8,12 @@ import {
   SimpleTokenInstance,
 } from "../../typechain"
 
-import { setupAllTestContracts, assertBNEq, ONE_WEEK_DURATION } from "../util"
+import {
+  setupAllTestContracts,
+  assertBNEq,
+  ONE_WEEK_DURATION,
+  setNextBlockTimestamp,
+} from "../util"
 
 const MinterAmmFeeBased: MinterAmmContract = artifacts.require("MinterAmm")
 
@@ -104,7 +109,9 @@ contract("AMM Fees", (accounts) => {
   it("Buys and sells bTokens with fees", async () => {
     const aliceAccount = accounts[1]
     const feeDestination = accounts[2]
-    await time.increaseTo(expiration - ONE_WEEK_DURATION) // use the same time, no matter when this test gets called
+
+    const startTime = expiration - ONE_WEEK_DURATION
+    await time.increaseTo(startTime) // use the same time, no matter when this test gets called
 
     // Approve collateral
     await underlyingToken.mint(ownerAccount, 10000e8)
@@ -131,6 +138,8 @@ contract("AMM Fees", (accounts) => {
 
     let feesCollected = 0
 
+    await setNextBlockTimestamp(startTime + 10)
+
     // Buys success - ignore slippage and use a big number
     ret = await deployedAmm.bTokenBuy(seriesId, 100e8, 100e8, {
       from: aliceAccount,
@@ -148,7 +157,7 @@ contract("AMM Fees", (accounts) => {
     expectEvent(ret, "BTokensBought", {
       buyer: aliceAccount,
       bTokensBought: "10000000000",
-      collateralPaid: "1786174455", // 17.83e8 to pay for option and 0.03e8 for fee => 17.86e8
+      collateralPaid: "1786174149", // 17.83e8 to pay for option and 0.03e8 for fee => 17.86e8
     })
 
     // Set the trade fee really high to verify the max collateral fee is used
@@ -162,6 +171,8 @@ contract("AMM Fees", (accounts) => {
       },
     )
 
+    await setNextBlockTimestamp(startTime + 20)
+
     // Buys success - ignore slippage and use a big number
     ret = await deployedAmm.bTokenBuy(seriesId, 100e8, 100e8, {
       from: aliceAccount,
@@ -171,15 +182,15 @@ contract("AMM Fees", (accounts) => {
     // Max fee should be 12.5% of amount of collateral required which is 17.83e8 * 12.5% => 2.23e8
     expectEvent(ret, "TradeFeesPaid", {
       feePaidTo: feeDestination,
-      feeAmount: "222909312", // the fee of 2.23e8 is less than 10e8 so lower fee is used
+      feeAmount: "222908968", // the fee of 2.23e8 is less than 10e8 so lower fee is used
     })
-    feesCollected += 222909312
+    feesCollected += 222908968
 
     // Check the amount bought
     expectEvent(ret, "BTokensBought", {
       buyer: aliceAccount,
       bTokensBought: "10000000000",
-      collateralPaid: "2006183809", // 17.83e8 to pay for option and 2.23e8 for fee => 20.06e8
+      collateralPaid: "2006180717", // 17.83e8 to pay for option and 2.23e8 for fee => 20.06e8
     })
 
     // Verify fees got sent
@@ -208,6 +219,8 @@ contract("AMM Fees", (accounts) => {
       },
     )
 
+    await setNextBlockTimestamp(startTime + 30)
+
     // Sell into AMM - ignore slippage
     ret = await deployedAmm.bTokenSell(seriesId, 50e8, 0, {
       from: aliceAccount,
@@ -226,7 +239,7 @@ contract("AMM Fees", (accounts) => {
     expectEvent(ret, "BTokensSold", {
       seller: aliceAccount,
       bTokensSold: "5000000000",
-      collateralPaid: "881018045", // collateral closed out is 8.82e8 minus the fee of 0.015e8
+      collateralPaid: "881015862", // collateral closed out is 8.82e8 minus the fee of 0.015e8
     })
 
     // Bump trade fee so that the max fee is used
@@ -239,6 +252,8 @@ contract("AMM Fees", (accounts) => {
       },
     )
 
+    await setNextBlockTimestamp(startTime + 40)
+
     // Sell into AMM - ignore slippage
     ret = await deployedAmm.bTokenSell(seriesId, 50e8, 0, {
       from: aliceAccount,
@@ -249,15 +264,15 @@ contract("AMM Fees", (accounts) => {
     // Max fee should be 12.5% of amount of collateral required which is 8.82e8 * 12.5% => 1.10e8
     expectEvent(ret, "TradeFeesPaid", {
       feePaidTo: feeDestination,
-      feeAmount: "110316328", // the fee of 1.10e8 is less than 25e8 so lower fee is used
+      feeAmount: "110315860", // the fee of 1.10e8 is less than 25e8 so lower fee is used
     })
-    feesCollected += 110316328
+    feesCollected += 110315860
 
     // Check the amount bought
     expectEvent(ret, "BTokensSold", {
       seller: aliceAccount,
       bTokensSold: "5000000000",
-      collateralPaid: "772214303", // collateral closed out is 8.82e8 minus the fee of 1.10e8
+      collateralPaid: "772211026", // collateral closed out is 8.82e8 minus the fee of 1.10e8
     })
 
     // Verify fees got sent

@@ -26,15 +26,7 @@ const OTM_BTC_ORACLE_PRICE = 14_000 * 10 ** 8
 const STRIKE_PRICE = 15000 * 1e8 // 15000 USD
 const UNDERLYING_PRICE = OTM_BTC_ORACLE_PRICE
 const ANNUALIZED_VOLATILITY = 1 * 1e8 // 100%
-import {
-  assertBNEq,
-  assertBNEqWithTolerance,
-  checkBalances,
-  setupAllTestContracts,
-  setupSeries,
-  ONE_WEEK_DURATION,
-  blackScholes,
-} from "../util"
+import { assertBNEq, assertBNEqWithTolerance, getRandomSubarray } from "../util"
 
 describe("BlackScholes - values", () => {
   let account: Signer
@@ -48,19 +40,25 @@ describe("BlackScholes - values", () => {
   })
 
   describe("optionPrices - spot == strike", async () => {
-    const timeToExp = [
-      // 0,
-      1,
-      100,
-      100000,
-      1000000,
-      31556952,
-      2 * 31556952,
-    ]
-    //We loop a lot here so I needed to expand our time frame for the promise
-    const spotPrices = [0.1, 1.1, 200, 5000, 42999, 100000]
-    const strikeRatios = [0.1, 0.5, 1, 2, 5]
-    const volatilities = [0.1, 0.5, 1, 2.5, 3]
+    // Pick random subsets to prevent timeout
+    const timeToExp = getRandomSubarray(
+      [
+        // 0,
+        1,
+        100,
+        100000,
+        1000000,
+        31556952,
+        2 * 31556952,
+      ],
+      2,
+    )
+    const spotPrices = getRandomSubarray(
+      [0.1, 1.1, 200, 5000, 42999, 100000],
+      2,
+    )
+    const strikeRatios = getRandomSubarray([0.1, 0.5, 1, 2, 5], 2)
+    const volatilities = getRandomSubarray([0.1, 0.5, 1, 2.5, 3], 2)
 
     it("calculates optionPrices with respect to changes in time to expiry, spot, and strike ", async () => {
       for (const time of timeToExp) {
@@ -120,6 +118,7 @@ describe("BlackScholes - values", () => {
         }
       }
     }).timeout(100000)
+
     it("calculates somewhat correctly for 0", async () => {
       const volatility = toBN("1")
       const spot = toBN("2000")

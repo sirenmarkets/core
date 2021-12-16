@@ -24,7 +24,7 @@ import {
   MockVolatilityOracleContract,
   LightContract,
 } from "../typechain"
-import { artifacts, assert, ethers } from "hardhat"
+import { artifacts, assert, ethers, network } from "hardhat"
 import { time, expectEvent, BN } from "@openzeppelin/test-helpers"
 import * as BS from "black-scholes"
 
@@ -883,4 +883,22 @@ export function blackScholes(
     ) /
     (underlying / 1e8)
   )
+}
+
+export async function setNextBlockTimestamp(timestamp: number) {
+  await network.provider.send("evm_setNextBlockTimestamp", [timestamp])
+}
+
+export function getRandomSubarray(arr: Array<any>, size: number) {
+  var shuffled = arr.slice(0),
+    i = arr.length,
+    temp,
+    index
+  while (i--) {
+    index = Math.floor((i + 1) * Math.random())
+    temp = shuffled[index]
+    shuffled[index] = shuffled[i]
+    shuffled[i] = temp
+  }
+  return shuffled.slice(0, size)
 }

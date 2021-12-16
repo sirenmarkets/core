@@ -15,7 +15,12 @@ let collateralToken: SimpleTokenInstance
 let seriesId: string
 let expiration: number
 
-import { assertBNEq, ONE_WEEK_DURATION, setupAllTestContracts } from "../util"
+import {
+  assertBNEq,
+  ONE_WEEK_DURATION,
+  setupAllTestContracts,
+  setNextBlockTimestamp,
+} from "../util"
 
 const BTC_ORACLE_PRICE = 14_000 * 1e8 // BTC oracle answer has 8 decimals places, same as BTC
 const STRIKE_PRICE = 15_000 * 1e8
@@ -65,7 +70,9 @@ contract("AMM Pricing", (accounts) => {
       "Collateral should have been used to mint",
     )
 
-    await time.increaseTo(expiration - ONE_WEEK_DURATION) // use the same time, no matter when this test gets called
+    const startTime = expiration - ONE_WEEK_DURATION
+    await time.increaseTo(startTime) // use the same time, no matter when this test gets called
+
     assertBNEq(
       (await deployedAmm.getPriceForSeries(seriesId)).toString(),
       "110102040416428571", // 0.1101 WBTC
@@ -87,6 +94,9 @@ contract("AMM Pricing", (accounts) => {
     await collateralToken.approve(deployedAmm.address, 1e6, {
       from: aliceAccount,
     })
+
+    await setNextBlockTimestamp(startTime + 10)
+
     // Buy bTokens
     const maximumCollateral =
       await deployedAmmDataProvider.bTokenGetCollateralInView(
@@ -114,7 +124,7 @@ contract("AMM Pricing", (accounts) => {
           true,
         )
       ).toString(),
-      1000000185, // 1000e6 - 10000 * 15000 / 100 + 154329 + 10000 * (15000 / 14000 - 0.1101) * 14000 / 100
+      1000000186, // 1000e6 - 10000 * 15000 / 100 + 154329 + 10000 * (15000 / 14000 - 0.1101) * 14000 / 100
       "Total assets value in the AMM should be above 1000e6",
     )
 
@@ -124,12 +134,15 @@ contract("AMM Pricing", (accounts) => {
       true,
       { from: aliceAccount },
     )
-    ret = await deployedAmm.bTokenSell(seriesId, 10000, 153956, {
+
+    await setNextBlockTimestamp(startTime + 20)
+
+    ret = await deployedAmm.bTokenSell(seriesId, 10000, 153955, {
       from: aliceAccount,
     })
     assertBNEq(
       (await collateralToken.balanceOf(aliceAccount)).toString(),
-      999628, // received 153,956 for 10000 tokens at ~0.1101
+      999627, // received 153,956 for 10000 tokens at ~0.1101
       "Trader should receive correct collateral amount",
     )
 
@@ -141,7 +154,7 @@ contract("AMM Pricing", (accounts) => {
           true,
         )
       ).toString(),
-      1000000372,
+      1000000373,
       "Total assets value in the AMM should be above 1000e6",
     )
   })
@@ -186,8 +199,9 @@ contract("AMM Pricing", (accounts) => {
       "Collateral should have been used to mint",
     )
 
-    // Total assets value in the AMM should be 10k.
-    await time.increaseTo(expiration - ONE_WEEK_DURATION) // use the same time, no matter when this test gets called
+    const startTime = expiration - ONE_WEEK_DURATION
+    await time.increaseTo(startTime) // use the same time, no matter when this test gets called
+
     assertBNEq(
       (await deployedAmm.getPriceForSeries(seriesId)).toString(),
       "38673468987857142", // 0.039 BTC / contract
@@ -209,6 +223,8 @@ contract("AMM Pricing", (accounts) => {
     await collateralToken.approve(deployedAmm.address, 1000, {
       from: aliceAccount,
     })
+
+    await setNextBlockTimestamp(startTime + 10)
 
     // Buy bTokens
     ret = await deployedAmm.bTokenBuy(seriesId, 3000, 3000, {
@@ -236,6 +252,9 @@ contract("AMM Pricing", (accounts) => {
       true,
       { from: aliceAccount },
     )
+
+    await setNextBlockTimestamp(startTime + 20)
+
     ret = await deployedAmm.bTokenSell(seriesId, 3000, 0, {
       from: aliceAccount,
     })
