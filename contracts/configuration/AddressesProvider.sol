@@ -24,6 +24,7 @@ contract AddressesProvider is
     bytes32 private constant VOLATILITY_ORACLE = "VOLATILITY_ORACLE";
     bytes32 private constant BLACKSCHOLES = "BLACKSCHOLES";
     bytes32 private constant AIRSWAP_LIGHT = "AIRSWAP_LIGHT";
+    bytes32 private constant AMM_FACTORY = "AMM_FACTORY";
 
     ///////////////////// MUTATING FUNCTIONS /////////////////////
 
@@ -124,5 +125,14 @@ contract AddressesProvider is
     function setAirswapLight(address airswapLight) external override onlyOwner {
         _addresses[AIRSWAP_LIGHT] = airswapLight;
         emit AirswapLightUpdated(airswapLight);
+    }
+
+    function getAmmFactory() external view override returns (address) {
+        return getAddress(AMM_FACTORY);
+    }
+
+    function setAmmFactory(address ammFactory) external override onlyOwner {
+        _addresses[AMM_FACTORY] = ammFactory;
+        emit AirswapLightUpdated(ammFactory);
     }
 }

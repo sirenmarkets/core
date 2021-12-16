@@ -1141,7 +1141,7 @@ contract SeriesController is
     {
         require(_addressesProvider != address(0x0), "Invalid Address");
 
-        addressesProvider = _addressesProvider;
+        addressesProvider = IAddressesProvider(_addressesProvider);
     }
 
     /// @notice Sets the settlement price for all settlement dates prior to the current block timestamp

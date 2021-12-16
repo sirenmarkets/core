@@ -46,4 +46,8 @@ interface IAddressesProvider {
     function getAirswapLight() external view returns (address);
 
     function setAirswapLight(address airswapLight) external;
+
+    function getAmmFactory() external view returns (address);
+
+    function setAmmFactory(address ammFactory) external;
 }
