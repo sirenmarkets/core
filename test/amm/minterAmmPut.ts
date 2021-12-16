@@ -11,7 +11,6 @@ import {
   ERC1155ControllerInstance,
   SimpleTokenContract,
   MockPriceOracleContract,
-  MockVolatilityPriceOracleInstance,
   AddressesProviderInstance,
   AmmDataProviderInstance,
 } from "../../typechain"
@@ -22,7 +21,6 @@ import {
   setupAllTestContracts,
   assertBNEq,
   ONE_WEEK_DURATION,
-  setupMockVolatilityPriceOracle,
   getNextFriday8amUTCTimestamp,
   blackScholes,
   assertBNEqWithTolerance,
@@ -46,11 +44,7 @@ const MockPriceOracle: MockPriceOracleContract =
 
 const wbtcDecimals = 8
 
-let deployedVolatilityOracle
-let deployedMockPriceOracle
 let deployedMockVolatilityOracle
-
-let deployedMockVolatilityPriceOracle: MockVolatilityPriceOracleInstance
 
 const STRIKE_PRICE = 15000 * 1e8 // 15000 USD
 const UNDERLYING_PRICE = 14000 * 1e8 // BTC oracle answer has 8 decimals places, same as BTC

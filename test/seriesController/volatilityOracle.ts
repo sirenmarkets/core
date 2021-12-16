@@ -1,8 +1,4 @@
-import {
-  now,
-  getNextFriday8amUTCTimestamp,
-  setupMockVolatilityPriceOracle,
-} from "../util"
+import { now, getNextFriday8amUTCTimestamp } from "../util"
 
 import { time, BN } from "@openzeppelin/test-helpers"
 import { artifacts, contract, assert, ethers } from "hardhat"
@@ -14,7 +10,6 @@ import {
   SimpleTokenContract,
   SimpleTokenInstance,
   MockPriceOracleInstance,
-  MockVolatilityPriceOracleInstance,
 } from "../../typechain"
 
 let deployedVolatilityOracle
@@ -30,7 +25,6 @@ const wbtcDecimals = 8
  * Testing MinterAmm volatility oracle updates
  */
 contract("Volatility Oracle", (accounts) => {
-  let deployedMockVolatilityPriceOracle: MockVolatilityPriceOracleInstance
   let priceToken: SimpleTokenInstance
   let underlyingToken: SimpleTokenInstance
   let deployedMockPriceOracle: MockPriceOracleInstance
@@ -59,11 +53,6 @@ contract("Volatility Oracle", (accounts) => {
     await deployedMockPriceOracle.setLatestAnswer(humanCollateralPrice2)
 
     nextFriday8amUTC = getNextFriday8amUTCTimestamp(await now())
-    deployedMockVolatilityPriceOracle = await setupMockVolatilityPriceOracle(
-      underlyingToken.address,
-      priceToken.address,
-      deployedMockPriceOracle.address,
-    )
 
     const volatility = await ethers.getContractFactory("VolatilityOracle", {})
 
@@ -74,12 +63,12 @@ contract("Volatility Oracle", (accounts) => {
 
     deployedVolatilityOracle = await volatility.deploy(
       PERIOD,
-      deployedMockVolatilityPriceOracle.address,
+      deployedMockPriceOracle.address,
       WINDOW_IN_DAYS,
     )
     deployedMockVolatilityOracle = await MockVolatility.deploy(
       PERIOD,
-      deployedMockVolatilityPriceOracle.address,
+      deployedMockPriceOracle.address,
       WINDOW_IN_DAYS,
     )
   })

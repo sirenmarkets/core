@@ -14,8 +14,6 @@ import {
   MinterAmmContract,
   ERC1155ControllerInstance,
   SirenExchangeContract,
-  MockVolatilityPriceOracleInstance,
-  MockVolatilityPriceOracleContract,
   AddressesProviderContract,
   AddressesProviderInstance,
   VolatilityOracleContract,
@@ -41,9 +39,6 @@ const aliceAccount = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
 const bobAccount = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
 
 const PriceOracle: PriceOracleContract = artifacts.require("PriceOracle")
-
-const MockVolatilityPriceOracle: MockVolatilityPriceOracleContract =
-  artifacts.require("MockVolatilityPriceOracle")
 
 const MockVolatilityOracle: MockVolatilityOracleContract = artifacts.require(
   "MockVolatilityOracle",
@@ -95,24 +90,6 @@ export async function setupPriceOracle(
     mockOracleAddress,
   )
   return deployedPriceOracle
-}
-
-export async function setupMockVolatilityPriceOracle(
-  underlyingAddress: string,
-  priceAddress: string,
-  mockOracleAddress: string,
-): Promise<MockVolatilityPriceOracleInstance> {
-  const deployedMockVolatilityPriceOracle: MockVolatilityPriceOracleInstance =
-    await MockVolatilityPriceOracle.new()
-
-  await deployedMockVolatilityPriceOracle.initialize(ONE_DAY_DURATION)
-
-  await deployedMockVolatilityPriceOracle.addTokenPair(
-    underlyingAddress,
-    priceAddress,
-    mockOracleAddress,
-  )
-  return deployedMockVolatilityPriceOracle
 }
 
 export async function setUpMockVolatilityOracle(
@@ -457,19 +434,12 @@ export async function setupSingletonTestContracts(
       },
     )
 
-  const deployedMockVolatilityPriceOracle =
-    await setupMockVolatilityPriceOracle(
-      underlyingToken.address,
-      priceToken.address,
-      deployedMockPriceOracle.address,
-    )
-
   const deployedMockVolatilityOracle = await setUpMockVolatilityOracle(
     underlyingToken.address,
     priceToken.address,
     PERIOD,
     WINDOW_IN_DAYS,
-    deployedMockVolatilityPriceOracle.address,
+    deployedPriceOracle.address,
     annualizedVolatility,
   )
 

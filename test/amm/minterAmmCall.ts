@@ -10,7 +10,6 @@ import {
   SeriesControllerInstance,
   ERC1155ControllerInstance,
   AddressesProviderInstance,
-  MockVolatilityPriceOracleInstance,
   AmmDataProviderInstance,
 } from "../../typechain"
 
@@ -32,7 +31,6 @@ let deployedERC1155Controller: ERC1155ControllerInstance
 let deployedAmm: MinterAmmInstance
 let deployedMockPriceOracle: MockPriceOracleInstance
 let deployedPriceOracle: PriceOracleInstance
-let deployedMockVolatilityPriceOracle: MockVolatilityPriceOracleInstance
 let deployedAddressesProvider: AddressesProviderInstance
 let deployedAmmDataProvider: AmmDataProviderInstance
 
