@@ -6,6 +6,7 @@ import "hardhat-log-remover"
 import "uniswap-v3-deploy-plugin"
 import "hardhat-contract-sizer"
 import "@nomiclabs/hardhat-etherscan"
+import "hardhat-storage-layout"
 
 import { HardhatUserConfig } from "hardhat/types"
 
@@ -38,6 +39,11 @@ const config: HardhatUserConfig = {
             enabled: true,
             runs: 1,
           },
+          outputSelection: {
+            "*": {
+              "*": ["storageLayout"],
+            },
+          },
         },
       },
       {
@@ -46,6 +52,11 @@ const config: HardhatUserConfig = {
           optimizer: {
             enabled: true,
             runs: 1,
+          },
+          outputSelection: {
+            "*": {
+              "*": ["storageLayout"],
+            },
           },
         },
       },
@@ -56,6 +67,11 @@ const config: HardhatUserConfig = {
             enabled: true,
             runs: 1,
           },
+          outputSelection: {
+            "*": {
+              "*": ["storageLayout"],
+            },
+          },
         },
       },
       {
@@ -64,6 +80,11 @@ const config: HardhatUserConfig = {
           optimizer: {
             enabled: true,
             runs: 1,
+          },
+          outputSelection: {
+            "*": {
+              "*": ["storageLayout"],
+            },
           },
         },
       },
@@ -74,6 +95,11 @@ const config: HardhatUserConfig = {
             enabled: true,
             runs: 1,
           },
+          outputSelection: {
+            "*": {
+              "*": ["storageLayout"],
+            },
+          },
         },
       },
       {
@@ -82,6 +108,11 @@ const config: HardhatUserConfig = {
           optimizer: {
             enabled: true,
             runs: 1,
+          },
+          outputSelection: {
+            "*": {
+              "*": ["storageLayout"],
+            },
           },
         },
       },
