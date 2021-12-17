@@ -132,6 +132,9 @@ interface ISeriesController {
         uint256 collateralAmount
     );
 
+    /** Emitted when the owner adds new allowed expirations */
+    event AllowedExpirationUpdated(uint256 newAllowedExpiration);
+
     ///////////////////// VIEW/PURE FUNCTIONS /////////////////////
 
     function priceDecimals() external view returns (uint8);
