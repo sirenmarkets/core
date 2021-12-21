@@ -22,7 +22,7 @@ abstract contract SeriesControllerStorageV1 is ISeriesController {
     ISeriesController.Fees internal fees;
 
     /// @notice Monotonically incrementing index, used when creating Series.
-    uint64 public latestIndex;
+    uint64 public override latestIndex;
 
     /// @dev The address of the ERC1155Controler that performs minting and burning of option tokens
     address public override erc1155Controller;
@@ -39,6 +39,8 @@ abstract contract SeriesControllerStorageV1 is ISeriesController {
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
+    bytes32 public constant SERIES_DEPLOYER_ROLE =
+        keccak256("SERIES_DEPLOYER_ROLE");
 
     /// @dev These contract variables, as well as the `nonReentrant` modifier further down below,
     /// are copied from OpenZeppelin's ReentrancyGuard contract. We chose to copy ReentrancyGuard instead of
