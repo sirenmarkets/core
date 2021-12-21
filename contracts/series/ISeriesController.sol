@@ -33,6 +33,13 @@ interface ISeriesController {
         uint256 strikePrice;
     }
 
+    /// @dev For a token, store the range for a strike price for the auto series creation feature
+    struct TokenStrikeRange {
+        uint256 min;
+        uint256 max;
+        uint256 increment;
+    }
+
     /// @notice All possible states a Series can be in with regard to its expiration date
     enum SeriesState {
         /**
@@ -134,6 +141,14 @@ interface ISeriesController {
 
     /** Emitted when the owner adds new allowed expirations */
     event AllowedExpirationUpdated(uint256 newAllowedExpiration);
+
+    /** Emitted when the owner updates the strike range for a specified asset */
+    event StrikeRangeUpdated(
+        address strikeUnderlyingToken,
+        uint256 min,
+        uint256 max,
+        uint256 increment
+    );
 
     ///////////////////// VIEW/PURE FUNCTIONS /////////////////////
 

@@ -48,4 +48,10 @@ interface IMinterAmm {
         returns (uint256);
 
     function updateAddressesProvider(address _addressesProvider) external;
+
+    function getUnderlyingToken() external returns (IERC20);
+
+    function getPriceToken() external returns (IERC20);
+
+    function getCollateralToken() external returns (IERC20);
 }

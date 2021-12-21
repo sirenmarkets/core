@@ -9,6 +9,7 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 
 import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
 import "./ISeriesController.sol";
@@ -20,6 +21,7 @@ import "../token/IERC20Lib.sol";
 import "../amm/IMinterAmm.sol";
 import "./SeriesLibrary.sol";
 import "./SeriesControllerStorage.sol";
+import "../amm/IAmmFactory.sol";
 
 /// @title SeriesController
 /// @notice The SeriesController implements all of the logic for minting and interacting with option tokens
@@ -806,9 +808,9 @@ contract SeriesController is
     function createSeriesInternal(
         uint40 _expirationDate,
         bool _isPutOption,
-        ISeriesController.Tokens calldata _tokens,
+        ISeriesController.Tokens memory _tokens,
         uint256 _strikePrice
-    ) private view returns (Series memory) {
+    ) private returns (Series memory) {
         // validate price and expiration
         require(_strikePrice != 0, "Invalid _strikePrice");
         require(_expirationDate > block.timestamp, "Invalid _expirationDate");
@@ -818,6 +820,20 @@ contract SeriesController is
             allowedExpirationsMap[_expirationDate] > 0,
             "_expirationDate not set"
         );
+
+        // Add to created series mapping so we can track if it has been added before
+        bytes32 seriesHash = keccak256(
+            abi.encode(
+                _expirationDate,
+                _isPutOption,
+                _tokens.underlyingToken,
+                _tokens.priceToken,
+                _tokens.collateralToken,
+                _strikePrice
+            )
+        );
+        require(!addedSeries[seriesHash], "Existing series");
+        addedSeries[seriesHash] = true;
 
         return
             ISeriesController.Series(
@@ -1203,5 +1219,128 @@ contract SeriesController is
             // Emit the event for the new expiration
             emit AllowedExpirationUpdated(timestamps[i]);
         }
+    }
+
+    /// @notice This function allows the owner address to update allowed strikes for the auto series creation feature
+    /// @param strikeUnderlyingToken underlying asset token that options are written against
+    /// @param min minimum strike allowed
+    /// @param max maximum strike allowed
+    /// @param increment price increment allowed - e.g. if increment is 10, then 100 would be valid and 101 would not be (strike % increment == 0)
+    /// @dev Only the owner address should be allowed to call this
+    function updateAllowedTokenStrikeRanges(
+        address strikeUnderlyingToken,
+        uint256 min,
+        uint256 max,
+        uint256 increment
+    ) public onlyOwner {
+        require(strikeUnderlyingToken != address(0x0), "Invalid Token");
+        require(min < max, "Invalid min/max");
+        require(increment > 0, "Invalid increment");
+
+        allowedStrikeRanges[strikeUnderlyingToken] = TokenStrikeRange(
+            min,
+            max,
+            increment
+        );
+
+        emit StrikeRangeUpdated(strikeUnderlyingToken, min, max, increment);
+    }
+
+    /// @dev This assumes the existing AMM has valid tokens and is already has MINTER_ROLE
+    // TODO: move this out to a separate contract
+    function autoCreateSeriesAndBuy(
+        IMinterAmm _existingAmm,
+        uint256 _strikePrice,
+        uint40 _expirationDate,
+        bool _isPutOption,
+        uint256 _bTokenAmount,
+        uint256 _collateralMaximum
+    ) public nonReentrant {
+        // Save off the ammTokens
+        ISeriesController.Tokens memory ammTokens = ISeriesController.Tokens(
+            address(_existingAmm.getUnderlyingToken()),
+            address(_existingAmm.getPriceToken()),
+            address(_existingAmm.getCollateralToken())
+        );
+
+        // Get the bytes32 representation of the token triplet
+        bytes32 assetPair = keccak256(
+            abi.encode(
+                address(_existingAmm.getUnderlyingToken()),
+                address(_existingAmm.getPriceToken()),
+                address(_existingAmm.getCollateralToken())
+            )
+        );
+
+        // Validate the asset triplet was deployed to the amm address through the factory
+        require(
+            IAmmFactory(addressesProvider.getAmmFactory()).amms(assetPair) ==
+                address(_existingAmm),
+            "Invalid AMM"
+        );
+
+        // Validate strike - get the strike range info and ensure it is within params
+        TokenStrikeRange memory existingRange = allowedStrikeRanges[
+            ammTokens.underlyingToken
+        ];
+        require(_strikePrice >= existingRange.min, "Strike low");
+        require(_strikePrice <= existingRange.max, "Strike high");
+        require(
+            _strikePrice % existingRange.increment == 0,
+            "Strike increment invalid"
+        );
+
+        // Validate expiration has been set
+        require(
+            allowedExpirationsMap[_expirationDate] > 0,
+            "Invalid expiration"
+        );
+
+        // Create series
+        // add to the array so the Series data can be accessed in the future
+        allSeries.push(
+            createSeriesInternal(
+                _expirationDate,
+                _isPutOption,
+                ammTokens,
+                _strikePrice
+            )
+        );
+
+        // Temporary array to pass to event
+        address[] memory restrictedMinters = new address[](1);
+        restrictedMinters[0] = address(_existingAmm);
+
+        // Emit the event
+        emit SeriesCreated(
+            latestIndex,
+            ammTokens,
+            restrictedMinters,
+            _strikePrice,
+            _expirationDate,
+            _isPutOption
+        );
+
+        // Buy options
+        uint256 amtBought = IMinterAmm(_existingAmm).bTokenBuy(
+            latestIndex,
+            _bTokenAmount,
+            _collateralMaximum
+        );
+
+        // Send tokens to buyer
+        uint256 newBTokenIndex = SeriesLibrary.bTokenIndex(latestIndex);
+
+        bytes memory data;
+        IERC1155(erc1155Controller).safeTransferFrom(
+            address(this),
+            msg.sender,
+            newBTokenIndex,
+            amtBought,
+            data
+        );
+
+        // Update the index since we added a new series
+        latestIndex = latestIndex + 1;
     }
 }
