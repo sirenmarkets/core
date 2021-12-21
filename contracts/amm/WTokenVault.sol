@@ -4,7 +4,6 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "../proxy/Proxiable.sol";
 import "./IMinterAmm.sol";
-import "./MinterAmmStorage.sol";
 import "../series/ISeriesController.sol";
 import "../series/SeriesLibrary.sol";
 import "../series/IPriceOracle.sol";
@@ -12,6 +11,8 @@ import "../series/IVolatilityOracle.sol";
 import "../configuration/IAddressesProvider.sol";
 import "./IAmmDataProvider.sol";
 import "./IWTokenVault.sol";
+
+import "hardhat/console.sol";
 
 contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
     /// @dev The address for the AddressesProvider
@@ -24,9 +25,9 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
     mapping(address => mapping(uint256 => mapping(address => uint256)))
         public lpShares;
 
-    mapping(address => mapping(uint64 => bool)) public isPoolClaimable;
+    mapping(address => mapping(uint256 => bool)) public isPoolClaimableMapping;
 
-    mapping(address => mapping(uint64 => uint256)) public lockedCollateral;
+    mapping(address => mapping(uint256 => uint256)) public lockedCollateral;
 
     function initialize(IAddressesProvider _addressesProvider)
         external
@@ -36,12 +37,25 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
         __Ownable_init();
     }
 
-    function setPoolClaimable(uint64 expirationId, bool isClaimable) external {
-        isPoolClaimable[msg.sender][expirationId] = isClaimable;
+    function isPoolClaimable(address poolAddress, uint256 expirationId)
+        external
+        view
+        override
+        returns (bool)
+    {
+        return isPoolClaimableMapping[poolAddress][expirationId];
+    }
+
+    function setPoolClaimable(uint256 expirationId, bool isClaimable)
+        external
+        override
+    {
+        isPoolClaimableMapping[msg.sender][expirationId] = isClaimable;
     }
 
     function getWTokenBalance(address poolAddress, uint64 seriesId)
         external
+        view
         override
         returns (uint256)
     {
@@ -49,10 +63,12 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
     }
 
     struct LocalVars {
+        uint256 expirationIdMin;
+        uint256 expirationIdMax;
         uint256 underlyingPrice;
         uint256 volatility;
         uint64[] allSeries;
-        uint64[] allExpirations;
+        uint256[] allExpirations;
         uint256[] lockedValue;
         uint256[] poolValue;
     }
@@ -71,18 +87,13 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
         IMinterAmm amm = IMinterAmm(msg.sender);
         vars.allSeries = amm.getAllSeries();
 
-        // TODO: get expirations from series controller when ready
-        vars.allExpirations = new uint64[](1);
-        vars.allExpirations[0] = 111111;
+        (vars.expirationIdMin, vars.expirationIdMax) = seriesController
+            .getExpirationIdRange();
 
         if (vars.allSeries.length > 0) {
-            MinterAmmStorageV2 ammStorage = MinterAmmStorageV2(address(amm));
-            address underlyingToken = address(ammStorage.underlyingToken());
-            address priceToken = address(ammStorage.priceToken());
+            address underlyingToken = address(amm.underlyingToken());
+            address priceToken = address(amm.priceToken());
 
-            // we assume the openSeries are all from the same AMM, and thus all its Series
-            // use the same underlying and price tokens, so we can arbitrarily choose the first
-            // when fetching the necessary token addresses
             vars.underlyingPrice = IPriceOracle(
                 addressesProvider.getPriceOracle()
             ).getCurrentPrice(underlyingToken, priceToken);
@@ -90,8 +101,12 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
             vars.volatility = volatility;
         }
 
-        vars.lockedValue = new uint256[](vars.allExpirations.length);
-        vars.poolValue = new uint256[](vars.allExpirations.length);
+        vars.lockedValue = new uint256[](
+            vars.expirationIdMax - vars.expirationIdMin + 1
+        );
+        vars.poolValue = new uint256[](
+            vars.expirationIdMax - vars.expirationIdMin + 1
+        );
 
         for (uint256 i = 0; i < vars.allSeries.length; i++) {
             uint64 seriesId = vars.allSeries[i];
@@ -110,8 +125,9 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
                 ).balanceOf(address(amm), wTokenIndex) * lpTokenAmount) /
                     lpTokenSupply;
 
-                // TODO: need to be able to get expiration id for series `seriesController.expirationId(seriesId)`
-                uint64 expirationId = 0;
+                uint256 expirationId = seriesController.allowedExpirationsMap(
+                    series.expirationDate
+                );
 
                 uint256 bPrice = IAmmDataProvider(
                     addressesProvider.getAmmDataProvider()
@@ -119,24 +135,22 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
 
                 uint256 valuePerToken;
                 if (series.isPutOption) {
-                    valuePerToken += seriesController
-                        .getCollateralPerUnderlying(
+                    valuePerToken = seriesController.getCollateralPerUnderlying(
                             seriesId,
-                            wTokenAmount *
-                                ((series.strikePrice * 1e18) /
-                                    vars.underlyingPrice -
-                                    bPrice),
+                            (series.strikePrice * 1e18) /
+                                vars.underlyingPrice -
+                                bPrice,
                             vars.underlyingPrice
                         );
                 } else {
-                    valuePerToken += wTokenAmount * (1e18 - bPrice);
+                    valuePerToken = 1e18 - bPrice;
                 }
 
                 uint256 poolWTokenBalance = lockedWTokens[address(amm)][
                     seriesId
                 ];
                 if (poolWTokenBalance > 0) {
-                    vars.poolValue[expirationId] +=
+                    vars.poolValue[expirationId - vars.expirationIdMin] +=
                         (poolWTokenBalance * valuePerToken) /
                         1e18;
                 }
@@ -144,68 +158,118 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
                 if (wTokenAmount > 0) {
                     // Increase locked wToken amount
                     lockedWTokens[address(amm)][seriesId] += wTokenAmount;
-                    vars.lockedValue[expirationId] +=
+                    vars.lockedValue[expirationId - vars.expirationIdMin] +=
                         (wTokenAmount * valuePerToken) /
                         1e18;
                 }
             }
         }
 
-        for (uint64 i = 0; i < vars.allExpirations.length; i++) {
+        for (
+            uint64 i = 0;
+            i <= vars.expirationIdMax - vars.expirationIdMin;
+            i++
+        ) {
             if (vars.lockedValue[i] > 0) {
+                uint256 expirationId = i + vars.expirationIdMin;
                 // Add locked collateral to the expiration ID
-                vars.poolValue[i] += lockedCollateral[address(amm)][i];
+                vars.poolValue[i] += lockedCollateral[address(amm)][
+                    expirationId
+                ];
 
                 // Update LP shares balance and supply
-                uint256 existingSupply = lpSharesSupply[address(amm)][i];
-                uint256 newSupply = ((vars.poolValue[i] + vars.lockedValue[i]) *
-                    existingSupply) / vars.poolValue[i];
-                lpShares[address(amm)][i][redeemer] +=
+                uint256 existingSupply = lpSharesSupply[address(amm)][
+                    expirationId
+                ];
+                uint256 newSupply;
+                if (existingSupply == 0) {
+                    newSupply = vars.lockedValue[i];
+                } else {
+                    newSupply =
+                        ((vars.poolValue[i] + vars.lockedValue[i]) *
+                            existingSupply) /
+                        vars.poolValue[i];
+                }
+
+                lpShares[address(amm)][expirationId][redeemer] +=
                     newSupply -
                     existingSupply;
-                lpSharesSupply[address(amm)][i] = newSupply;
+                lpSharesSupply[address(amm)][expirationId] = newSupply;
+
+                emit WTokensLocked(
+                    address(amm),
+                    redeemer,
+                    expirationId,
+                    newSupply - existingSupply
+                );
             }
         }
     }
 
-    function redeemCollateral(uint64 expirationId, address redeemer)
+    function redeemCollateral(uint256 expirationId, address redeemer)
         external
         override
         returns (uint256)
     {
         address ammAddress = msg.sender;
         require(
-            isPoolClaimable[ammAddress][expirationId],
+            isPoolClaimableMapping[ammAddress][expirationId],
             "Pool is not yet claimable"
         );
 
+        require(
+            lpShares[ammAddress][expirationId][redeemer] > 0,
+            "Nothing to redeem in this pool"
+        );
+
+        uint256 numShares = lpShares[ammAddress][expirationId][redeemer];
+
         uint256 collateralAmount = (lockedCollateral[ammAddress][expirationId] *
-            lpShares[ammAddress][expirationId][redeemer]) /
-            lpSharesSupply[ammAddress][expirationId];
+            numShares) / lpSharesSupply[ammAddress][expirationId];
 
         // Burn LP shares
-        uint256 numShares = lpShares[msg.sender][expirationId][redeemer];
-        lpShares[msg.sender][expirationId][redeemer] = 0;
-        lpSharesSupply[msg.sender][expirationId] -= numShares;
 
-        // TODO: emit event
+        lpShares[ammAddress][expirationId][redeemer] = 0;
+        lpSharesSupply[ammAddress][expirationId] -= numShares;
+        lockedCollateral[ammAddress][expirationId] -= collateralAmount;
+
+        emit LpSharesRedeemed(
+            ammAddress,
+            redeemer,
+            expirationId,
+            numShares,
+            collateralAmount
+        );
 
         return collateralAmount;
     }
 
-    function addCollateral(
+    function lockCollateral(
         uint64 seriesId,
         uint256 collateralAmount,
         uint256 wTokenAmount
     ) external override {
         address ammAddress = msg.sender;
+        ISeriesController seriesController = ISeriesController(
+            addressesProvider.getSeriesController()
+        );
 
-        // TODO: ability to get expirationId by seriesId from SeriesController
-        uint64 expirationId = 0;
+        ISeriesController.Series memory series = seriesController.series(
+            seriesId
+        );
+
+        uint256 expirationId = seriesController.allowedExpirationsMap(
+            series.expirationDate
+        );
 
         lockedCollateral[ammAddress][expirationId] += collateralAmount;
         lockedWTokens[ammAddress][seriesId] -= wTokenAmount;
 
-        // TODO: emit event
+        emit CollateralLocked(
+            ammAddress,
+            seriesId,
+            collateralAmount,
+            wTokenAmount
+        );
     }
 }

@@ -589,6 +589,15 @@ contract SeriesController is
         return componentStr;
     }
 
+    function getExpirationIdRange()
+        external
+        view
+        override
+        returns (uint256, uint256)
+    {
+        return (1, allowedExpirationsList.length - 1);
+    }
+
     ///////////////////// MUTATING FUNCTIONS /////////////////////
 
     /// @notice Initialize the SeriesController, setting its URI and priceOracle

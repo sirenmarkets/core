@@ -141,6 +141,18 @@ interface ISeriesController {
 
     function erc1155Controller() external view returns (address);
 
+    function allowedExpirationsList(uint256 expirationId)
+        external
+        view
+        returns (uint256);
+
+    function allowedExpirationsMap(uint256 expirationTimestamp)
+        external
+        view
+        returns (uint256);
+
+    function getExpirationIdRange() external view returns (uint256, uint256);
+
     function series(uint256 seriesId)
         external
         view

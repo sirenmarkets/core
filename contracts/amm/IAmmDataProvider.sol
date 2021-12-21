@@ -54,11 +54,10 @@ interface IAmmDataProvider {
         uint256[] memory impliedVolatility
     ) external view returns (uint256);
 
-    function getRedeemableCollateral(
-        uint64 seriesId,
-        uint256 wTokenBalance,
-        uint256 bTokenBalance
-    ) external view returns (uint256);
+    function getRedeemableCollateral(uint64 seriesId, uint256 wTokenBalance)
+        external
+        view
+        returns (uint256);
 
     function getTotalPoolValueView(address ammAddress, bool includeUnclaimed)
         external

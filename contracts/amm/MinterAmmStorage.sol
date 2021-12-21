@@ -94,7 +94,7 @@ abstract contract MinterAmmStorageV2 is MinterAmmStorageV1 {
     IAddressesProvider addressesProvider;
 }
 
-contract MinterAmmStorageV3 is MinterAmmStorageV2 {
+abstract contract MinterAmmStorageV3 is MinterAmmStorageV2 {
     uint256 public lockedCollateral;
 }
 

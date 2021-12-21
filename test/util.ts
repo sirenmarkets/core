@@ -23,6 +23,8 @@ import {
   LightContract,
   MockPriceOracleInstance,
   SeriesDeployerContract,
+  WTokenVaultContract,
+  WTokenVaultInstance,
 } from "../typechain"
 import { artifacts, assert, ethers, network } from "hardhat"
 import { time, expectEvent, BN } from "@openzeppelin/test-helpers"
@@ -71,6 +73,8 @@ const Light: LightContract = artifacts.require("Light")
 
 const SeriesDeployer: SeriesDeployerContract =
   artifacts.require("SeriesDeployer")
+
+const WTokenVault: WTokenVaultContract = artifacts.require("WTokenVault")
 
 const FEE_RECEIVER_ADDRESS = "0x000000000000000000000000000000000000dEaD"
 export const ONE_DAY_DURATION = 24 * 60 * 60
@@ -348,6 +352,7 @@ export async function setupSingletonTestContracts(
   const erc20Logic = await SimpleToken.deployed()
   const addressesProviderLogic = await AddressesProvider.deployed()
   const seriesDeployerLogic = await SeriesDeployer.deployed()
+  const wTokenVaultLogic = await WTokenVault.deployed()
 
   if (!underlyingToken) {
     underlyingToken = await SimpleToken.new()
@@ -385,6 +390,12 @@ export async function setupSingletonTestContracts(
 
   const deployedLightAirswap = await Light.new()
   await deployedAddressesProvider.setAirswapLight(deployedLightAirswap.address)
+
+  // WTokenVault
+  const proxyWTokenVault = await Proxy.new(wTokenVaultLogic.address)
+  const deployedWTokenVault = await WTokenVault.at(proxyWTokenVault.address)
+  deployedWTokenVault.initialize(deployedAddressesProvider.address)
+  await deployedAddressesProvider.setWTokenVault(deployedWTokenVault.address)
 
   // Create a new proxy contract pointing at the series vault logic for testing
   const vaultProxy = await Proxy.new(seriesVaultLogic.address)
@@ -530,6 +541,7 @@ export async function setupSingletonTestContracts(
     deployedMockVolatilityOracle,
     deployedLightAirswap,
     deployedSeriesDeployer,
+    deployedWTokenVault,
     oraclePrice,
     expiration,
     exerciseFee,
@@ -705,8 +717,11 @@ export async function setupAmm({
 
   const deployedAmm = await MinterAmm.at(ammAddress)
 
+  const lpToken = await SimpleToken.at(await deployedAmm.lpToken())
+
   return {
     deployedAmm,
+    lpToken,
   }
 }
 
@@ -812,6 +827,7 @@ export async function setupAllTestContracts(
     deployedAddressesProvider,
     deployedLightAirswap,
     deployedSeriesDeployer,
+    deployedWTokenVault,
     expiration,
     erc1155URI,
   } = await setupSingletonTestContracts({
@@ -829,7 +845,7 @@ export async function setupAllTestContracts(
     collateralToken = priceToken
   }
 
-  const { deployedAmm } = await setupAmm({
+  const { deployedAmm, lpToken } = await setupAmm({
     deployedAmmFactory,
     deployedPriceOracle,
     deployedAmmDataProvider,
@@ -878,7 +894,9 @@ export async function setupAllTestContracts(
     deployedAddressesProvider,
     deployedLightAirswap,
     deployedSeriesDeployer,
+    deployedWTokenVault,
     deployedAmm,
+    lpToken,
     oraclePrice,
     expiration,
     seriesId,
@@ -928,4 +946,23 @@ export function getRandomSubarray(arr: Array<any>, size: number) {
     shuffled[i] = temp
   }
   return shuffled.slice(0, size)
+}
+
+export function parseLogs(txReturn, contract) {
+  const decoded = txReturn.receipt.rawLogs.map((rawLog) => {
+    const result = contract._decodeEventABI.call(
+      {
+        name: "ALLEVENTS",
+        jsonInterface: contract.options.jsonInterface,
+      },
+      rawLog,
+    )
+
+    result.args = result.returnValues
+
+    return result
+  })
+
+  txReturn.receipt.logs = txReturn.receipt.logs.concat(decoded)
+  txReturn.logs = txReturn.receipt.logs
 }
