@@ -18,6 +18,8 @@ import "../series/IVolatilityOracle.sol";
 import "./IBlackScholes.sol";
 import "./IWTokenVault.sol";
 
+import "hardhat/console.sol";
+
 /// This is an implementation of a minting/redeeming AMM (Automated Market Maker) that trades a list of series with the same
 /// collateral token. For example, a single WBTC Call AMM contract can trade all strikes of WBTC calls using
 /// WBTC as the collateral, and a single WBTC Put AMM contract can trade all strikes of WBTC puts, using
@@ -490,6 +492,10 @@ contract MinterAmm is
     /// @notice Claims any remaining collateral from all expired series whose wToken is held by the AMM, and removes
     /// the expired series from the AMM's collection of series
     function claimAllExpiredTokens() public {
+        IWTokenVault wTokenVault = IWTokenVault(
+            addressesProvider.getWTokenVault()
+        );
+
         for (uint256 i = 0; i < openSeries.length(); i++) {
             uint64 seriesId = uint64(openSeries.at(i));
             while (
@@ -497,6 +503,18 @@ contract MinterAmm is
                 ISeriesController.SeriesState.EXPIRED
             ) {
                 claimExpiredTokens(seriesId);
+
+                ISeriesController.Series memory series = seriesController
+                    .series(seriesId);
+
+                // Set locked pool claimable for this expiration
+                // TODO: find a more elegant way to do this
+                wTokenVault.setPoolClaimable(
+                    seriesController.allowedExpirationsMap(
+                        series.expirationDate
+                    ),
+                    true
+                );
 
                 // Handle edge case: If, prior to removing the Series, i was the index of the last Series
                 // in openSeries, then after the removal `i` will point to one beyond the end of the array.
