@@ -1,4 +1,3 @@
-import { setupMockVolatilityPriceOracle } from "../../test/util"
 let axios = require("axios")
 import { artifacts, ethers } from "hardhat"
 import { time, BN } from "@openzeppelin/test-helpers"
@@ -8,12 +7,10 @@ import {
   MockPriceOracleContract,
   SimpleTokenContract,
   SimpleTokenInstance,
-  MockVolatilityPriceOracleInstance,
 } from "../../typechain"
 let PERIOD = 86400
 const WINDOW_IN_DAYS = 90 // 3 month vol data
 const COMMIT_PHASE_DURATION = 3600 // 30 mins
-let deployedMockVolatilityPriceOracle: MockVolatilityPriceOracleInstance
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
 
 async function getPrices() {
@@ -43,14 +40,10 @@ async function getPrices() {
     let underlyingPrice = Math.trunc(prices[0][1] * 10 ** 10)
     console.log(underlyingPrice)
     await deployedMockPriceOracle.setLatestAnswer(underlyingPrice)
-    deployedMockVolatilityPriceOracle = await setupMockVolatilityPriceOracle(
-      underlyingToken.address,
-      priceToken.address,
-      deployedMockPriceOracle.address,
-    )
+
     let deployedMockVolatilityOracle = await MockVolatility.deploy(
       PERIOD,
-      deployedMockVolatilityPriceOracle.address,
+      deployedMockPriceOracle.address,
       WINDOW_IN_DAYS,
     )
     const topOfPeriod = (await getTopOfPeriod()) + PERIOD

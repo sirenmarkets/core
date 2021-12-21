@@ -22,6 +22,7 @@ import {
   assertBNEqWithTolerance,
   ONE_WEEK_DURATION,
   blackScholes,
+  setNextBlockTimestamp,
 } from "../util"
 
 let deployedSeriesController: SeriesControllerInstance
@@ -318,7 +319,8 @@ contract("Minter AMM Expired", (accounts) => {
       "Total assets value in the AMM should be 10k",
     )
 
-    await time.increaseTo(expiration - ONE_WEEK_DURATION) // use the same time, no matter when this test gets called
+    const startTime = expiration - ONE_WEEK_DURATION
+    await time.increaseTo(startTime) // use the same time, no matter when this test gets called
 
     // 0.001126
     let optionPrice = blackScholes(
@@ -337,6 +339,8 @@ contract("Minter AMM Expired", (accounts) => {
       "AMM should calculate bToken price correctly",
     )
 
+    await setNextBlockTimestamp(startTime + 10)
+
     // Buy bTokens
     receipt = await deployedAmm.bTokenBuy(seriesId, 3000e8, 3000e8, {
       from: aliceAccount,
@@ -352,7 +356,7 @@ contract("Minter AMM Expired", (accounts) => {
       bTokenIndex,
       wTokenIndex,
       lpToken,
-      99517717858,
+      99517744074,
       3000e8,
       0,
       0,
@@ -367,11 +371,13 @@ contract("Minter AMM Expired", (accounts) => {
       bTokenIndex,
       wTokenIndex,
       lpToken,
-      700482282142,
+      700482255926,
       0,
       3000e8,
       0,
     )
+
+    await setNextBlockTimestamp(startTime + 20)
 
     // Check pool value before oracle update
     assertBNEq(
@@ -381,7 +387,7 @@ contract("Minter AMM Expired", (accounts) => {
           true,
         )
       ).toString(),
-      (1000144289300).toString(), // ~7004e8 + 3000e8 * (1 - 0.001126) (btw, 100014 > 10000 - LPs are making money!!!)
+      (1000144281477).toString(), // ~7004e8 + 3000e8 * (1 - 0.001126) (btw, 100014 > 10000 - LPs are making money!!!)
       "Total assets value in the AMM should be correct",
     )
 
@@ -412,7 +418,7 @@ contract("Minter AMM Expired", (accounts) => {
           true,
         )
       ).toString(),
-      (938634282480).toString(), // LPs are down by ~614e8 = (0.206 - 0.001126) * 3000e8
+      (938634352901).toString(), // LPs are down by ~614e8 = (0.206 - 0.001126) * 3000e8
       "Total assets value in the AMM should be correct",
     )
 
@@ -442,7 +448,7 @@ contract("Minter AMM Expired", (accounts) => {
       bTokenIndex,
       wTokenIndex,
       lpToken,
-      139517717858, // 1395e8
+      139517744074, // 1395e8
       1000e8,
       0,
       0,
@@ -479,7 +485,7 @@ contract("Minter AMM Expired", (accounts) => {
           false,
         )
       ).toString(),
-      (700482282142).toString(), // 7004e8 - only collateral is valued, wTokens are expired
+      (700482255926).toString(), // 7004e8 - only collateral is valued, wTokens are expired
       "Total assets value excluding unclaimed in the AMM should be correct",
     )
     assertBNEq(
@@ -489,7 +495,7 @@ contract("Minter AMM Expired", (accounts) => {
           true,
         )
       ).toString(),
-      (940482282142).toString(), // 7004 (collateral balance) + 2400 (unclaimed collateral) = 9,404
+      (940482255926).toString(), // 7004 (collateral balance) + 2400 (unclaimed collateral) = 9,404
       "Total assets value in the AMM should be correct",
     )
 
@@ -512,12 +518,12 @@ contract("Minter AMM Expired", (accounts) => {
       0,
       0,
       0,
-      106328425212,
+      106328428175,
     )
 
     // Bob withdraws liquidty
     receipt = await deployedAmm.withdrawCapital(
-      106328425212,
+      106328428175,
       true,
       99999999999,
       {
@@ -543,12 +549,12 @@ contract("Minter AMM Expired", (accounts) => {
     receipt = await deployedAmm.withdrawCapital(
       initialCapital / 2,
       true,
-      470241141071,
+      470241127963,
     )
 
     expectEvent(receipt, "LpTokensBurned", {
       redeemer: ownerAccount,
-      collateralRemoved: "470241141071",
+      collateralRemoved: "470241127963",
       lpTokensBurned: "500000000000",
     })
 
@@ -561,7 +567,7 @@ contract("Minter AMM Expired", (accounts) => {
       bTokenIndex,
       wTokenIndex,
       lpToken,
-      470241141071,
+      470241127963,
       0,
       0,
       500000000000,
@@ -576,7 +582,7 @@ contract("Minter AMM Expired", (accounts) => {
       bTokenIndex,
       wTokenIndex,
       lpToken,
-      470241141072,
+      470241127964,
       0,
       0,
       0,
@@ -586,12 +592,12 @@ contract("Minter AMM Expired", (accounts) => {
     receipt = await deployedAmm.withdrawCapital(
       initialCapital / 2,
       true,
-      470241141072,
+      470241127964,
     )
 
     expectEvent(receipt, "LpTokensBurned", {
       redeemer: ownerAccount,
-      collateralRemoved: "470241141072",
+      collateralRemoved: "470241127964",
       lpTokensBurned: "500000000000",
     })
 
@@ -605,7 +611,7 @@ contract("Minter AMM Expired", (accounts) => {
       bTokenIndex,
       wTokenIndex,
       lpToken,
-      940482282143,
+      940482255927,
       0,
       0,
       0,
@@ -625,7 +631,7 @@ contract("Minter AMM Expired", (accounts) => {
       bTokenIndex,
       wTokenIndex,
       lpToken,
-      159517717858, // Alice gain = 1596 - 1000 = 596 (equals LP loss +/- precision)
+      159517744074, // Alice gain = 1596 - 1000 = 596 (equals LP loss +/- precision)
       0,
       0,
       0,

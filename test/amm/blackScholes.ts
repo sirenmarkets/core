@@ -26,15 +26,7 @@ const OTM_BTC_ORACLE_PRICE = 14_000 * 10 ** 8
 const STRIKE_PRICE = 15000 * 1e8 // 15000 USD
 const UNDERLYING_PRICE = OTM_BTC_ORACLE_PRICE
 const ANNUALIZED_VOLATILITY = 1 * 1e8 // 100%
-import {
-  assertBNEq,
-  assertBNEqWithTolerance,
-  checkBalances,
-  setupAllTestContracts,
-  setupSeries,
-  ONE_WEEK_DURATION,
-  blackScholes,
-} from "../util"
+import { assertBNEq, assertBNEqWithTolerance, getRandomSubarray } from "../util"
 
 describe("BlackScholes - values", () => {
   let account: Signer
@@ -48,100 +40,85 @@ describe("BlackScholes - values", () => {
   })
 
   describe("optionPrices - spot == strike", async () => {
-    const timeToExp = [
-      // 0,
-      1, 2, 100, 100000, 250000, 500000, 1000000, 9848575333047,
-    ]
-    it("calculates optionPrices with respect to changes in time to expiry", async () => {
-      for (const val of timeToExp) {
-        const volatility = toBN("1")
-        const spot = toBN("2000")
-        const strike = toBN("2000")
-        const rate = toBN("0.1")
+    // Pick random subsets to prevent timeout
+    const timeToExp = getRandomSubarray(
+      [
+        // 0,
+        1,
+        100,
+        100000,
+        1000000,
+        31556952,
+        2 * 31556952,
+      ],
+      2,
+    )
+    const spotPrices = getRandomSubarray(
+      [0.1, 1.1, 200, 5000, 42999, 100000],
+      2,
+    )
+    const strikeRatios = getRandomSubarray([0.1, 0.5, 1, 2, 5], 2)
+    const volatilities = getRandomSubarray([0.1, 0.5, 1, 2.5, 3], 2)
 
-        const result = await deployedBlackScholes.optionPrices(
-          val,
-          volatility.toString(),
-          spot.toString(),
-          strike.toString(),
-          rate.toString(),
-        )
-
-        const tAnnualised = val / YEAR_SEC
-        const expectedCall = callPrice(
-          tAnnualised,
-          Number(1),
-          Number(2000),
-          Number(2000),
-          Number(0.1),
-        )
-        const expectedPut = putPrice(tAnnualised, 1, 2000, 2000, 0.1)
-
-        assertBNEqWithTolerance(
-          toBN(expectedCall.toString()),
-          result[0].toString(),
-          TOLERANCE_LEVEL,
-        )
-        assertBNEqWithTolerance(
-          toBN(expectedPut.toString()),
-          result[1].toString(),
-          TOLERANCE_LEVEL,
-        )
-      }
-    })
-  })
-  describe("optionPrices - spot == strike", async () => {
-    const timeToExp = [
-      // 0,
-      1, 2, 100, 100000, 250000, 500000, 1000000, 9848575333047,
-    ]
-    const spotPrices = [2000, 2100, 2200, 2300, 5000]
-    const strikePrices = [2000, 2100, 2200, 2300, 5000]
     it("calculates optionPrices with respect to changes in time to expiry, spot, and strike ", async () => {
-      for (const val of timeToExp) {
+      for (const time of timeToExp) {
         for (const spot of spotPrices) {
-          for (const strike of strikePrices) {
-            const volatility = toBN("1")
-            const spotBN = toBN(spot.toString())
-            const strikeBN = toBN(strike.toString())
-            const rate = toBN("0.1")
-            const result = await deployedBlackScholes.optionPrices(
-              val,
-              volatility.toString(),
-              spotBN.toString(),
-              strikeBN.toString(),
-              rate.toString(),
-            )
+          for (const strikeRatio of strikeRatios) {
+            for (const vol of volatilities) {
+              const strike = spot * strikeRatio
+              const rate = 0
 
-            const tAnnualised = val / YEAR_SEC
-            const expectedCall = callPrice(
-              tAnnualised,
-              Number(1),
-              Number(spot),
-              Number(strike),
-              Number(0.1),
-            )
-            const expectedPut = putPrice(
-              tAnnualised,
-              1,
-              Number(spot),
-              Number(strike),
-              0.1,
-            )
-            assertBNEqWithTolerance(
-              toBN(expectedCall.toString()),
-              result[0].toString(),
-              0.3 * 1e18,
-            )
-            assertBNEqWithTolerance(
-              toBN(expectedPut.toString()),
-              result[1].toString(),
-              0.3 * 1e18,
-            )
+              const volatilityBN = toBN(vol.toString())
+              const spotBN = toBN(spot.toString())
+              const strikeBN = toBN(strike.toString())
+              const rateBN = toBN(rate.toString())
+
+              const result = await deployedBlackScholes.optionPrices(
+                time,
+                volatilityBN.toString(),
+                spotBN.toString(),
+                strikeBN.toString(),
+                rateBN.toString(),
+              )
+
+              const tAnnualised = time / YEAR_SEC
+              const expectedCall =
+                callPrice(tAnnualised, vol, spot, strike, rate) / spot
+              const expectedPut =
+                putPrice(tAnnualised, vol, spot, strike, rate) / spot
+
+              let callResult = BigNumber.from(result[0].toString())
+                .mul((1e18).toString())
+                .div(spotBN)
+              let putResult = BigNumber.from(result[1].toString())
+                .mul((1e18).toString())
+                .div(spotBN)
+
+              // console.log('time', time)
+              // console.log('spot', spot)
+              // console.log('strike', strike)
+              // console.log('callResult', callResult.toString())
+              // console.log('expectedCall', toBN(expectedCall.toString()).toString())
+              // console.log('')
+
+              const tolerance = 0.0001e18
+
+              assertBNEqWithTolerance(
+                toBN(expectedCall.toString()),
+                callResult,
+                tolerance,
+              )
+              assertBNEqWithTolerance(
+                toBN(expectedPut.toString()),
+                putResult,
+                tolerance,
+              )
+            }
           }
         }
       }
-    })
+    }).timeout(100000)
+
     it("calculates somewhat correctly for 0", async () => {
       const volatility = toBN("1")
       const spot = toBN("2000")

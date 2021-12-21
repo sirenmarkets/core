@@ -173,8 +173,7 @@ contract("AMM Upgradeability", (accounts) => {
         underlyingToken.address,
         priceToken.address,
         collateralToken.address,
-        collateralToken.address, // use arbitrary SimpleToken contract address
-        0,
+        0, // use arbitrary SimpleToken contract address
       ),
       "E08", // "Contract can only be initialized once"
     )

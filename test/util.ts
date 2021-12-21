@@ -14,8 +14,6 @@ import {
   MinterAmmContract,
   ERC1155ControllerInstance,
   SirenExchangeContract,
-  MockVolatilityPriceOracleInstance,
-  MockVolatilityPriceOracleContract,
   AddressesProviderContract,
   AddressesProviderInstance,
   VolatilityOracleContract,
@@ -23,8 +21,9 @@ import {
   MockVolatilityOracleInstance,
   MockVolatilityOracleContract,
   LightContract,
+  MockPriceOracleInstance,
 } from "../typechain"
-import { artifacts, assert, ethers } from "hardhat"
+import { artifacts, assert, ethers, network } from "hardhat"
 import { time, expectEvent, BN } from "@openzeppelin/test-helpers"
 import * as BS from "black-scholes"
 
@@ -41,9 +40,6 @@ const aliceAccount = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
 const bobAccount = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
 
 const PriceOracle: PriceOracleContract = artifacts.require("PriceOracle")
-
-const MockVolatilityPriceOracle: MockVolatilityPriceOracleContract =
-  artifacts.require("MockVolatilityPriceOracle")
 
 const MockVolatilityOracle: MockVolatilityOracleContract = artifacts.require(
   "MockVolatilityOracle",
@@ -97,22 +93,22 @@ export async function setupPriceOracle(
   return deployedPriceOracle
 }
 
-export async function setupMockVolatilityPriceOracle(
+export async function setupMockPriceOracle(
   underlyingAddress: string,
   priceAddress: string,
   mockOracleAddress: string,
-): Promise<MockVolatilityPriceOracleInstance> {
-  const deployedMockVolatilityPriceOracle: MockVolatilityPriceOracleInstance =
-    await MockVolatilityPriceOracle.new()
+): Promise<MockPriceOracleInstance> {
+  const deployedPriceOracle: MockPriceOracleInstance =
+    await MockPriceOracle.new(8)
 
-  await deployedMockVolatilityPriceOracle.initialize(ONE_DAY_DURATION)
+  await deployedPriceOracle.initialize(ONE_DAY_DURATION)
 
-  await deployedMockVolatilityPriceOracle.addTokenPair(
+  await deployedPriceOracle.addTokenPair(
     underlyingAddress,
     priceAddress,
     mockOracleAddress,
   )
-  return deployedMockVolatilityPriceOracle
+  return deployedPriceOracle
 }
 
 export async function setUpMockVolatilityOracle(
@@ -432,10 +428,11 @@ export async function setupSingletonTestContracts(
     deployedMockPriceOracle.address,
   )
 
+  await deployedAddressesProvider.setPriceOracle(deployedPriceOracle.address)
+
   const deployedAmmDataProvider = await AmmDataProvider.new(
     deployedSeriesController.address,
     deployedERC1155Controller.address,
-    deployedPriceOracle.address,
     deployedAddressesProvider.address,
   )
 
@@ -471,7 +468,7 @@ export async function setupSingletonTestContracts(
     priceToken.address,
     PERIOD,
     WINDOW_IN_DAYS,
-    deployedMockVolatilityPriceOracle.address,
+    deployedPriceOracle.address,
     annualizedVolatility,
   )
 
@@ -895,4 +892,22 @@ export function blackScholes(
     ) /
     (underlying / 1e8)
   )
+}
+
+export async function setNextBlockTimestamp(timestamp: number) {
+  await network.provider.send("evm_setNextBlockTimestamp", [timestamp])
+}
+
+export function getRandomSubarray(arr: Array<any>, size: number) {
+  var shuffled = arr.slice(0),
+    i = arr.length,
+    temp,
+    index
+  while (i--) {
+    index = Math.floor((i + 1) * Math.random())
+    temp = shuffled[index]
+    shuffled[index] = shuffled[i]
+    shuffled[i] = temp
+  }
+  return shuffled.slice(0, size)
 }

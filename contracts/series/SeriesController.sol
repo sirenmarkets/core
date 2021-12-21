@@ -1156,7 +1156,6 @@ contract SeriesController is
         onlyOwner
     {
         require(_addressesProvider != address(0x0), "Invalid Address");
-
         addressesProvider = IAddressesProvider(_addressesProvider);
     }
 

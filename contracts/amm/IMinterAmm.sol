@@ -1,13 +1,21 @@
 pragma solidity 0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../token/ISimpleToken.sol";
 import "../series/ISeriesController.sol";
 import "../configuration/IAddressesProvider.sol";
 
 interface IMinterAmm {
+    function lpToken() external view returns (ISimpleToken);
+
+    function underlyingToken() external view returns (IERC20);
+
+    function priceToken() external view returns (IERC20);
+
+    function collateralToken() external view returns (IERC20);
+
     function initialize(
         ISeriesController _seriesController,
-        address _priceOracle,
         IAddressesProvider _addressesProvider,
         IERC20 _underlyingToken,
         IERC20 _priceToken,
@@ -25,12 +33,6 @@ interface IMinterAmm {
     function bTokenSell(
         uint64 seriesId,
         uint256 bTokenAmount,
-        uint256 collateralMinimum
-    ) external returns (uint256);
-
-    function wTokenSell(
-        uint64 seriesId,
-        uint256 wTokenAmount,
         uint256 collateralMinimum
     ) external returns (uint256);
 

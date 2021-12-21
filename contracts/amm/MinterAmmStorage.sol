@@ -4,6 +4,7 @@ pragma solidity 0.8.0;
 
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "./IMinterAmm.sol";
 import "../oz/EnumerableSet.sol";
 import "../series/ISeriesController.sol";
 import "../series/SeriesLibrary.sol";
@@ -16,14 +17,14 @@ import "../configuration/IAddressesProvider.sol";
 /// Each time a new version is created with new variables, the version "V1, V2, etc" should
 //    be bumped and inherit from the previous version, and the MinterAmm should inherit from
 ///   the newest version.
-contract MinterAmmStorageV1 {
+abstract contract MinterAmmStorageV1 is IMinterAmm {
     /// @dev The token contract that will track lp ownership of the AMM
-    ISimpleToken public lpToken;
+    ISimpleToken public override lpToken;
 
     /// @dev The ERC20 tokens used by all the Series associated with this AMM
-    IERC20 public underlyingToken;
-    IERC20 public priceToken;
-    IERC20 public collateralToken;
+    IERC20 public override underlyingToken;
+    IERC20 public override priceToken;
+    IERC20 public override collateralToken;
 
     /// @dev The registry which the AMM will use to lookup individual Series
     ISeriesController public seriesController;
@@ -78,7 +79,7 @@ contract MinterAmmStorageV1 {
     address public lightAirswapAddress;
 }
 
-contract MinterAmmStorageV2 is MinterAmmStorageV1 {
+abstract contract MinterAmmStorageV2 is MinterAmmStorageV1 {
     /// @dev Stores volatility mapped to each series
 
     struct SeriesVolatility {
