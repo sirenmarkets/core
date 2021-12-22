@@ -46,10 +46,10 @@ const STATE_EXPIRED = 1
 
 const ERROR_MESSAGES = {
   CANNOT_EXERCISE_EXPIRED: "Option contract must be in Open State to exercise",
-  CANNOT_EXERCISE_PRIOR_EXERCISE_WINDOW: "Series Not Expired",
-  CANNOT_CLAIM_OPEN: "Series Not Expired",
-  CANNOT_CLOSE_EXPIRED: "Series Not Open",
-  CANNOT_MINT_NOT_OPEN: "Series Not Open",
+  CANNOT_EXERCISE_PRIOR_EXERCISE_WINDOW: "!Expired",
+  CANNOT_CLAIM_OPEN: "!Expired",
+  CANNOT_CLOSE_EXPIRED: "!Open",
+  CANNOT_MINT_NOT_OPEN: "!Open",
   NOT_ENOUGH_BALANCE: "ERC20: transfer amount exceeds balance",
   NOT_APPROVED_BALANCE: "ERC20: transfer amount exceeds allowance",
   NON_MINTER: "mintOptions: only restrictedMinter can mint",
@@ -230,6 +230,14 @@ contract("Proxy Series Verification", (accounts) => {
       isPutOption,
     )
 
+    // Verify the strike is allowed
+    await deployedSeriesController.updateAllowedTokenStrikeRanges(
+      underlyingToken.address,
+      new BN(strikePrice).sub(new BN(1)),
+      new BN(additionalStrikePrice).add(new BN(1)),
+      1,
+    )
+
     const resp = await deployedSeriesController.createSeries(
       {
         underlyingToken: underlyingToken.address,
@@ -388,7 +396,7 @@ contract("Proxy Series Verification", (accounts) => {
         [],
         isPutOption,
       ),
-      "Invalid underlyingToken",
+      "!Underlying",
     )
 
     await expectRevert(
@@ -403,7 +411,7 @@ contract("Proxy Series Verification", (accounts) => {
         [],
         isPutOption,
       ),
-      "Invalid priceToken",
+      "!Price",
     )
 
     await expectRevert(
@@ -418,7 +426,7 @@ contract("Proxy Series Verification", (accounts) => {
         [],
         isPutOption,
       ),
-      "Invalid collateralToken",
+      "!Collateral",
     )
   })
 
@@ -446,7 +454,7 @@ contract("Proxy Series Verification", (accounts) => {
         [],
         isPutOption,
       ),
-      "Invalid _restrictedMinters",
+      "!restrictedMinters",
     )
   })
 
@@ -504,13 +512,13 @@ contract("Proxy Series Verification", (accounts) => {
       deployedSeriesController.mintOptions(1337, MINT_AMOUNT, {
         from: aliceAccount,
       }),
-      "Invalid _seriesId",
+      "!_seriesId",
     )
 
     // It should fail to mint when minter is not one of the restricted minters
     await expectRevert(
       deployedSeriesController.mintOptions(seriesId, MINT_AMOUNT),
-      "Not Minter Role",
+      "!Minter",
     )
 
     // It should succeed
@@ -1027,7 +1035,7 @@ contract("Proxy Series Verification", (accounts) => {
       deployedSeriesController.updateImplementation(newImpl.address, {
         from: aliceAccount,
       }),
-      "SeriesController: Caller is not the owner",
+      "!admin",
     )
 
     // now make sure it changes when we update the implementation

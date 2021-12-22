@@ -1,18 +1,16 @@
-test / seriesController / autoCreateSeries.ts
-
 /* global artifacts contract it assert */
 import { expectEvent, expectRevert, BN } from "@openzeppelin/test-helpers"
 import { contract, assert } from "hardhat"
 import { SeriesControllerInstance } from "../../typechain"
 import helpers from "../testHelpers"
 
-import { assertBNEq } from "../util"
+import { assertBNEq, ONE_WEEK_DURATION } from "../util"
 
 const ERROR_MESSAGES = {
-  INVALID_ARRAYS: "Invalid lengths",
-  INVALID_TOKEN: "Invalid Token",
-  INVALID_MIN_MAX: "Invalid min/max",
-  INVALID_INCREMENT: "Invalid increment",
+  INVALID_ARRAYS: "!Order",
+  INVALID_TOKEN: "!Token",
+  INVALID_MIN_MAX: "!min/max",
+  INVALID_INCREMENT: "!increment",
 }
 
 import { setupSingletonTestContracts, setupSeries } from "../util"
@@ -22,63 +20,56 @@ contract("Auto Series Creation", (accounts) => {
   const bobAccount = accounts[2]
 
   let deployedSeriesController: SeriesControllerInstance
+  let expiration: number
 
   beforeEach(async () => {})
 
   it("Allows the owner to update the expiration dates", async () => {
-    ;({ deployedSeriesController } = await setupSingletonTestContracts())
+    ;({ deployedSeriesController, expiration } =
+      await setupSingletonTestContracts())
 
-    const timestamps = [0, 1]
-    const allowedFlags = [true, false]
+    const timestamps = [
+      expiration + ONE_WEEK_DURATION,
+      expiration + 2 * ONE_WEEK_DURATION,
+    ]
 
     // Verify it fails if a non owner calls it
     await expectRevert.unspecified(
-      deployedSeriesController.updateAllowedExpirations(
-        timestamps,
-        allowedFlags,
-        { from: bobAccount },
-      ),
-    )
-
-    // Verify it fails with non equal arrays
-    await expectRevert(
-      deployedSeriesController.updateAllowedExpirations([0, 1], [true]),
-      ERROR_MESSAGES.INVALID_ARRAYS,
+      deployedSeriesController.updateAllowedExpirations(timestamps, {
+        from: bobAccount,
+      }),
     )
 
     const ret = await deployedSeriesController.updateAllowedExpirations(
       timestamps,
-      allowedFlags,
     )
 
     // Verify events
     expectEvent(ret, "AllowedExpirationUpdated", {
-      timestamp: new BN(0),
-      allowed: true,
+      newAllowedExpiration: new BN(timestamps[0]),
     })
 
     expectEvent(ret, "AllowedExpirationUpdated", {
-      timestamp: new BN(1),
-      allowed: false,
+      newAllowedExpiration: new BN(timestamps[1]),
     })
 
     // Verify storage
-    assert.equal(
-      await deployedSeriesController.allowedExpirations(new BN(0)),
-      true,
+    assertBNEq(
+      await deployedSeriesController.allowedExpirationsList(new BN(1)),
+      expiration,
       "Expiration should be set",
     )
 
-    assert.equal(
-      await deployedSeriesController.allowedExpirations(new BN(1)),
-      false,
+    assertBNEq(
+      await deployedSeriesController.allowedExpirationsList(new BN(2)),
+      timestamps[0],
       "Expiration should be set",
     )
 
-    assert.equal(
-      await deployedSeriesController.allowedExpirations(new BN(2)),
-      false,
-      "Expiration should not be set by default",
+    assertBNEq(
+      await deployedSeriesController.allowedExpirationsList(new BN(3)),
+      timestamps[1],
+      "Expiration should be set",
     )
   })
 

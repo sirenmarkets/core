@@ -74,8 +74,11 @@ contract SeriesDeployer is Initializable, AccessControlUpgradeable, Proxiable {
         addressesProvider = IAddressesProvider(_addressesProvider);
     }
 
-    /// @dev This assumes the existing AMM has valid tokens and is already has MINTER_ROLE
-    // TODO: move this out to a separate contract
+    /// @dev This function allows any address to spin up a new series if it doesn't already exist and buy bTokens.
+    /// The existing AMM address provided must have been deployed from the Siren AMM Factory to ensure no
+    /// malicious AMM can be passed by the user.  The tokens from the AMM are used in the series creation.
+    /// The strike price and expiration dates must have been pre-authorized for that asset in the Series Controller.
+    /// Once the series is created, the function will purchase the requested tokens for the user from the AMM.
     function autoCreateSeriesAndBuy(
         IMinterAmm _existingAmm,
         uint256 _strikePrice,

@@ -53,6 +53,17 @@ contract("Governance Verification", (accounts) => {
       skipCreateSeries: true,
     }))
 
+    // Allow the expiration
+    await deployedSeriesController.allowedExpirationsMap(expiration)
+
+    // Allow the strike
+    await deployedSeriesController.updateAllowedTokenStrikeRanges(
+      underlyingToken.address,
+      new BN(STRIKE_PRICE).sub(new BN(1)),
+      new BN(STRIKE_PRICE).add(new BN(1)),
+      1,
+    )
+
     await time.increaseTo(expiration - ONE_WEEK_DURATION)
   })
 
@@ -97,6 +108,12 @@ contract("Governance Verification", (accounts) => {
 
     // Trigger acceptance of ownership from the governance contract
     await governance.__acceptAdmin()
+
+    // Give the timelock address the ability to create series
+    await deployedSeriesController.grantRole(
+      await deployedSeriesController.SERIES_DEPLOYER_ROLE(),
+      timeLock.address,
+    )
 
     // At this point governance has been handed over to the governance module... hand ownership of the series registry over to the timelocker
     await deployedSeriesController.transferOwnership(timeLock.address)

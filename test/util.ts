@@ -707,6 +707,14 @@ export async function setupSeries({
     await deployedSeriesController.updateAllowedExpirations([expiration])
   }
 
+  // Verify the strike is allowed
+  await deployedSeriesController.updateAllowedTokenStrikeRanges(
+    underlyingToken.address,
+    new BN(strikePrice).sub(new BN(1)),
+    new BN(strikePrice).add(new BN(1)),
+    1,
+  )
+
   const createSeriesResp = await deployedSeriesController.createSeries(
     {
       underlyingToken: underlyingToken.address,

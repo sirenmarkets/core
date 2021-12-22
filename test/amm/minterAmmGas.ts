@@ -115,7 +115,7 @@ contract("Minter AMM Gas Measurement", (accounts) => {
         underlyingToken,
         priceToken,
         collateralToken,
-        expiration: expiration + i * oneWeek,
+        expiration: expiration + (1 + i) * oneWeek,
         restrictedMinters: [deployedAmm.address],
         strikePrice: STRIKE_PRICE.toString(),
         isPutOption: false,
