@@ -259,8 +259,8 @@ contract("Minter AMM Gas Measurement", (accounts) => {
     // Full withdrawal post-expiry
     ret = await deployedAmm.withdrawCapital(
       lpTokenBalance.sub(new BN(1000)),
-      true,
-      1,
+      false,
+      0,
     )
     printGasLog("Post-expiry withdrawal 2", ret.receipt.gasUsed)
     assert.isBelow(
@@ -277,6 +277,9 @@ contract("Minter AMM Gas Measurement", (accounts) => {
       const seriesId = series[i]
       const bTokenIndex = await deployedSeriesController.bTokenIndex(seriesId)
       const wTokenIndex = await deployedSeriesController.wTokenIndex(seriesId)
+      const isExpired =
+        (await deployedSeriesController.state(seriesId)).toNumber() ==
+        STATE_EXPIRED
 
       // Check LP balances
       await checkBalances(
@@ -306,7 +309,7 @@ contract("Minter AMM Gas Measurement", (accounts) => {
         lpToken,
         0,
         0,
-        0,
+        isExpired ? 0 : 40000,
         0,
       )
     }

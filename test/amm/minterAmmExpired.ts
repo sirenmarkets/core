@@ -249,7 +249,7 @@ contract("Minter AMM Expired", (accounts) => {
     )
 
     // Withdraw the rest
-    receipt = await deployedAmm.withdrawCapital(initialCapital / 2, true, 5002)
+    receipt = await deployedAmm.withdrawCapital(initialCapital / 2, false, 0)
 
     expectEvent(receipt, "LpTokensBurned", {
       redeemer: ownerAccount,
@@ -589,11 +589,7 @@ contract("Minter AMM Expired", (accounts) => {
     )
 
     // Owner withdraws the rest of the pool
-    receipt = await deployedAmm.withdrawCapital(
-      initialCapital / 2,
-      true,
-      470241127964,
-    )
+    receipt = await deployedAmm.withdrawCapital(initialCapital / 2, false, 0)
 
     expectEvent(receipt, "LpTokensBurned", {
       redeemer: ownerAccount,

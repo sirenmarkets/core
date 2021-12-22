@@ -11,6 +11,7 @@ import {
   ERC1155ControllerInstance,
   AddressesProviderInstance,
   AmmDataProviderInstance,
+  WTokenVaultInstance,
 } from "../../typechain"
 
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
@@ -33,6 +34,7 @@ let deployedMockPriceOracle: MockPriceOracleInstance
 let deployedPriceOracle: PriceOracleInstance
 let deployedAddressesProvider: AddressesProviderInstance
 let deployedAmmDataProvider: AmmDataProviderInstance
+let deployedWTokenVault: WTokenVaultInstance
 
 let deployedMockVolatilityOracle
 
@@ -87,6 +89,7 @@ contract("AMM Call Verification", (accounts) => {
       expiration,
       deployedAddressesProvider,
       deployedMockVolatilityOracle,
+      deployedWTokenVault,
     } = await setupAllTestContracts({
       strikePrice: STRIKE_PRICE.toString(),
       oraclePrice: UNDERLYING_PRICE,
@@ -272,7 +275,7 @@ contract("AMM Call Verification", (accounts) => {
     )
 
     // Now let's withdraw all of the owner's lpTokens (owner should have 10000 lp tokens)
-    ret = await deployedAmm.withdrawCapital(10000, true, 10000)
+    ret = await deployedAmm.withdrawCapital(10000, false, 0)
 
     // Check the math
     expectEvent(ret, "LpTokensBurned", {
@@ -492,9 +495,9 @@ contract("AMM Call Verification", (accounts) => {
       lpTokensBurned: (10e8).toString(),
     })
     assertBNEq(
-      await deployedERC1155Controller.balanceOf(ownerAccount, wTokenIndex),
+      await deployedWTokenVault.getWTokenBalance(deployedAmm.address, seriesId),
       3e8,
-      "Residual wTokens should be sent during full withdrawal",
+      "Residual wTokens should be locked during full withdrawal",
     )
 
     // Make sure no tokens is left in the AMM
@@ -508,8 +511,8 @@ contract("AMM Call Verification", (accounts) => {
         deployedAmm.address,
         wTokenIndex,
       ),
-      0,
-      "No wToken should be left in the AMM",
+      3e8,
+      "Locked wTokens should be left in the AMM",
     )
     assertBNEq(
       await deployedERC1155Controller.balanceOf(
@@ -753,9 +756,9 @@ contract("AMM Call Verification", (accounts) => {
 
     // Check wToken balance withdrawn
     assertBNEq(
-      await deployedERC1155Controller.balanceOf(ownerAccount, wTokenIndex),
+      await deployedWTokenVault.getWTokenBalance(deployedAmm.address, seriesId),
       "49950000000", // 499e8
-      "Owner should have correct wToken balance",
+      "WTokenVault should have correct wToken balance",
     )
 
     // Check pool value after withdrawal
@@ -831,9 +834,9 @@ contract("AMM Call Verification", (accounts) => {
 
     // Check wToken balance withdrawn
     assertBNEq(
-      await deployedERC1155Controller.balanceOf(ownerAccount, wTokenIndex),
-      "4995000000", // 49e8
-      "Owner should have correct wToken balance",
+      await deployedWTokenVault.getWTokenBalance(deployedAmm.address, seriesId),
+      "4995000000", // 499e8
+      "WTokenVault should have correct wToken balance",
     )
 
     // Check wToken balance left in the pool
@@ -842,7 +845,7 @@ contract("AMM Call Verification", (accounts) => {
         deployedAmm.address,
         wTokenIndex,
       ),
-      "5000000", // 0.05e8
+      "5000000000", // 0.05e8 + 499e8
       "AMM should have correct wToken balance",
     )
 
@@ -860,22 +863,34 @@ contract("AMM Call Verification", (accounts) => {
     ret = await deployedAmm.bTokenSell(seriesId, 49e8, 0, {
       from: aliceAccount,
     })
+    expectEvent(ret, "BTokensSold", {
+      seller: aliceAccount,
+      bTokensSold: (49e8).toString(),
+      collateralPaid: "3756723", // 0.0007
+    })
     await setNextBlockTimestamp(startTime + 40)
+
     // Then sell the rest
     ret = await deployedAmm.bTokenSell(seriesId, 1e8, 0, {
       from: aliceAccount,
     })
+    expectEvent(ret, "BTokensSold", {
+      seller: aliceAccount,
+      bTokensSold: (1e8).toString(),
+      collateralPaid: "1943147", // 0.019
+    })
+
     assertBNEq(
       await deployedERC1155Controller.balanceOf(
         deployedAmm.address,
         bTokenIndex,
       ),
-      "4995000000", // 49e8
-      "AMM should have residual bTokens",
+      "0", // 49e8
+      "AMM should have no residual bTokens",
     )
     assertBNEq(
       await underlyingToken.balanceOf(aliceAccount),
-      "7480137", // lost 1.95e8 on price impact
+      "5699870", // lost 1.97e8 on price impact
       "Trader should have correct collateral balance",
     )
   })
@@ -1114,38 +1129,6 @@ contract("AMM Call Verification", (accounts) => {
       ).toNumber(),
       8960, // 4460 (collateral) + (3000 * (15_000 / 20_000)) (wToken)
       // + (3000 * (15_000 / 20_000)) (anotherWToken)
-      "Total assets value in the AMM should be correct",
-    )
-
-    // simulate the AMM having expired ITM bTokens by having alice
-    // send some to the AMM, and make sure the total pool value
-    // rises by the correct amount
-    await deployedERC1155Controller.safeTransferFrom(
-      aliceAccount,
-      deployedAmm.address,
-      bTokenIndex,
-      1000,
-      "0x0",
-      { from: aliceAccount },
-    )
-    await deployedERC1155Controller.safeTransferFrom(
-      aliceAccount,
-      deployedAmm.address,
-      anotherBTokenIndex,
-      1000,
-      "0x0",
-      { from: aliceAccount },
-    )
-
-    assertBNEq(
-      (
-        await deployedAmmDataProvider.getTotalPoolValueView(
-          deployedAmm.address,
-          true,
-        )
-      ).toNumber(),
-      9460, // 8960 (previous pool value) + (1000 - (1000 * (15_000 / 20_000))) (bToken)
-      // + (1000 - (1000 * (15_000 / 20_000))) (anotherBToken)
       "Total assets value in the AMM should be correct",
     )
   })
