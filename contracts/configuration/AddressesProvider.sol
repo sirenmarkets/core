@@ -148,7 +148,7 @@ contract AddressesProvider is
 
     function setAmmFactory(address ammFactory) external override onlyOwner {
         _addresses[AMM_FACTORY] = ammFactory;
-        emit AirswapLightUpdated(ammFactory);
+        emit AmmFactoryUpdated(ammFactory);
     }
 
     function getErc1155Controller() external view override returns (address) {

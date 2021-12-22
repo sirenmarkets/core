@@ -39,8 +39,6 @@ abstract contract SeriesControllerStorageV1 is ISeriesController {
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
-    bytes32 public constant SERIES_DEPLOYER_ROLE =
-        keccak256("SERIES_DEPLOYER_ROLE");
 
     /// @dev These contract variables, as well as the `nonReentrant` modifier further down below,
     /// are copied from OpenZeppelin's ReentrancyGuard contract. We chose to copy ReentrancyGuard instead of
@@ -77,6 +75,9 @@ abstract contract SeriesControllerStorageV2 is SeriesControllerStorageV1 {
     mapping(address => TokenStrikeRange) public allowedStrikeRanges;
 
     mapping(bytes32 => bool) public addedSeries;
+
+    bytes32 public constant SERIES_DEPLOYER_ROLE =
+        keccak256("SERIES_DEPLOYER_ROLE");
 }
 
 // Next version example:
