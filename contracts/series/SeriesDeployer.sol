@@ -5,6 +5,7 @@ pragma solidity 0.8.0;
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpgradeable.sol";
 
 import "../amm/IMinterAmm.sol";
 import "../amm/IAmmFactory.sol";
@@ -12,7 +13,12 @@ import "../proxy/Proxiable.sol";
 import "./ISeriesController.sol";
 import "./SeriesLibrary.sol";
 
-contract SeriesDeployer is Initializable, AccessControlUpgradeable, Proxiable {
+contract SeriesDeployer is
+    Proxiable,
+    Initializable,
+    AccessControlUpgradeable,
+    ERC1155HolderUpgradeable
+{
     /// @dev These contract variables, as well as the `nonReentrant` modifier further down below,
     /// are copied from OpenZeppelin's ReentrancyGuard contract. We chose to copy ReentrancyGuard instead of
     /// having SeriesController inherit it because we intend use this SeriesController contract to upgrade already-deployed
@@ -65,6 +71,17 @@ contract SeriesDeployer is Initializable, AccessControlUpgradeable, Proxiable {
         addressesProvider = _addressesProvider;
     }
 
+    /// @dev added since both base classes implement this function
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(AccessControlUpgradeable, ERC1155ReceiverUpgradeable)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
+
     /// @notice Update the addressProvider used for other contract lookups
     function setAddressesProvider(address _addressesProvider)
         external
@@ -86,7 +103,7 @@ contract SeriesDeployer is Initializable, AccessControlUpgradeable, Proxiable {
         bool _isPutOption,
         uint256 _bTokenAmount,
         uint256 _collateralMaximum
-    ) public nonReentrant {
+    ) public nonReentrant returns (uint64) {
         // Save off the ammTokens
         ISeriesController.Tokens memory ammTokens = ISeriesController.Tokens(
             address(_existingAmm.getUnderlyingToken()),
@@ -94,25 +111,19 @@ contract SeriesDeployer is Initializable, AccessControlUpgradeable, Proxiable {
             address(_existingAmm.getCollateralToken())
         );
 
-        // Get the bytes32 representation of the token triplet
-        bytes32 assetPair = keccak256(
-            abi.encode(
-                address(_existingAmm.getUnderlyingToken()),
-                address(_existingAmm.getPriceToken()),
-                address(_existingAmm.getCollateralToken())
-            )
-        );
-
         // Validate the asset triplet was deployed to the amm address through the factory
         require(
-            IAmmFactory(addressesProvider.getAmmFactory()).amms(assetPair) ==
-                address(_existingAmm),
+            IAmmFactory(addressesProvider.getAmmFactory()).amms(
+                keccak256(
+                    abi.encode(
+                        address(_existingAmm.getUnderlyingToken()),
+                        address(_existingAmm.getPriceToken()),
+                        address(_existingAmm.getCollateralToken())
+                    )
+                )
+            ) == address(_existingAmm),
             "Invalid AMM"
         );
-
-        // Temporary array to pass to event
-        address[] memory restrictedMinters = new address[](1);
-        restrictedMinters[0] = address(_existingAmm);
 
         // Create memory arrays to pass to create function
         uint256[] memory strikes = new uint256[](1);
@@ -123,19 +134,29 @@ contract SeriesDeployer is Initializable, AccessControlUpgradeable, Proxiable {
         minters[0] = address(_existingAmm);
 
         // Get the series controller and create the series
-        ISeriesController seriesController = ISeriesController(
-            addressesProvider.getSeriesController()
-        );
-        seriesController.createSeries(
-            ammTokens,
-            strikes,
-            expirations,
-            minters,
-            _isPutOption
-        );
+        ISeriesController(addressesProvider.getSeriesController()).createSeries(
+                ammTokens,
+                strikes,
+                expirations,
+                minters,
+                _isPutOption
+            );
 
         // We know the series we just created is the latest minus 1
-        uint64 createdSeriesId = seriesController.latestIndex() - 1;
+        uint64 createdSeriesId = ISeriesController(
+            addressesProvider.getSeriesController()
+        ).latestIndex() - 1;
+
+        // Move the collateral into this address and approve the AMM
+        IERC20(ammTokens.collateralToken).transferFrom(
+            msg.sender,
+            address(this),
+            _collateralMaximum
+        );
+        IERC20(ammTokens.collateralToken).approve(
+            address(_existingAmm),
+            _collateralMaximum
+        );
 
         // Buy options
         uint256 amtBought = IMinterAmm(_existingAmm).bTokenBuy(
@@ -144,16 +165,27 @@ contract SeriesDeployer is Initializable, AccessControlUpgradeable, Proxiable {
             _collateralMaximum
         );
 
-        // Send tokens to buyer
-        uint256 newBTokenIndex = SeriesLibrary.bTokenIndex(createdSeriesId);
-
+        // Send bTokens to buyer
         bytes memory data;
         IERC1155(addressesProvider.getErc1155Controller()).safeTransferFrom(
             address(this),
             msg.sender,
-            newBTokenIndex,
+            SeriesLibrary.bTokenIndex(createdSeriesId),
             amtBought,
             data
         );
+
+        // Send any unused collateral back to buyer
+        if (IERC20(ammTokens.collateralToken).balanceOf(address(this)) > 0) {
+            IERC20(ammTokens.collateralToken).transfer(
+                msg.sender,
+                IERC20(ammTokens.collateralToken).balanceOf(address(this))
+            );
+        }
+
+        // Revoke any remaining allowance
+        IERC20(ammTokens.collateralToken).approve(address(_existingAmm), 0);
+
+        return createdSeriesId;
     }
 }
