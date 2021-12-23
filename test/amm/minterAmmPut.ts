@@ -264,7 +264,7 @@ contract("AMM Put Verification", (accounts) => {
     )
 
     // Now let's withdraw all of the owner's lpTokens (owner should have 10000 lp tokens)
-    ret = await deployedAmm.withdrawCapital(10000, true, 10000)
+    ret = await deployedAmm.withdrawCapital(10000, false, 10000)
 
     // Check the math
     expectEvent(ret, "LpTokensBurned", {
@@ -530,8 +530,8 @@ contract("AMM Put Verification", (accounts) => {
     })
     assertBNEq(
       await deployedERC1155Controller.balanceOf(ownerAccount, wTokenIndex),
-      bTokenBuyAmount,
-      "Residual wTokens should be sent during full withdrawal",
+      0,
+      "No residual wTokens should be sent during full withdrawal",
     )
 
     // Make sure no tokens is left in the AMM
@@ -545,8 +545,8 @@ contract("AMM Put Verification", (accounts) => {
         deployedAmm.address,
         wTokenIndex,
       ),
-      0,
-      "No wToken should be left in the AMM",
+      bTokenBuyAmount,
+      "Locked wToken should be left in the AMM",
     )
     assertBNEq(
       await deployedERC1155Controller.balanceOf(

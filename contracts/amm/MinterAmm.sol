@@ -162,6 +162,7 @@ contract MinterAmm is
     // E15: Invalid _ammDataProvider
     // E16: Invalid lightAirswapAddress
     // E17: Option price is 0
+    // E18: Pool is not yet claimable
 
     /// @dev Prevents a contract from calling itself, directly or indirectly.
     /// Calling a `nonReentrant` function from another `nonReentrant`
@@ -450,7 +451,20 @@ contract MinterAmm is
         emit LpTokensBurned(msg.sender, collateralTokenSent, lpTokenAmount);
     }
 
-    function withdrawLockedCollateral(uint64 expirationId) external {
+    /// Withdraws locked collateral post-expiration
+    function withdrawLockedCollateral(uint64 expirationId)
+        external
+        nonReentrant
+    {
+        // Check that expirationId is expired
+        uint256 expiration = seriesController.allowedExpirationsList(
+            expirationId
+        );
+        require(expiration > 0 && expiration <= block.timestamp, "E18");
+
+        // Claim all expired tokens
+        claimAllExpiredTokens();
+
         uint256 claimableCollateral = IWTokenVault(
             addressesProvider.getWTokenVault()
         ).redeemCollateral(expirationId, msg.sender);
@@ -487,10 +501,6 @@ contract MinterAmm is
     /// @notice Claims any remaining collateral from all expired series whose wToken is held by the AMM, and removes
     /// the expired series from the AMM's collection of series
     function claimAllExpiredTokens() public {
-        IWTokenVault wTokenVault = IWTokenVault(
-            addressesProvider.getWTokenVault()
-        );
-
         for (uint256 i = 0; i < openSeries.length(); i++) {
             uint64 seriesId = uint64(openSeries.at(i));
             while (
@@ -501,15 +511,6 @@ contract MinterAmm is
 
                 ISeriesController.Series memory series = seriesController
                     .series(seriesId);
-
-                // Set locked pool claimable for this expiration
-                // TODO: find a more elegant way to do this
-                wTokenVault.setPoolClaimable(
-                    seriesController.allowedExpirationsMap(
-                        series.expirationDate
-                    ),
-                    true
-                );
 
                 // Handle edge case: If, prior to removing the Series, i was the index of the last Series
                 // in openSeries, then after the removal `i` will point to one beyond the end of the array.

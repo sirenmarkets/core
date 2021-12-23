@@ -18,15 +18,17 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
     /// @dev The address for the AddressesProvider
     IAddressesProvider addressesProvider;
 
+    /// locked wTokens by seriesId
     mapping(address => mapping(uint64 => uint256)) public lockedWTokens;
 
+    /// total supply of pool shares by expirationId
     mapping(address => mapping(uint256 => uint256)) public lpSharesSupply;
 
+    /// balance of shares for each LP in expiration pool
     mapping(address => mapping(uint256 => mapping(address => uint256)))
         public lpShares;
 
-    mapping(address => mapping(uint256 => bool)) public isPoolClaimableMapping;
-
+    /// locked collateral by expirationId
     mapping(address => mapping(uint256 => uint256)) public lockedCollateral;
 
     function initialize(IAddressesProvider _addressesProvider)
@@ -35,22 +37,6 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
     {
         addressesProvider = _addressesProvider;
         __Ownable_init();
-    }
-
-    function isPoolClaimable(address poolAddress, uint256 expirationId)
-        external
-        view
-        override
-        returns (bool)
-    {
-        return isPoolClaimableMapping[poolAddress][expirationId];
-    }
-
-    function setPoolClaimable(uint256 expirationId, bool isClaimable)
-        external
-        override
-    {
-        isPoolClaimableMapping[msg.sender][expirationId] = isClaimable;
     }
 
     function getWTokenBalance(address poolAddress, uint64 seriesId)
@@ -73,6 +59,8 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
         uint256[] poolValue;
     }
 
+    /// Lock active wTokens grouped by expiration
+    /// Assign number of shares to the locking address
     function lockActiveWTokens(
         uint256 lpTokenAmount,
         uint256 lpTokenSupply,
@@ -206,16 +194,13 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
         }
     }
 
+    /// Redeem locked collateral post-expiration
     function redeemCollateral(uint256 expirationId, address redeemer)
         external
         override
         returns (uint256)
     {
         address ammAddress = msg.sender;
-        require(
-            isPoolClaimableMapping[ammAddress][expirationId],
-            "Pool is not yet claimable"
-        );
 
         require(
             lpShares[ammAddress][expirationId][redeemer] > 0,
@@ -244,6 +229,7 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
         return collateralAmount;
     }
 
+    /// Add locked collateral to an expiration pool
     function lockCollateral(
         uint64 seriesId,
         uint256 collateralAmount,

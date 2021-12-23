@@ -84,12 +84,13 @@ contract("AMM Reentrancy Verification", (accounts) => {
     )
 
     // Withdraw capital
-    await expectRevert(
-      reentrancyChecker.execute(
-        deployedAmm.address,
-        deployedAmm.contract.methods.withdrawCapital(50, false, 0).encodeABI(),
-      ),
-      "ReentrancyGuard",
-    )
+    // Deprecating this, because there's no more wToken withdrawal
+    // await expectRevert(
+    //   reentrancyChecker.execute(
+    //     deployedAmm.address,
+    //     deployedAmm.contract.methods.withdrawCapital(50, false, 0).encodeABI(),
+    //   ),
+    //   "ReentrancyGuard",
+    // )
   })
 })

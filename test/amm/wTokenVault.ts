@@ -317,20 +317,12 @@ contract("wToken Vault", (accounts) => {
         `Pool value shouldn't change much because of the sale`,
       )
 
-      await time.increaseTo(expiration) // increase time past series1 expiration
-
       await expectRevert(
         deployedAmm.withdrawLockedCollateral(1),
-        "Pool is not yet claimable",
+        "E18", // Pool is not yet claimable
       )
 
-      await deployedAmm.claimAllExpiredTokens()
-
-      // check that pool is not yet claimable
-      assert(
-        await deployedWTokenVault.isPoolClaimable(deployedAmm.address, 1),
-        "Locked pool 1 should be claimable",
-      )
+      await time.increaseTo(expiration) // increase time past series1 expiration
 
       await setNextBlockTimestamp(expiration + 10)
 
@@ -1054,20 +1046,12 @@ contract("wToken Vault", (accounts) => {
         `Pool value shouldn't change much because of the sale`,
       )
 
-      await time.increaseTo(expiration) // increase time past series1 expiration
-
       await expectRevert(
         deployedAmm.withdrawLockedCollateral(1),
-        "Pool is not yet claimable",
+        "E18", // Pool is not yet claimable
       )
 
-      await deployedAmm.claimAllExpiredTokens()
-
-      // check that pool is not yet claimable
-      assert(
-        await deployedWTokenVault.isPoolClaimable(deployedAmm.address, 1),
-        "Locked pool 1 should be claimable",
-      )
+      await time.increaseTo(expiration) // increase time past series1 expiration
 
       await setNextBlockTimestamp(expiration + 10)
 

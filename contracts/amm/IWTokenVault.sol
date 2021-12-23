@@ -26,13 +26,6 @@ interface IWTokenVault {
         view
         returns (uint256);
 
-    function isPoolClaimable(address poolAddress, uint256 expirationId)
-        external
-        view
-        returns (bool);
-
-    function setPoolClaimable(uint256 expirationId, bool isClaimable) external;
-
     function lockActiveWTokens(
         uint256 lpTokenAmount,
         uint256 lpTokenSupply,
