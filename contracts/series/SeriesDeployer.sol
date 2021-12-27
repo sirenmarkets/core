@@ -106,9 +106,9 @@ contract SeriesDeployer is
     ) public nonReentrant returns (uint64) {
         // Save off the ammTokens
         ISeriesController.Tokens memory ammTokens = ISeriesController.Tokens(
-            address(_existingAmm.getUnderlyingToken()),
-            address(_existingAmm.getPriceToken()),
-            address(_existingAmm.getCollateralToken())
+            address(_existingAmm.underlyingToken()),
+            address(_existingAmm.priceToken()),
+            address(_existingAmm.collateralToken())
         );
 
         // Validate the asset triplet was deployed to the amm address through the factory
@@ -116,9 +116,9 @@ contract SeriesDeployer is
             IAmmFactory(addressesProvider.getAmmFactory()).amms(
                 keccak256(
                     abi.encode(
-                        address(_existingAmm.getUnderlyingToken()),
-                        address(_existingAmm.getPriceToken()),
-                        address(_existingAmm.getCollateralToken())
+                        address(_existingAmm.underlyingToken()),
+                        address(_existingAmm.priceToken()),
+                        address(_existingAmm.collateralToken())
                     )
                 )
             ) == address(_existingAmm),

@@ -1070,16 +1070,4 @@ contract MinterAmm is
             );
         return (pricesStdVega.price, pricesStdVega.stdVega);
     }
-
-    function getUnderlyingToken() external view override returns (IERC20) {
-        return underlyingToken;
-    }
-
-    function getPriceToken() external view override returns (IERC20) {
-        return priceToken;
-    }
-
-    function getCollateralToken() external view override returns (IERC20) {
-        return collateralToken;
-    }
 }
