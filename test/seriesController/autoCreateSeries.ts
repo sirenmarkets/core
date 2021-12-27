@@ -7,7 +7,6 @@ import {
   ERC1155ControllerInstance,
   MinterAmmInstance,
   SeriesControllerInstance,
-  SeriesDeployerContract,
   SeriesDeployerInstance,
   SimpleTokenInstance,
 } from "../../typechain"
@@ -22,7 +21,7 @@ const ERROR_MESSAGES = {
   INVALID_INCREMENT: "!increment",
 }
 
-const OTM_BTC_ORACLE_PRICE = 14_000 * 10 ** 8
+const OTM_BTC_ORACLE_PRICE = 10_000 * 10 ** 8
 const STRIKE_PRICE = 15000 * 1e8 // 15000 USD
 const UNDERLYING_PRICE = OTM_BTC_ORACLE_PRICE
 const ANNUALIZED_VOLATILITY = 1 * 1e8 // 100%
@@ -41,6 +40,7 @@ contract("Auto Series Creation", (accounts) => {
   let deployedERC1155Controller: ERC1155ControllerInstance
   let deployedAmm: MinterAmmInstance
   let deployedAddressesProvider: AddressesProviderInstance
+  let deployedSeriesDeployer: SeriesDeployerInstance
 
   beforeEach(async () => {})
 
@@ -94,7 +94,8 @@ contract("Auto Series Creation", (accounts) => {
   })
 
   it("Allows the owner to update the strike ranges", async () => {
-    ;({ deployedSeriesController } = await setupSingletonTestContracts())
+    ;({ deployedSeriesController, deployedSeriesDeployer } =
+      await setupSingletonTestContracts())
 
     const tokenAddress = "0x3CedE52cE5ED938cCBdfB1f821cb64ba2B2183c6"
     const min = 100
@@ -103,7 +104,7 @@ contract("Auto Series Creation", (accounts) => {
 
     // Verify it fails if a non owner calls it
     await expectRevert.unspecified(
-      deployedSeriesController.updateAllowedTokenStrikeRanges(
+      deployedSeriesDeployer.updateAllowedTokenStrikeRanges(
         tokenAddress,
         min,
         max,
@@ -114,7 +115,7 @@ contract("Auto Series Creation", (accounts) => {
 
     // Verify param checks
     await expectRevert(
-      deployedSeriesController.updateAllowedTokenStrikeRanges(
+      deployedSeriesDeployer.updateAllowedTokenStrikeRanges(
         helpers.ADDRESS_ZERO,
         min,
         max,
@@ -124,7 +125,7 @@ contract("Auto Series Creation", (accounts) => {
     )
 
     await expectRevert(
-      deployedSeriesController.updateAllowedTokenStrikeRanges(
+      deployedSeriesDeployer.updateAllowedTokenStrikeRanges(
         tokenAddress,
         max,
         min,
@@ -134,7 +135,7 @@ contract("Auto Series Creation", (accounts) => {
     )
 
     await expectRevert(
-      deployedSeriesController.updateAllowedTokenStrikeRanges(
+      deployedSeriesDeployer.updateAllowedTokenStrikeRanges(
         tokenAddress,
         min,
         max,
@@ -143,7 +144,7 @@ contract("Auto Series Creation", (accounts) => {
       ERROR_MESSAGES.INVALID_INCREMENT,
     )
 
-    const ret = await deployedSeriesController.updateAllowedTokenStrikeRanges(
+    const ret = await deployedSeriesDeployer.updateAllowedTokenStrikeRanges(
       tokenAddress,
       min,
       max,
@@ -152,21 +153,21 @@ contract("Auto Series Creation", (accounts) => {
 
     expectEvent(ret, "StrikeRangeUpdated", {
       strikeUnderlyingToken: tokenAddress,
-      min: new BN(min),
-      max: new BN(max),
+      minPercent: new BN(min),
+      maxPercent: new BN(max),
       increment: new BN(increment),
     })
 
     // Verify values are set
-    const values = await deployedSeriesController.allowedStrikeRanges(
+    const values = await deployedSeriesDeployer.allowedStrikeRanges(
       tokenAddress,
     )
 
     // @ts-ignore
-    assertBNEq(values.min, min, "min should be set")
+    assertBNEq(values.minPercent, min, "min should be set")
 
     // @ts-ignore
-    assertBNEq(values.max, max, "max should be set")
+    assertBNEq(values.maxPercent, max, "max should be set")
 
     // @ts-ignore
     assertBNEq(values.increment, increment, "increment should be set")
@@ -239,6 +240,7 @@ contract("Auto Series Creation", (accounts) => {
       collateralToken,
       priceToken,
       deployedSeriesController,
+      deployedSeriesDeployer,
       expiration,
       deployedAmm,
     } = await setupAllTestContracts({
@@ -247,11 +249,11 @@ contract("Auto Series Creation", (accounts) => {
       annualizedVolatility: ANNUALIZED_VOLATILITY,
     }))
 
-    const strikeMin = 100
-    const strikeMax = 1000
+    const strikeMin = 50
+    const strikeMax = 150
     const strikeIncrement = 10
 
-    await deployedSeriesController.updateAllowedTokenStrikeRanges(
+    await deployedSeriesDeployer.updateAllowedTokenStrikeRanges(
       underlyingToken.address,
       strikeMin,
       strikeMax,
@@ -260,48 +262,39 @@ contract("Auto Series Creation", (accounts) => {
 
     // Too low
     await expectRevert(
-      deployedSeriesController.createSeries(
-        {
-          underlyingToken: underlyingToken.address,
-          collateralToken: collateralToken.address,
-          priceToken: priceToken.address,
-        },
-        [99],
-        [expiration],
-        [deployedAmm.address],
+      deployedSeriesDeployer.autoCreateSeriesAndBuy(
+        deployedAmm.address,
+        99,
+        expiration,
         false,
+        1,
+        1,
       ),
       "!low",
     )
 
     // Too high
     await expectRevert(
-      deployedSeriesController.createSeries(
-        {
-          underlyingToken: underlyingToken.address,
-          collateralToken: collateralToken.address,
-          priceToken: priceToken.address,
-        },
-        [1001],
-        [expiration],
-        [deployedAmm.address],
+      deployedSeriesDeployer.autoCreateSeriesAndBuy(
+        deployedAmm.address,
+        20000e8,
+        expiration,
         false,
+        1,
+        1,
       ),
       "!high",
     )
 
     // Not a valid increment
     await expectRevert(
-      deployedSeriesController.createSeries(
-        {
-          underlyingToken: underlyingToken.address,
-          collateralToken: collateralToken.address,
-          priceToken: priceToken.address,
-        },
-        [105],
-        [expiration],
-        [deployedAmm.address],
+      deployedSeriesDeployer.autoCreateSeriesAndBuy(
+        deployedAmm.address,
+        1000000000005,
+        expiration,
         false,
+        1,
+        1,
       ),
       "!increment",
     )
@@ -317,25 +310,12 @@ contract("Auto Series Creation", (accounts) => {
       deployedAmm,
       deployedAddressesProvider,
       deployedERC1155Controller,
+      deployedSeriesDeployer,
     } = await setupAllTestContracts({
       strikePrice: STRIKE_PRICE.toString(),
       oraclePrice: UNDERLYING_PRICE,
       annualizedVolatility: ANNUALIZED_VOLATILITY,
     }))
-
-    // Create the series deployer contract
-    const seriesDeployerContract: SeriesDeployerContract =
-      artifacts.require("SeriesDeployer")
-    const seriesDeployer = await seriesDeployerContract.new()
-    await seriesDeployer.__SeriesDeployer_init(
-      deployedAddressesProvider.address,
-    )
-
-    // Add the series deployer contract to the allowed creators list
-    await deployedSeriesController.grantRole(
-      await deployedSeriesController.SERIES_DEPLOYER_ROLE(),
-      seriesDeployer.address,
-    )
 
     // Add a new expiration
     const newExpiration = expiration + ONE_WEEK_DURATION
@@ -343,15 +323,22 @@ contract("Auto Series Creation", (accounts) => {
 
     // Mint and approve tokens
     await underlyingToken.mint(aliceAccount, 10e8)
-    await underlyingToken.approve(seriesDeployer.address, 10e8, {
+    await underlyingToken.approve(deployedSeriesDeployer.address, 10e8, {
       from: aliceAccount,
     })
 
     // Get the index count
     const beforeCount = await deployedSeriesController.latestIndex()
 
+    await deployedSeriesDeployer.updateAllowedTokenStrikeRanges(
+      underlyingToken.address,
+      50, // min 50% of underlying price
+      150, // max 150% of underlying price
+      1e8,
+    )
+
     // Create the series and buy tokens
-    await seriesDeployer.autoCreateSeriesAndBuy(
+    await deployedSeriesDeployer.autoCreateSeriesAndBuy(
       deployedAmm.address,
       STRIKE_PRICE,
       newExpiration,

@@ -19,6 +19,23 @@ contract SeriesDeployer is
     AccessControlUpgradeable,
     ERC1155HolderUpgradeable
 {
+    /// @dev For a token, store the range for a strike price for the auto series creation feature
+    struct TokenStrikeRange {
+        uint256 minPercent;
+        uint256 maxPercent;
+        uint256 increment;
+    }
+
+    ///////////////////// EVENTS /////////////////////
+
+    /** Emitted when the owner updates the strike range for a specified asset */
+    event StrikeRangeUpdated(
+        address strikeUnderlyingToken,
+        uint256 minPercent,
+        uint256 maxPercent,
+        uint256 increment
+    );
+
     /// @dev These contract variables, as well as the `nonReentrant` modifier further down below,
     /// are copied from OpenZeppelin's ReentrancyGuard contract. We chose to copy ReentrancyGuard instead of
     /// having SeriesController inherit it because we intend use this SeriesController contract to upgrade already-deployed
@@ -34,6 +51,9 @@ contract SeriesDeployer is
     uint256 internal _status;
 
     IAddressesProvider public addressesProvider;
+
+    /// @dev For any token, track the ranges that are allowed for a strike price on the auto series creation feature
+    mapping(address => TokenStrikeRange) public allowedStrikeRanges;
 
     /// @notice Check if the msg.sender is the privileged DEFAULT_ADMIN_ROLE holder
     modifier onlyOwner() {
@@ -82,6 +102,18 @@ contract SeriesDeployer is
         return super.supportsInterface(interfaceId);
     }
 
+    /// @notice update the logic contract for this proxy contract
+    /// @param _newImplementation the address of the new SeriesDeployer implementation
+    /// @dev only the admin address may call this function
+    function updateImplementation(address _newImplementation)
+        external
+        onlyOwner
+    {
+        require(_newImplementation != address(0x0), "Invalid Address");
+
+        _updateCodeAddress(_newImplementation);
+    }
+
     /// @notice Update the addressProvider used for other contract lookups
     function setAddressesProvider(address _addressesProvider)
         external
@@ -89,6 +121,31 @@ contract SeriesDeployer is
     {
         require(_addressesProvider != address(0x0), "Invalid Address");
         addressesProvider = IAddressesProvider(_addressesProvider);
+    }
+
+    /// @notice This function allows the owner address to update allowed strikes for the auto series creation feature
+    /// @param strikeUnderlyingToken underlying asset token that options are written against
+    /// @param min minimum strike allowed
+    /// @param max maximum strike allowed
+    /// @param increment price increment allowed - e.g. if increment is 10, then 100 would be valid and 101 would not be (strike % increment == 0)
+    /// @dev Only the owner address should be allowed to call this
+    function updateAllowedTokenStrikeRanges(
+        address strikeUnderlyingToken,
+        uint256 min,
+        uint256 max,
+        uint256 increment
+    ) public onlyOwner {
+        require(strikeUnderlyingToken != address(0x0), "!Token");
+        require(min < max, "!min/max");
+        require(increment > 0, "!increment");
+
+        allowedStrikeRanges[strikeUnderlyingToken] = TokenStrikeRange(
+            min,
+            max,
+            increment
+        );
+
+        emit StrikeRangeUpdated(strikeUnderlyingToken, min, max, increment);
     }
 
     /// @dev This function allows any address to spin up a new series if it doesn't already exist and buy bTokens.
@@ -124,6 +181,26 @@ contract SeriesDeployer is
             ) == address(_existingAmm),
             "Invalid AMM"
         );
+
+        {
+            uint256 underlyingPrice = _existingAmm.getCurrentUnderlyingPrice();
+
+            // Validate strike has been added by the owner - get the strike range info and ensure it is within params
+            TokenStrikeRange memory existingRange = allowedStrikeRanges[
+                address(_existingAmm.underlyingToken())
+            ];
+            require(
+                _strikePrice >=
+                    (underlyingPrice * existingRange.minPercent) / 100,
+                "!low"
+            );
+            require(
+                _strikePrice <=
+                    (underlyingPrice * existingRange.maxPercent) / 100,
+                "!high"
+            );
+            require(_strikePrice % existingRange.increment == 0, "!increment");
+        }
 
         // Create memory arrays to pass to create function
         uint256[] memory strikes = new uint256[](1);

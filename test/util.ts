@@ -22,6 +22,7 @@ import {
   MockVolatilityOracleContract,
   LightContract,
   MockPriceOracleInstance,
+  SeriesDeployerContract,
 } from "../typechain"
 import { artifacts, assert, ethers, network } from "hardhat"
 import { time, expectEvent, BN } from "@openzeppelin/test-helpers"
@@ -67,6 +68,9 @@ const AddressesProvider: AddressesProviderContract =
   artifacts.require("AddressesProvider")
 
 const Light: LightContract = artifacts.require("Light")
+
+const SeriesDeployer: SeriesDeployerContract =
+  artifacts.require("SeriesDeployer")
 
 const FEE_RECEIVER_ADDRESS = "0x000000000000000000000000000000000000dEaD"
 export const ONE_DAY_DURATION = 24 * 60 * 60
@@ -343,6 +347,7 @@ export async function setupSingletonTestContracts(
   const ammLogic = await MinterAmm.deployed()
   const erc20Logic = await SimpleToken.deployed()
   const addressesProviderLogic = await AddressesProvider.deployed()
+  const seriesDeployerLogic = await SeriesDeployer.deployed()
 
   if (!underlyingToken) {
     underlyingToken = await SimpleToken.new()
@@ -460,6 +465,21 @@ export async function setupSingletonTestContracts(
   // Add the expiration as valid to the series controller
   await deployedSeriesController.updateAllowedExpirations([expiration])
 
+  // Create the series deployer contract
+  const proxySeriesDeployer = await Proxy.new(seriesDeployerLogic.address)
+  const deployedSeriesDeployer = await SeriesDeployer.at(
+    proxySeriesDeployer.address,
+  )
+  await deployedSeriesDeployer.__SeriesDeployer_init(
+    deployedAddressesProvider.address,
+  )
+
+  // Add the series deployer contract to the allowed creators list
+  await deployedSeriesController.grantRole(
+    await deployedSeriesController.SERIES_DEPLOYER_ROLE(),
+    deployedSeriesDeployer.address,
+  )
+
   const deployedMockVolatilityOracle = await setUpMockVolatilityOracle(
     underlyingToken.address,
     priceToken.address,
@@ -513,6 +533,7 @@ export async function setupSingletonTestContracts(
     deployedAddressesProvider,
     deployedMockVolatilityOracle,
     deployedLightAirswap,
+    deployedSeriesDeployer,
     oraclePrice,
     expiration,
     exerciseFee,
@@ -713,14 +734,6 @@ export async function setupSeries({
     await deployedSeriesController.updateAllowedExpirations([expiration])
   }
 
-  // Verify the strike is allowed
-  await deployedSeriesController.updateAllowedTokenStrikeRanges(
-    underlyingToken.address,
-    new BN(strikePrice).sub(new BN(1)),
-    new BN(strikePrice).add(new BN(1)),
-    1,
-  )
-
   const createSeriesResp = await deployedSeriesController.createSeries(
     {
       underlyingToken: underlyingToken.address,
@@ -802,6 +815,7 @@ export async function setupAllTestContracts(
     deployedBlackScholes,
     deployedAddressesProvider,
     deployedLightAirswap,
+    deployedSeriesDeployer,
     expiration,
     erc1155URI,
   } = await setupSingletonTestContracts({
@@ -867,6 +881,7 @@ export async function setupAllTestContracts(
     deployedBlackScholes,
     deployedAddressesProvider,
     deployedLightAirswap,
+    deployedSeriesDeployer,
     deployedAmm,
     oraclePrice,
     expiration,
