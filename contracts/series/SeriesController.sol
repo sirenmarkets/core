@@ -60,7 +60,11 @@ contract SeriesController is
 
     /// @notice Check if the msg.sender is the privileged SERIES_DEPLOYER_ROLE holder
     modifier onlySeriesDeployer() {
-        require(hasRole(SERIES_DEPLOYER_ROLE, msg.sender), "!deployer");
+        require(
+            hasRole(SERIES_DEPLOYER_ROLE, msg.sender) ||
+                hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
+            "!deployer"
+        );
 
         _;
     }
@@ -811,13 +815,6 @@ contract SeriesController is
         // Validate the expiration has been added to the list by the owner
         require(allowedExpirationsMap[_expirationDate] > 0, "!expiration");
 
-        // Validate strike has been added by the owner - get the strike range info and ensure it is within params
-        ISeriesController.TokenStrikeRange
-            memory existingRange = allowedStrikeRanges[_tokens.underlyingToken];
-        require(_strikePrice >= existingRange.min, "!low");
-        require(_strikePrice <= existingRange.max, "!high");
-        require(_strikePrice % existingRange.increment == 0, "!increment");
-
         // Add to created series mapping so we can track if it has been added before
         bytes32 seriesHash = keccak256(
             abi.encode(
@@ -1215,30 +1212,5 @@ contract SeriesController is
             // Emit the event for the new expiration
             emit AllowedExpirationUpdated(timestamps[i]);
         }
-    }
-
-    /// @notice This function allows the owner address to update allowed strikes for the auto series creation feature
-    /// @param strikeUnderlyingToken underlying asset token that options are written against
-    /// @param min minimum strike allowed
-    /// @param max maximum strike allowed
-    /// @param increment price increment allowed - e.g. if increment is 10, then 100 would be valid and 101 would not be (strike % increment == 0)
-    /// @dev Only the owner address should be allowed to call this
-    function updateAllowedTokenStrikeRanges(
-        address strikeUnderlyingToken,
-        uint256 min,
-        uint256 max,
-        uint256 increment
-    ) public onlyOwner {
-        require(strikeUnderlyingToken != address(0x0), "!Token");
-        require(min < max, "!min/max");
-        require(increment > 0, "!increment");
-
-        allowedStrikeRanges[strikeUnderlyingToken] = TokenStrikeRange(
-            min,
-            max,
-            increment
-        );
-
-        emit StrikeRangeUpdated(strikeUnderlyingToken, min, max, increment);
     }
 }

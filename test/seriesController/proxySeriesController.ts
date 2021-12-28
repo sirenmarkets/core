@@ -230,14 +230,6 @@ contract("Proxy Series Verification", (accounts) => {
       isPutOption,
     )
 
-    // Verify the strike is allowed
-    await deployedSeriesController.updateAllowedTokenStrikeRanges(
-      underlyingToken.address,
-      new BN(strikePrice).sub(new BN(1)),
-      new BN(additionalStrikePrice).add(new BN(1)),
-      1,
-    )
-
     const resp = await deployedSeriesController.createSeries(
       {
         underlyingToken: underlyingToken.address,

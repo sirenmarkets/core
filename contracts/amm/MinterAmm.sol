@@ -628,7 +628,12 @@ contract MinterAmm is
     /// always with 8 decimals
     /// @dev For example, if underlying == WBTC and price == USDC, then this function will return
     /// 4500000000000 ($45_000 in human readable units)
-    function getCurrentUnderlyingPrice() private view returns (uint256) {
+    function getCurrentUnderlyingPrice()
+        public
+        view
+        override
+        returns (uint256)
+    {
         return
             IPriceOracle(addressesProvider.getPriceOracle()).getCurrentPrice(
                 address(underlyingToken),

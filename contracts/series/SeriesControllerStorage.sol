@@ -71,9 +71,6 @@ abstract contract SeriesControllerStorageV1 is ISeriesController {
 abstract contract SeriesControllerStorageV2 is SeriesControllerStorageV1 {
     IAddressesProvider public addressesProvider;
 
-    /// @dev For any token, track the ranges that are allowed for a strike price on the auto series creation feature
-    mapping(address => TokenStrikeRange) public allowedStrikeRanges;
-
     mapping(bytes32 => bool) public addedSeries;
 
     bytes32 public constant SERIES_DEPLOYER_ROLE =
