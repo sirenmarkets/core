@@ -125,27 +125,32 @@ contract SeriesDeployer is
 
     /// @notice This function allows the owner address to update allowed strikes for the auto series creation feature
     /// @param strikeUnderlyingToken underlying asset token that options are written against
-    /// @param min minimum strike allowed
-    /// @param max maximum strike allowed
+    /// @param minPercent minimum strike allowed as percent of underlying price
+    /// @param maxPercent maximum strike allowed as percent of underlying price
     /// @param increment price increment allowed - e.g. if increment is 10, then 100 would be valid and 101 would not be (strike % increment == 0)
     /// @dev Only the owner address should be allowed to call this
     function updateAllowedTokenStrikeRanges(
         address strikeUnderlyingToken,
-        uint256 min,
-        uint256 max,
+        uint256 minPercent,
+        uint256 maxPercent,
         uint256 increment
     ) public onlyOwner {
         require(strikeUnderlyingToken != address(0x0), "!Token");
-        require(min < max, "!min/max");
+        require(minPercent < maxPercent, "!min/max");
         require(increment > 0, "!increment");
 
         allowedStrikeRanges[strikeUnderlyingToken] = TokenStrikeRange(
-            min,
-            max,
+            minPercent,
+            maxPercent,
             increment
         );
 
-        emit StrikeRangeUpdated(strikeUnderlyingToken, min, max, increment);
+        emit StrikeRangeUpdated(
+            strikeUnderlyingToken,
+            minPercent,
+            maxPercent,
+            increment
+        );
     }
 
     /// @dev This function allows any address to spin up a new series if it doesn't already exist and buy bTokens.

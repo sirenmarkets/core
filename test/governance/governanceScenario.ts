@@ -56,14 +56,6 @@ contract("Governance Verification", (accounts) => {
     // Allow the expiration
     await deployedSeriesController.allowedExpirationsMap(expiration)
 
-    // Allow the strike
-    await deployedSeriesController.updateAllowedTokenStrikeRanges(
-      underlyingToken.address,
-      new BN(STRIKE_PRICE).sub(new BN(1)),
-      new BN(STRIKE_PRICE).add(new BN(1)),
-      1,
-    )
-
     await time.increaseTo(expiration - ONE_WEEK_DURATION)
   })
 
