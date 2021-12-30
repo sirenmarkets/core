@@ -319,7 +319,7 @@ contract("wToken Vault", (accounts) => {
       )
 
       // Withdraw collateral before expiration
-      ret = await deployedAmm.withdrawLockedCollateral(1)
+      ret = await deployedAmm.withdrawLockedCollateral([1])
       parseLogs(ret, deployedWTokenVault.contract) // parse WTokenVault events
       expectEvent(ret, "LpSharesRedeemed", {
         ammAddress: deployedAmm.address,
@@ -331,7 +331,7 @@ contract("wToken Vault", (accounts) => {
 
       // Trying to withdraw again should revert
       expectRevert(
-        deployedAmm.withdrawLockedCollateral(1),
+        deployedAmm.withdrawLockedCollateral([1]),
         "No collateral to redeem",
       )
 
@@ -364,7 +364,7 @@ contract("wToken Vault", (accounts) => {
 
       // Withdraw everything
       await deployedAmm.withdrawCapital(5e8, false, 0)
-      await deployedAmm.withdrawLockedCollateral(2)
+      await deployedAmm.withdrawLockedCollateral([2])
 
       // Check balances
       const bTokenIndex = await deployedSeriesController.bTokenIndex(seriesId)
@@ -408,7 +408,7 @@ contract("wToken Vault", (accounts) => {
 
       // Claiming again is not allowed
       await expectRevert(
-        deployedAmm.withdrawLockedCollateral(1),
+        deployedAmm.withdrawLockedCollateral([1]),
         "No collateral to redeem",
       )
     })
@@ -579,7 +579,7 @@ contract("wToken Vault", (accounts) => {
       })
 
       // LP1 withdraws locked collateral early
-      ret = await deployedAmm.withdrawLockedCollateral(1, {
+      ret = await deployedAmm.withdrawLockedCollateral([1], {
         from: ownerAccount,
       })
       parseLogs(ret, deployedWTokenVault.contract) // parse WTokenVault events
@@ -595,22 +595,10 @@ contract("wToken Vault", (accounts) => {
       // Expiration 1
       await mineBlock(expiration)
 
-      // LP1 withdraws locked collateral
-      ret = await deployedAmm.withdrawLockedCollateral(1, {
-        from: ownerAccount,
-      })
-      parseLogs(ret, deployedWTokenVault.contract) // parse WTokenVault events
-
-      expectEvent(ret, "LpSharesRedeemed", {
-        ammAddress: deployedAmm.address,
-        redeemer: ownerAccount,
-        expirationId: "1",
-        numShares: "13092381",
-        collateralAmount: "8701516", // 4562497 + 8701516 = 13264013 (1.013 per share)
-      })
-
       // LP2 withdraws locked collateral
-      ret = await deployedAmm.withdrawLockedCollateral(1, { from: lp2Account })
+      ret = await deployedAmm.withdrawLockedCollateral([1], {
+        from: lp2Account,
+      })
       parseLogs(ret, deployedWTokenVault.contract) // parse WTokenVault events
 
       expectEvent(ret, "LpSharesRedeemed", {
@@ -708,12 +696,19 @@ contract("wToken Vault", (accounts) => {
         lpTokensBurned: "97595869",
       })
 
-      // LP1 claims from expired pool
-      ret = await deployedAmm.withdrawLockedCollateral(2, {
+      // LP1 withdraws locked collateral from multiple expirations
+      ret = await deployedAmm.withdrawLockedCollateral([1, 2], {
         from: ownerAccount,
       })
       parseLogs(ret, deployedWTokenVault.contract) // parse WTokenVault events
 
+      expectEvent(ret, "LpSharesRedeemed", {
+        ammAddress: deployedAmm.address,
+        redeemer: ownerAccount,
+        expirationId: "1",
+        numShares: "13092381",
+        collateralAmount: "8701516", // 4562497 + 8701516 = 13264013 (1.013 per share)
+      })
       expectEvent(ret, "LpSharesRedeemed", {
         ammAddress: deployedAmm.address,
         redeemer: ownerAccount,
@@ -723,7 +718,9 @@ contract("wToken Vault", (accounts) => {
       })
 
       // LP2 claims from expired pool
-      ret = await deployedAmm.withdrawLockedCollateral(2, { from: lp2Account })
+      ret = await deployedAmm.withdrawLockedCollateral([2], {
+        from: lp2Account,
+      })
       parseLogs(ret, deployedWTokenVault.contract) // parse WTokenVault events
 
       expectEvent(ret, "LpSharesRedeemed", {
@@ -735,7 +732,9 @@ contract("wToken Vault", (accounts) => {
       })
 
       // LP3 claims from expired pool
-      ret = await deployedAmm.withdrawLockedCollateral(2, { from: lp3Account })
+      ret = await deployedAmm.withdrawLockedCollateral([2], {
+        from: lp3Account,
+      })
       parseLogs(ret, deployedWTokenVault.contract) // parse WTokenVault events
 
       expectEvent(ret, "LpSharesRedeemed", {
@@ -1087,8 +1086,7 @@ contract("wToken Vault", (accounts) => {
       // Withdraw everything
       await deployedAmm.withdrawCapital(500_000e6, false, 0)
 
-      await deployedAmm.withdrawLockedCollateral(1)
-      await deployedAmm.withdrawLockedCollateral(2)
+      await deployedAmm.withdrawLockedCollateral([1, 2])
 
       // Check balances
       const bTokenIndex = await deployedSeriesController.bTokenIndex(seriesId)
@@ -1132,7 +1130,7 @@ contract("wToken Vault", (accounts) => {
 
       // Claiming again is not allowed
       await expectRevert(
-        deployedAmm.withdrawLockedCollateral(1),
+        deployedAmm.withdrawLockedCollateral([1]),
         "No collateral to redeem",
       )
     })
