@@ -934,6 +934,10 @@ export async function setNextBlockTimestamp(timestamp: number) {
   await network.provider.send("evm_setNextBlockTimestamp", [timestamp])
 }
 
+export async function mineBlock(timestamp: number) {
+  await network.provider.send("evm_mine", [timestamp])
+}
+
 export function getRandomSubarray(arr: Array<any>, size: number) {
   var shuffled = arr.slice(0),
     i = arr.length,

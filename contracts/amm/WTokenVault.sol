@@ -12,8 +12,6 @@ import "../configuration/IAddressesProvider.sol";
 import "./IAmmDataProvider.sol";
 import "./IWTokenVault.sol";
 
-import "hardhat/console.sol";
-
 contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
     /// @dev The address for the AddressesProvider
     IAddressesProvider addressesProvider;
@@ -30,6 +28,10 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
 
     /// locked collateral by expirationId
     mapping(address => mapping(uint256 => uint256)) public lockedCollateral;
+
+    /// redeemed collateral by LP
+    mapping(address => mapping(uint256 => mapping(address => uint256)))
+        public redeemedCollateral;
 
     function initialize(IAddressesProvider _addressesProvider)
         external
@@ -204,7 +206,7 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
 
         require(
             lpShares[ammAddress][expirationId][redeemer] > 0,
-            "Nothing to redeem in this pool"
+            "No shares in this pool"
         );
 
         uint256 numShares = lpShares[ammAddress][expirationId][redeemer];
@@ -212,11 +214,16 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
         uint256 collateralAmount = (lockedCollateral[ammAddress][expirationId] *
             numShares) / lpSharesSupply[ammAddress][expirationId];
 
-        // Burn LP shares
+        uint256 redeemed = redeemedCollateral[ammAddress][expirationId][
+            redeemer
+        ];
+        require(collateralAmount > redeemed, "No collateral to redeem");
 
-        lpShares[ammAddress][expirationId][redeemer] = 0;
-        lpSharesSupply[ammAddress][expirationId] -= numShares;
-        lockedCollateral[ammAddress][expirationId] -= collateralAmount;
+        redeemedCollateral[ammAddress][expirationId][
+            redeemer
+        ] = collateralAmount;
+
+        collateralAmount -= redeemed;
 
         emit LpSharesRedeemed(
             ammAddress,

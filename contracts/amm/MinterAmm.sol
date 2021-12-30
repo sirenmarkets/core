@@ -18,8 +18,6 @@ import "../series/IVolatilityOracle.sol";
 import "./IBlackScholes.sol";
 import "./IWTokenVault.sol";
 
-import "hardhat/console.sol";
-
 /// This is an implementation of a minting/redeeming AMM (Automated Market Maker) that trades a list of series with the same
 /// collateral token. For example, a single WBTC Call AMM contract can trade all strikes of WBTC calls using
 /// WBTC as the collateral, and a single WBTC Put AMM contract can trade all strikes of WBTC puts, using
@@ -162,7 +160,7 @@ contract MinterAmm is
     // E15: Invalid _ammDataProvider
     // E16: Invalid lightAirswapAddress
     // E17: Option price is 0
-    // E18: Pool is not yet claimable
+    // E18: Invalid expirationId
 
     /// @dev Prevents a contract from calling itself, directly or indirectly.
     /// Calling a `nonReentrant` function from another `nonReentrant`
@@ -460,7 +458,7 @@ contract MinterAmm is
         uint256 expiration = seriesController.allowedExpirationsList(
             expirationId
         );
-        require(expiration > 0 && expiration <= block.timestamp, "E18");
+        require(expiration > 0, "E18");
 
         // Claim all expired tokens
         claimAllExpiredTokens();

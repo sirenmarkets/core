@@ -79,10 +79,6 @@ contract AmmDataProvider is IAmmDataProvider {
         // For put convert token balances into collateral locked in them
         uint256 lockedUnderlyingValue = 1e18;
         if (series.isPutOption) {
-            bTokenBalance = seriesController.getCollateralPerOptionToken(
-                seriesId,
-                bTokenBalance
-            );
             wTokenBalance = seriesController.getCollateralPerOptionToken(
                 seriesId,
                 wTokenBalance

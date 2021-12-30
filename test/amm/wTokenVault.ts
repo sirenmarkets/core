@@ -26,6 +26,7 @@ import {
   blackScholes,
   setNextBlockTimestamp,
   parseLogs,
+  mineBlock,
 } from "../util"
 
 const WTokenVault = artifacts.require("WTokenVault")
@@ -137,7 +138,7 @@ contract("wToken Vault", (accounts) => {
 
     it("Single LP", async () => {
       const startTime = expiration - ONE_WEEK_DURATION
-      await time.increaseTo(startTime) // use the same time, no matter when this test gets called
+      await mineBlock(startTime) // use the same time, no matter when this test gets called
 
       // Approve collateral
       await underlyingToken.mint(ownerAccount, 10e8)
@@ -317,12 +318,24 @@ contract("wToken Vault", (accounts) => {
         `Pool value shouldn't change much because of the sale`,
       )
 
-      await expectRevert(
+      // Withdraw collateral before expiration
+      ret = await deployedAmm.withdrawLockedCollateral(1)
+      parseLogs(ret, deployedWTokenVault.contract) // parse WTokenVault events
+      expectEvent(ret, "LpSharesRedeemed", {
+        ammAddress: deployedAmm.address,
+        redeemer: ownerAccount,
+        expirationId: "1",
+        numShares: "48066391",
+        collateralAmount: "48463849",
+      })
+
+      // Trying to withdraw again should revert
+      expectRevert(
         deployedAmm.withdrawLockedCollateral(1),
-        "E18", // Pool is not yet claimable
+        "No collateral to redeem",
       )
 
-      await time.increaseTo(expiration) // increase time past series1 expiration
+      await mineBlock(expiration) // increase time past series1 expiration
 
       await setNextBlockTimestamp(expiration + 10)
 
@@ -333,7 +346,7 @@ contract("wToken Vault", (accounts) => {
       parseLogs(ret, deployedWTokenVault.contract) // parse WTokenVault events
 
       lockedCollateral += Math.floor(
-        (2e8 - ret.logs[0].args["collateralPaid"]) / 2,
+        (2e8 - ret.logs[0].args["collateralPaid"]) / 2 - 48463849,
       )
       assertBNEq(
         await deployedAmm.lockedCollateral(),
@@ -343,7 +356,7 @@ contract("wToken Vault", (accounts) => {
       expectEvent(ret, "CollateralLocked", {
         ammAddress: deployedAmm.address,
         seriesId: seriesId2,
-        collateralAmount: "97347553",
+        collateralAmount: "97347556",
         wTokenAmount: (1e8).toString(),
       })
 
@@ -351,8 +364,6 @@ contract("wToken Vault", (accounts) => {
 
       // Withdraw everything
       await deployedAmm.withdrawCapital(5e8, false, 0)
-
-      await deployedAmm.withdrawLockedCollateral(1)
       await deployedAmm.withdrawLockedCollateral(2)
 
       // Check balances
@@ -368,7 +379,7 @@ contract("wToken Vault", (accounts) => {
         bTokenIndex,
         wTokenIndex,
         lpToken,
-        1012000542, // 10.12e8 LP made 0.12e8 profit
+        1012000548, // 10.12e8 LP made 0.12e8 profit
         0,
         0,
         0,
@@ -398,13 +409,13 @@ contract("wToken Vault", (accounts) => {
       // Claiming again is not allowed
       await expectRevert(
         deployedAmm.withdrawLockedCollateral(1),
-        "Nothing to redeem in this pool",
+        "No collateral to redeem",
       )
     })
 
     it("Multiple LPs", async () => {
       const startTime = expiration - ONE_WEEK_DURATION
-      await time.increaseTo(startTime) // use the same time, no matter when this test gets called
+      await mineBlock(startTime) // use the same time, no matter when this test gets called
 
       // Approve collateral
       await underlyingToken.mint(ownerAccount, 10e8)
@@ -567,9 +578,22 @@ contract("wToken Vault", (accounts) => {
         lpSharesMinted: "29814008", //
       })
 
+      // LP1 withdraws locked collateral early
+      ret = await deployedAmm.withdrawLockedCollateral(1, {
+        from: ownerAccount,
+      })
+      parseLogs(ret, deployedWTokenVault.contract) // parse WTokenVault events
+
+      expectEvent(ret, "LpSharesRedeemed", {
+        ammAddress: deployedAmm.address,
+        redeemer: ownerAccount,
+        expirationId: "1",
+        numShares: "13092381",
+        collateralAmount: "4562497",
+      })
+
       // Expiration 1
-      await time.increaseTo(expiration)
-      await deployedAmm.claimAllExpiredTokens()
+      await mineBlock(expiration)
 
       // LP1 withdraws locked collateral
       ret = await deployedAmm.withdrawLockedCollateral(1, {
@@ -582,7 +606,7 @@ contract("wToken Vault", (accounts) => {
         redeemer: ownerAccount,
         expirationId: "1",
         numShares: "13092381",
-        collateralAmount: "13264013", // 1.013 per share
+        collateralAmount: "8701516", // 4562497 + 8701516 = 13264013 (1.013 per share)
       })
 
       // LP2 withdraws locked collateral
@@ -594,7 +618,7 @@ contract("wToken Vault", (accounts) => {
         redeemer: lp2Account,
         expirationId: "1",
         numShares: "24490217",
-        collateralAmount: "24811269", // 1.013 per share
+        collateralAmount: "24811268", // 1.013 per share
       })
 
       // Oracle price changes
@@ -658,7 +682,7 @@ contract("wToken Vault", (accounts) => {
       })
 
       // Expiration 1
-      await time.increaseTo(expiration2)
+      await mineBlock(expiration2)
 
       // LP1 withdraws all capital
       await setNextBlockTimestamp(expiration2 + 10)
@@ -719,7 +743,7 @@ contract("wToken Vault", (accounts) => {
         redeemer: lp3Account,
         expirationId: "2",
         numShares: "11810386",
-        collateralAmount: "11482247", // 0.97 per share
+        collateralAmount: "11482246", // 0.97 per share
       })
 
       // Check balances
@@ -748,7 +772,7 @@ contract("wToken Vault", (accounts) => {
         bTokenIndex,
         wTokenIndex,
         lpToken,
-        501683765, // 5.01e8
+        501683764, // 5.01e8
         0,
         0,
         0,
@@ -762,7 +786,7 @@ contract("wToken Vault", (accounts) => {
         bTokenIndex,
         wTokenIndex,
         lpToken,
-        299587490, // 2.99e8
+        299587489, // 2.99e8
         0,
         0,
         0,
@@ -776,15 +800,15 @@ contract("wToken Vault", (accounts) => {
         bTokenIndex,
         wTokenIndex,
         lpToken,
-        0,
+        2, // some dust left due to rounding
         0,
         0,
         0,
       )
       assertBNEq(
         await deployedAmm.lockedCollateral(),
-        0,
-        `AMM locked collateral should be 0`,
+        2,
+        `AMM locked collateral should be 2`,
       )
 
       // Check WTokenVault state
@@ -804,26 +828,6 @@ contract("wToken Vault", (accounts) => {
         0,
         `0 wTokens should be locked`,
       )
-
-      for (const exp of ["1", "2"]) {
-        assertBNEq(
-          await deployedWTokenVault.lpSharesSupply(deployedAmm.address, exp),
-          0,
-          `LP shares supply should be 0`,
-        )
-
-        for (const lpAccount of [ownerAccount, lp2Account, lp3Account]) {
-          assertBNEq(
-            await deployedWTokenVault.lpShares(
-              deployedAmm.address,
-              exp,
-              lpAccount,
-            ),
-            0,
-            `LP shares should be 0`,
-          )
-        }
-      }
     })
   })
 
@@ -869,7 +873,7 @@ contract("wToken Vault", (accounts) => {
 
     it("Single LP", async () => {
       const startTime = expiration - ONE_WEEK_DURATION
-      await time.increaseTo(startTime) // use the same time, no matter when this test gets called
+      await mineBlock(startTime) // use the same time, no matter when this test gets called
 
       // Approve collateral
       await collateralToken.mint(ownerAccount, 1_000_000e6)
@@ -1046,12 +1050,7 @@ contract("wToken Vault", (accounts) => {
         `Pool value shouldn't change much because of the sale`,
       )
 
-      await expectRevert(
-        deployedAmm.withdrawLockedCollateral(1),
-        "E18", // Pool is not yet claimable
-      )
-
-      await time.increaseTo(expiration) // increase time past series1 expiration
+      await mineBlock(expiration) // increase time past series1 expiration
 
       await setNextBlockTimestamp(expiration + 10)
 
@@ -1134,7 +1133,7 @@ contract("wToken Vault", (accounts) => {
       // Claiming again is not allowed
       await expectRevert(
         deployedAmm.withdrawLockedCollateral(1),
-        "Nothing to redeem in this pool",
+        "No collateral to redeem",
       )
     })
   })
