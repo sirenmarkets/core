@@ -450,27 +450,14 @@ contract MinterAmm is
     }
 
     /// Withdraws locked collateral post-expiration
-    function withdrawLockedCollateral(uint64[] memory expirationIds)
-        external
-        nonReentrant
-    {
+    function withdrawLockedCollateral() external nonReentrant {
         // Claim all expired tokens
         claimAllExpiredTokens();
 
         uint256 claimableCollateral;
 
-        for (uint256 i = 0; i < expirationIds.length; i++) {
-            uint64 expirationId = expirationIds[i];
-            // Check that expirationId is expired
-            uint256 expiration = seriesController.allowedExpirationsList(
-                expirationId
-            );
-            require(expiration > 0, "E18");
-
-            claimableCollateral += IWTokenVault(
-                addressesProvider.getWTokenVault()
-            ).redeemCollateral(expirationId, msg.sender);
-        }
+        claimableCollateral += IWTokenVault(addressesProvider.getWTokenVault())
+            .redeemCollateral(msg.sender);
 
         lockedCollateral -= claimableCollateral;
 
