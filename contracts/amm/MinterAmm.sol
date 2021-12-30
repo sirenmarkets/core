@@ -137,6 +137,12 @@ contract MinterAmm is
         address newFeeDestinationAddress
     );
 
+    event ConfigUpdated(
+        int256 ivShift,
+        bool dynamicIvEnabled,
+        uint16 ivDriftRate
+    );
+
     // Emitted when fees are paid
     event TradeFeesPaid(address indexed feePaidTo, uint256 feeAmount);
 
@@ -162,7 +168,13 @@ contract MinterAmm is
     // E15: Invalid _ammDataProvider
     // E16: Invalid lightAirswapAddress
     // E17: Option price is 0
-    // E18: Invalid expirationId
+    // E18: Pool is not yet claimable
+    // E19: Negative IV
+    // E20: Slippage exceeded
+    // E21: Last LP can't sell wTokens to the pool
+    // E22: Series has expired
+    // E23: Trade amount is too low
+    // E24: Too many open series
 
     /// @dev Prevents a contract from calling itself, directly or indirectly.
     /// Calling a `nonReentrant` function from another `nonReentrant`
@@ -190,14 +202,16 @@ contract MinterAmm is
         IERC20 _underlyingToken,
         IERC20 _priceToken,
         IERC20 _collateralToken,
-        address _tokenImplementation,
+        ISimpleToken _lpToken,
         uint16 _tradeFeeBasisPoints
     ) public override {
-        require(address(_underlyingToken) != address(0x0), "E03");
-        require(address(_priceToken) != address(0x0), "E04");
-        require(address(_collateralToken) != address(0x0), "E05");
-        require(address(_underlyingToken) != address(_priceToken), "E06");
-        require(_tokenImplementation != address(0x0), "E07");
+        // AMMs are created only by the AmmFactory contract which already checks these
+        // So we can remove them to reduce contract size
+        // require(address(_underlyingToken) != address(0x0), "E03");
+        // require(address(_priceToken) != address(0x0), "E04");
+        // require(address(_collateralToken) != address(0x0), "E05");
+        // require(address(_underlyingToken) != address(_priceToken), "E06");
+        // require(_tokenImplementation != address(0x0), "E07");
 
         // Enforce initialization can only happen once
         require(!initialized, "E08");
@@ -217,27 +231,7 @@ contract MinterAmm is
         underlyingToken = _underlyingToken;
         priceToken = _priceToken;
         collateralToken = _collateralToken;
-
-        // Create the lpToken and initialize it
-        Proxy lpTokenProxy = new Proxy(_tokenImplementation);
-        lpToken = ISimpleToken(address(lpTokenProxy));
-
-        // AMM name will be <underlying>-<price>-<collateral>, e.g. WBTC-USDC-WBTC for a WBTC Call AMM
-        string memory ammName = string(
-            abi.encodePacked(
-                IERC20Lib(address(underlyingToken)).symbol(),
-                "-",
-                IERC20Lib(address(priceToken)).symbol(),
-                "-",
-                IERC20Lib(address(collateralToken)).symbol()
-            )
-        );
-        string memory lpTokenName = string(abi.encodePacked("LP-", ammName));
-        lpToken.initialize(
-            lpTokenName,
-            lpTokenName,
-            IERC20Lib(address(collateralToken)).decimals()
-        );
+        lpToken = _lpToken;
 
         __Ownable_init();
 
@@ -254,28 +248,44 @@ contract MinterAmm is
         emit AddressesProviderUpdated(_addressesProvider);
     }
 
-    /// The owner can set the volatility factor used to price the options
+    /// Get volatility of a series
     function getVolatility(uint64 _seriesId)
         public
         view
         override
         returns (uint256)
     {
-        // TODO: implement dynamic per-series volatility
-        return getBaselineVolatility();
-    }
+        SeriesVolatility memory seriesVolatility = seriesVolatilities[
+            _seriesId
+        ];
 
-    function getBaselineVolatility() public view override returns (uint256) {
-        return
-            uint256(
-                IVolatilityOracle(addressesProvider.getVolatilityOracle())
-                    .annualizedVol(
-                        address(underlyingToken),
-                        address(priceToken)
-                    )
-            ) *
-            1e10 + // oracle stores volatility in 8 decimals precision, here we operate at 18 decimals
-            2e17; // bump IV by 20% to give LPs an edge until the dynamic IV is implemented
+        uint256 targetVolatility = getBaselineVolatility();
+        int256 iv;
+
+        if (
+            seriesVolatility.updatedAt == 0 ||
+            seriesVolatility.volatility == targetVolatility
+        ) {
+            // Volatility hasn't been initialized for this series
+            iv = int256(targetVolatility);
+        } else {
+            if (ivDriftRate == 0) return seriesVolatility.volatility;
+
+            int256 ivDrift = ((int256(targetVolatility) -
+                int256(seriesVolatility.volatility)) *
+                int256(block.timestamp - seriesVolatility.updatedAt)) /
+                int256(ivDriftRate);
+            iv = int256(seriesVolatility.volatility) + ivDrift;
+
+            if (
+                (ivDrift > 0 && iv > int256(targetVolatility)) ||
+                (ivDrift < 0 && iv < int256(targetVolatility))
+            ) {
+                iv = int256(targetVolatility);
+            }
+        }
+
+        return uint256(iv);
     }
 
     /// Each time a trade happens we update the volatility
@@ -284,8 +294,35 @@ contract MinterAmm is
         int256 priceImpact,
         uint256 currentIV,
         uint256 vega
-    ) internal {
-        // To be implemented
+    ) internal returns (uint256) {
+        int256 newIV = int256(currentIV) + (priceImpact * 1e18) / int256(vega);
+
+        // TODO: ability to set IV range
+        int256 MAX_IV = 4e18; // 400%
+        int256 MIN_IV = 5e17; // 50%
+        if (newIV > MAX_IV) {
+            newIV = MAX_IV;
+        } else if (newIV < MIN_IV) {
+            newIV = MIN_IV;
+        }
+        SeriesVolatility storage seriesVolatility = seriesVolatilities[
+            _seriesId
+        ];
+        seriesVolatility.volatility = uint256(newIV);
+        seriesVolatility.updatedAt = block.timestamp;
+    }
+
+    function getBaselineVolatility() public view override returns (uint256) {
+        int256 iv = int256(
+            IVolatilityOracle(addressesProvider.getVolatilityOracle())
+                .annualizedVol(address(underlyingToken), address(priceToken))
+        ) *
+            1e10 + // oracle stores volatility in 8 decimals precision, here we operate at 18 decimals
+            ivShift;
+
+        require(iv > 5e17, "E19"); // 50% minimum
+
+        return uint256(iv);
     }
 
     /// The owner can set the trade fee params - if any are set to 0/0x0 then trade fees are disabled
@@ -302,6 +339,19 @@ contract MinterAmm is
             maxOptionFeeBasisPoints,
             feeDestinationAddress
         );
+    }
+
+    /// Owner can set volatility config
+    function setAmmConfig(
+        int256 _ivShift,
+        bool _dynamicIvEnabled,
+        uint16 _ivDriftRate
+    ) external override onlyOwner {
+        ivShift = _ivShift;
+        dynamicIvEnabled = _dynamicIvEnabled;
+        ivDriftRate = _ivDriftRate;
+
+        emit ConfigUpdated(ivShift, dynamicIvEnabled, ivDriftRate);
     }
 
     /// @notice update the logic contract for this proxy contract
@@ -362,7 +412,7 @@ contract MinterAmm is
             getAllSeries(),
             collateralBalance(),
             address(this),
-            getAllVolatilities()
+            getBaselineVolatility()
         );
 
         // Mint LP tokens - the percentage added to bTokens should be same as lp tokens added
@@ -372,7 +422,7 @@ contract MinterAmm is
         uint256 lpTokensNewSupply = (poolValue * lpTokenExistingSupply) /
             (poolValue - collateralAmount);
         uint256 lpTokensToMint = lpTokensNewSupply - lpTokenExistingSupply;
-        require(lpTokensToMint >= lpTokenMinimum, "Slippage exceeded");
+        require(lpTokensToMint >= lpTokenMinimum, "E20");
         lpToken.mint(msg.sender, lpTokensToMint);
 
         // Emit event
@@ -414,10 +464,7 @@ contract MinterAmm is
 
         if (sellTokens) {
             // Sell pro-rata active tokens
-            require(
-                lpTokenAmount < lpTokenSupply,
-                "Last LP can't sell wTokens to the pool"
-            );
+            require(lpTokenAmount < lpTokenSupply, "E21");
             ammCollateralBalance = _sellActiveTokens(
                 lpTokenAmount,
                 lpTokenSupply,
@@ -441,10 +488,7 @@ contract MinterAmm is
 
         uint256 collateralTokenSent = collateralToken.balanceOf(msg.sender) -
             redeemerCollateralBalance;
-        require(
-            !sellTokens || collateralTokenSent >= collateralMinimum,
-            "Slippage exceeded"
-        );
+        require(!sellTokens || collateralTokenSent >= collateralMinimum, "E20");
 
         // Emit the event
         emit LpTokensBurned(msg.sender, collateralTokenSent, lpTokenAmount);
@@ -485,8 +529,6 @@ contract MinterAmm is
         wTokenVault.lockCollateral(seriesId, collateralToLock, closedWTokens);
 
         lockedCollateral += collateralToLock;
-
-        // TODO: emit event
     }
 
     /// @notice Claims any remaining collateral from all expired series whose wToken is held by the AMM, and removes
@@ -633,26 +675,6 @@ contract MinterAmm is
             series[i] = uint64(openSeries.at(i));
         }
         return series;
-    }
-
-    /// @notice List the Volatilies price each series trade
-    /// @notice Warning: there is no guarantee that the indexes
-    /// of any individual Series will remain constant between blocks. At any
-    /// point the indexes of a particular Series may change, so do not rely on
-    /// the indexes obtained from this function
-    /// @return an array of all the series IDs
-    function getAllVolatilities()
-        public
-        view
-        override
-        returns (uint256[] memory)
-    {
-        uint256[] memory volatilies = new uint256[](openSeries.length());
-        for (uint256 i = 0; i < openSeries.length(); i++) {
-            uint64 seriesId = uint64(openSeries.at(i));
-            volatilies[i] = getVolatility(seriesId);
-        }
-        return volatilies;
     }
 
     /// @notice Get a specific Series that this AMM trades
@@ -849,7 +871,7 @@ contract MinterAmm is
         require(
             seriesController.state(seriesId) ==
                 ISeriesController.SeriesState.OPEN,
-            "Series has expired"
+            "E22" // Series has expired
         );
         uint256 collateralAmount;
         {
@@ -874,15 +896,42 @@ contract MinterAmm is
                         price * bTokenAmount,
                         underlyingPrice
                     ),
-                "Buy amount is too low"
+                "E23" // Buy amount is too low
             );
+
+            if (dynamicIvEnabled) {
+                uint256 priceImpact;
+                if (seriesController.isPutOption(seriesId)) {
+                    priceImpact =
+                        (collateralAmount * 1e26) /
+                        seriesController.getCollateralPerUnderlying(
+                            seriesId,
+                            bTokenAmount,
+                            1e8
+                        ) /
+                        underlyingPrice -
+                        price;
+                } else {
+                    priceImpact =
+                        (collateralAmount * 1e18) /
+                        bTokenAmount -
+                        price;
+                }
+
+                updateVolatility(
+                    seriesId,
+                    int256(priceImpact),
+                    getVolatility(seriesId),
+                    vega
+                );
+            }
         }
 
         // Calculate trade fees if they are enabled with all params set
         uint256 tradeFee = calculateFees(bTokenAmount, collateralAmount);
         require(
             collateralAmount + tradeFee <= collateralMaximum,
-            "Slippage exceeded"
+            "E20" // Slippage exceeded
         );
 
         // Move collateral into this contract
@@ -898,36 +947,22 @@ contract MinterAmm is
             emit TradeFeesPaid(feeDestinationAddress, tradeFee);
         }
 
-        // Mint new options only as needed
-        uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-        uint256 bTokenBalance = erc1155Controller.balanceOf(
-            address(this),
-            bTokenIndex
-        );
-        if (bTokenBalance < bTokenAmount) {
-            // Approve the collateral to mint bTokenAmount of new options
-            uint256 bTokenCollateralAmount = seriesController
-                .getCollateralPerOptionToken(
-                    seriesId,
-                    bTokenAmount - bTokenBalance
-                );
+        // Approve the collateral to mint bTokenAmount of new options
+        uint256 bTokenCollateralAmount = seriesController
+            .getCollateralPerOptionToken(seriesId, bTokenAmount);
 
-            collateralToken.approve(
-                address(seriesController),
-                bTokenCollateralAmount
-            );
-            seriesController.mintOptions(
-                seriesId,
-                bTokenAmount - bTokenBalance
-            );
-        }
+        collateralToken.approve(
+            address(seriesController),
+            bTokenCollateralAmount
+        );
+        seriesController.mintOptions(seriesId, bTokenAmount);
 
         // Send all bTokens back
         bytes memory data;
         erc1155Controller.safeTransferFrom(
             address(this),
             msg.sender,
-            bTokenIndex,
+            SeriesLibrary.bTokenIndex(seriesId),
             bTokenAmount,
             data
         );
@@ -962,7 +997,7 @@ contract MinterAmm is
         require(
             seriesController.state(seriesId) ==
                 ISeriesController.SeriesState.OPEN,
-            "Series has expired"
+            "E22" // Series has expired
         );
         uint256 collateralAmount;
         {
@@ -987,8 +1022,35 @@ contract MinterAmm is
                         price * bTokenAmount,
                         underlyingPrice
                     ),
-                "Sell amount is too low"
+                "E23" // Sell amount is too low
             );
+
+            if (dynamicIvEnabled) {
+                uint256 priceImpact;
+                if (seriesController.isPutOption(seriesId)) {
+                    priceImpact =
+                        price -
+                        (collateralAmount * 1e26) /
+                        seriesController.getCollateralPerUnderlying(
+                            seriesId,
+                            bTokenAmount,
+                            1e8
+                        ) /
+                        underlyingPrice;
+                } else {
+                    priceImpact =
+                        price -
+                        (collateralAmount * 1e18) /
+                        bTokenAmount;
+                }
+
+                updateVolatility(
+                    seriesId,
+                    -int256(priceImpact),
+                    getVolatility(seriesId),
+                    vega
+                );
+            }
         }
 
         // Calculate trade fees if they are enabled with all params set
@@ -996,7 +1058,7 @@ contract MinterAmm is
 
         require(
             collateralAmount - tradeFee >= collateralMinimum,
-            "Slippage exceeded"
+            "E20" // Slippage exceeded
         );
 
         uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
@@ -1011,26 +1073,15 @@ contract MinterAmm is
             data
         );
 
-        // Always be closing!
-        uint256 bTokenBalance = erc1155Controller.balanceOf(
-            address(this),
-            bTokenIndex
-        );
-        uint256 wTokenBalance = erc1155Controller.balanceOf(
-            address(this),
-            SeriesLibrary.wTokenIndex(seriesId)
-        );
-        uint256 closeAmount = Math.min(bTokenBalance, wTokenBalance);
-
         // at this point we know it's worth calling closePosition because
         // the close amount is greater than 0, so let's call it and burn
         // excess option tokens in order to receive collateral tokens
         // and lock collateral in the WTokenVault
         lockCollateral(
             seriesId,
-            seriesController.closePosition(seriesId, closeAmount) -
+            seriesController.closePosition(seriesId, bTokenAmount) -
                 collateralAmount,
-            closeAmount
+            bTokenAmount
         );
 
         // Send the tokens to the seller
@@ -1088,8 +1139,8 @@ contract MinterAmm is
         require(msg.sender == address(seriesController), "E11");
         // Prevents out of gas error, occuring at 250 series, from locking
         // in LPs when we cycle over openSeries in _sellActiveTokens.
-        // We further lower the limit to 100 series for extra safety.
-        require(openSeries.length() <= 100, "Too many open series");
+        // We further lower the limit to 60 series for extra safety.
+        require(openSeries.length() <= 60, "E24"); // Too many open series
         openSeries.add(_seriesId);
     }
 

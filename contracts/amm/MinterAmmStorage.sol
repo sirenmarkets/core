@@ -81,7 +81,6 @@ abstract contract MinterAmmStorageV1 is IMinterAmm {
 
 abstract contract MinterAmmStorageV2 is MinterAmmStorageV1 {
     /// @dev Stores volatility mapped to each series
-
     struct SeriesVolatility {
         uint256 volatility;
         uint256 updatedAt;
@@ -92,6 +91,15 @@ abstract contract MinterAmmStorageV2 is MinterAmmStorageV1 {
 
     /// @dev The address for the AddressesProvider
     IAddressesProvider addressesProvider;
+
+    /// @dev Shift of baseline IV vs historical oracle feed (1e18)
+    int256 public ivShift;
+
+    /// @dev Turn dynamic IV on/off
+    bool public dynamicIvEnabled;
+
+    /// @dev IV drift rate towards baseline IV (smaller means faster convergence)
+    uint16 public ivDriftRate;
 }
 
 abstract contract MinterAmmStorageV3 is MinterAmmStorageV2 {

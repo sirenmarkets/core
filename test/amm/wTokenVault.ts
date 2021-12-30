@@ -132,7 +132,7 @@ contract("wToken Vault", (accounts) => {
       // Try to withdraw and sell
       await expectRevert(
         deployedAmm.withdrawCapital(10e8, true, 1),
-        "Last LP can't sell wTokens to the pool",
+        "E21", // Last LP can't sell wTokens to the pool
       )
     })
 

@@ -305,7 +305,7 @@ contract AmmDataProvider is IAmmDataProvider {
         uint64[] memory openSeries,
         address ammAddress,
         uint256 collateralTokenBalance,
-        uint256[] memory volatilities
+        uint256 impliedVolatility
     ) public view override returns (uint256) {
         if (lpTokenAmount == 0) return 0;
         if (lpTokenSupply == 0) return 0;
@@ -347,7 +347,7 @@ contract AmmDataProvider is IAmmDataProvider {
 
                 uint256 bTokenPrice = getPriceForSeries(
                     seriesId,
-                    volatilities[i]
+                    impliedVolatility
                 );
 
                 uint256 collateralAmountW = optionTokenGetCollateralOut(
@@ -434,7 +434,7 @@ contract AmmDataProvider is IAmmDataProvider {
         uint64[] memory openSeries,
         uint256 collateralBalance,
         address ammAddress,
-        uint256[] memory impliedVolatility
+        uint256 impliedVolatility
     ) public view override returns (uint256) {
         // Note! This function assumes the underlyingPrice is a valid series
         // price in units of underlyingToken/priceToken. If the onchain price
@@ -480,7 +480,7 @@ contract AmmDataProvider is IAmmDataProvider {
                 uint256 bPrice = getPriceForSeriesInternal(
                     series,
                     underlyingPrice,
-                    impliedVolatility[i]
+                    impliedVolatility
                 );
                 // wPrice = 1 - bPrice
                 uint256 lockedUnderlyingValue = 1e18;
@@ -534,7 +534,7 @@ contract AmmDataProvider is IAmmDataProvider {
                 amm.getAllSeries(),
                 amm.collateralBalance(),
                 ammAddress,
-                amm.getAllVolatilities()
+                amm.getBaselineVolatility()
             );
     }
 
@@ -640,7 +640,7 @@ contract AmmDataProvider is IAmmDataProvider {
             );
     }
 
-    /// @notice Calculate sale value of pro-rata LP b/wTokens in units of collateral token
+    /// @notice Calculate sale value of pro-rata LP wTokens in units of collateral token
     function getOptionTokensSaleValueView(
         address ammAddress,
         uint256 lpTokenAmount
@@ -656,7 +656,7 @@ contract AmmDataProvider is IAmmDataProvider {
                 amm.getAllSeries(),
                 ammAddress,
                 amm.collateralBalance(),
-                amm.getAllVolatilities()
+                amm.getBaselineVolatility()
             );
     }
 }

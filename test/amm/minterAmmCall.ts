@@ -58,15 +58,15 @@ const ERROR_MESSAGES = {
   NOT_SAME_TOKEN_CONTRACTS: "_underlyingToken cannot equal _priceToken",
   W_INVALID_REFUND: "wToken refund amount too high",
   B_INVALID_REFUND: "bToken refund amount too high",
-  B_TOKEN_BUY_SLIPPAGE: "Slippage exceeded",
-  B_TOKEN_SELL_SLIPPAGE: "Slippage exceeded",
-  W_TOKEN_BUY_SLIPPAGE: "Slippage exceeded",
-  W_TOKEN_SELL_SLIPPAGE: "Slippage exceeded",
+  B_TOKEN_BUY_SLIPPAGE: "E20",
+  B_TOKEN_SELL_SLIPPAGE: "E20",
+  W_TOKEN_BUY_SLIPPAGE: "E20",
+  W_TOKEN_SELL_SLIPPAGE: "E20",
   MIN_TRADE_SIZE: "Buy/Sell amount below min size",
-  WITHDRAW_SLIPPAGE: "Slippage exceeded",
+  WITHDRAW_SLIPPAGE: "E20",
   WITHDRAW_COLLATERAL_MINIMUM: "E12",
   CAPITAL_DEPOSIT_REVERT: "Feature not supported",
-  B_TOKEN_BUY_NOT_LARGE_ENOUGH: "Buy amount is too low",
+  B_TOKEN_BUY_NOT_LARGE_ENOUGH: "E23",
 }
 
 contract("AMM Call Verification", (accounts) => {
