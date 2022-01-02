@@ -55,6 +55,12 @@ contract SeriesDeployer is
     /// @dev For any token, track the ranges that are allowed for a strike price on the auto series creation feature
     mapping(address => TokenStrikeRange) public allowedStrikeRanges;
 
+    /// @dev Max series for each expiration date
+    uint256 public constant SERIES_PER_EXPIRATION_LIMIT = 15;
+
+    /// @dev Counter of created series for each expiration date
+    mapping(uint256 => uint256) public seriesPerExpirationCount;
+
     /// @notice Check if the msg.sender is the privileged DEFAULT_ADMIN_ROLE holder
     modifier onlyOwner() {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Not Owner");
@@ -166,6 +172,14 @@ contract SeriesDeployer is
         uint256 _bTokenAmount,
         uint256 _collateralMaximum
     ) public nonReentrant returns (uint64) {
+        // Check limit per expiration
+        seriesPerExpirationCount[_expirationDate] += 1;
+        require(
+            seriesPerExpirationCount[_expirationDate] <=
+                SERIES_PER_EXPIRATION_LIMIT,
+            "!limit"
+        );
+
         // Save off the ammTokens
         ISeriesController.Tokens memory ammTokens = ISeriesController.Tokens(
             address(_existingAmm.underlyingToken()),
