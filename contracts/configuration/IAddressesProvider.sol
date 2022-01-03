@@ -13,6 +13,7 @@ interface IAddressesProvider {
     event AmmDataProviderUpdated(address indexed newAddress);
     event SeriesControllerUpdated(address indexed newAddress);
     event LendingRateOracleUpdated(address indexed newAddress);
+    event DirectBuyManagerUpdated(address indexed newAddress);
     event ProxyCreated(bytes32 id, address indexed newAddress);
     event AddressSet(bytes32 id, address indexed newAddress, bool hasProxy);
     event VolatilityOracleUpdated(address indexed newAddress);
@@ -56,4 +57,8 @@ interface IAddressesProvider {
     function getErc1155Controller() external view returns (address);
 
     function setErc1155Controller(address erc1155Controller) external;
+
+    function getDirectBuyManager() external view returns (address);
+
+    function setDirectBuyManager(address directBuyManager) external;
 }

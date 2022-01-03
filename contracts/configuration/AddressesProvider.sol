@@ -26,6 +26,7 @@ contract AddressesProvider is
     bytes32 private constant AIRSWAP_LIGHT = "AIRSWAP_LIGHT";
     bytes32 private constant AMM_FACTORY = "AMM_FACTORY";
     bytes32 private constant ERC1155_CONTROLLER = "ERC1155_CONTROLLER";
+    bytes32 private constant DIRECT_BUY_MANAGER = "DIRECT_BUY_MANAGER";
 
     ///////////////////// MUTATING FUNCTIONS /////////////////////
 
@@ -162,5 +163,18 @@ contract AddressesProvider is
     {
         _addresses[ERC1155_CONTROLLER] = erc1155Controller;
         emit Erc1155ControllerUpdated(erc1155Controller);
+    }
+
+    function getDirectBuyManager() external view override returns (address) {
+        return getAddress(DIRECT_BUY_MANAGER);
+    }
+
+    function setDirectBuyManager(address directBuyManager)
+        external
+        override
+        onlyOwner
+    {
+        _addresses[DIRECT_BUY_MANAGER] = directBuyManager;
+        emit DirectBuyManagerUpdated(directBuyManager);
     }
 }
