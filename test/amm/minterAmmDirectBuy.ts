@@ -20,7 +20,7 @@ const MinterAmmFeeBased: MinterAmmContract = artifacts.require("MinterAmm")
 const ERROR_MESSAGES = {
   B_TOKEN_BUY_SLIPPAGE: "Slippage exceeded",
   B_TOKEN_SELL_SLIPPAGE: "Slippage exceeded",
-  UNAUTHORIZED: "Ownable: caller is not the owner",
+  UNAUTHORIZED: "!manager",
 }
 
 let deployedERC1155Controller: ERC1155ControllerInstance
@@ -52,6 +52,8 @@ contract("AMM Direct Buy", (accounts) => {
       deployedLightAirswap,
       deployedAddressesProvider,
     } = await setupAllTestContracts({}))
+
+    await deployedAddressesProvider.setDirectBuyManager(ownerAccount)
   })
 
   it("Checks restrictions on direct buy", async () => {
