@@ -36,6 +36,8 @@ contract SeriesDeployer is
         uint256 increment
     );
 
+    event SeriesPerExpirationLimitUpdated(uint256 seriesPerExpirationLimit);
+
     /// @dev These contract variables, as well as the `nonReentrant` modifier further down below,
     /// are copied from OpenZeppelin's ReentrancyGuard contract. We chose to copy ReentrancyGuard instead of
     /// having SeriesController inherit it because we intend use this SeriesController contract to upgrade already-deployed
@@ -56,7 +58,7 @@ contract SeriesDeployer is
     mapping(address => TokenStrikeRange) public allowedStrikeRanges;
 
     /// @dev Max series for each expiration date
-    uint256 public constant SERIES_PER_EXPIRATION_LIMIT = 15;
+    uint256 public seriesPerExpirationLimit;
 
     /// @dev Counter of created series for each expiration date
     mapping(uint256 => uint256) public seriesPerExpirationCount;
@@ -95,6 +97,7 @@ contract SeriesDeployer is
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
 
         addressesProvider = _addressesProvider;
+        seriesPerExpirationLimit = 15;
     }
 
     /// @dev added since both base classes implement this function
@@ -127,6 +130,16 @@ contract SeriesDeployer is
     {
         require(_addressesProvider != address(0x0), "Invalid Address");
         addressesProvider = IAddressesProvider(_addressesProvider);
+    }
+
+    /// @dev Update limit of series per expiration date
+    function updateSeriesPerExpirationLimit(uint256 _seriesPerExpirationLimit)
+        public
+        onlyOwner
+    {
+        seriesPerExpirationLimit = _seriesPerExpirationLimit;
+
+        emit SeriesPerExpirationLimitUpdated(_seriesPerExpirationLimit);
     }
 
     /// @notice This function allows the owner address to update allowed strikes for the auto series creation feature
@@ -176,7 +189,7 @@ contract SeriesDeployer is
         seriesPerExpirationCount[_expirationDate] += 1;
         require(
             seriesPerExpirationCount[_expirationDate] <=
-                SERIES_PER_EXPIRATION_LIMIT,
+                seriesPerExpirationLimit,
             "!limit"
         );
 

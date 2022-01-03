@@ -445,4 +445,33 @@ contract("Auto Series Creation", (accounts) => {
       "Alice should not have spent all funds",
     )
   })
+
+  it("Allows to set limit of series per expiration", async () => {
+    ;({
+      underlyingToken,
+      collateralToken,
+      priceToken,
+      deployedSeriesController,
+      expiration,
+      deployedAmm,
+      deployedAddressesProvider,
+      deployedERC1155Controller,
+      deployedSeriesDeployer,
+    } = await setupAllTestContracts({
+      strikePrice: STRIKE_PRICE.toString(),
+      oraclePrice: UNDERLYING_PRICE,
+      annualizedVolatility: ANNUALIZED_VOLATILITY,
+    }))
+
+    let ret = await deployedSeriesDeployer.updateSeriesPerExpirationLimit(7)
+    expectEvent(ret, "SeriesPerExpirationLimitUpdated", {
+      seriesPerExpirationLimit: "7",
+    })
+
+    assertBNEq(
+      await deployedSeriesDeployer.seriesPerExpirationLimit(),
+      "7",
+      "seriesPerExpirationLimit should be correct",
+    )
+  })
 })
