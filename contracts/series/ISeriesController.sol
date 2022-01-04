@@ -214,6 +214,8 @@ interface ISeriesController {
         view
         returns (uint256);
 
+    function latestIndex() external returns (uint64);
+
     ///////////////////// MUTATING FUNCTIONS /////////////////////
 
     function mintOptions(uint64 _seriesId, uint256 _optionTokenAmount) external;
@@ -228,4 +230,12 @@ interface ISeriesController {
 
     function closePosition(uint64 _seriesId, uint256 _optionTokenAmount)
         external;
+
+    function createSeries(
+        ISeriesController.Tokens calldata _tokens,
+        uint256[] calldata _strikePrices,
+        uint40[] calldata _expirationDates,
+        address[] calldata _restrictedMinters,
+        bool _isPutOption
+    ) external;
 }

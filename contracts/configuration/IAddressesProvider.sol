@@ -19,6 +19,8 @@ interface IAddressesProvider {
     event VolatilityOracleUpdated(address indexed newAddress);
     event BlackScholesUpdated(address indexed newAddress);
     event AirswapLightUpdated(address indexed newAddress);
+    event AmmFactoryUpdated(address indexed newAddress);
+    event Erc1155ControllerUpdated(address indexed newAddress);
 
     function setAddress(bytes32 id, address newAddress) external;
 
@@ -47,6 +49,14 @@ interface IAddressesProvider {
     function getAirswapLight() external view returns (address);
 
     function setAirswapLight(address airswapLight) external;
+
+    function getAmmFactory() external view returns (address);
+
+    function setAmmFactory(address ammFactory) external;
+
+    function getErc1155Controller() external view returns (address);
+
+    function setErc1155Controller(address erc1155Controller) external;
 
     function getDirectBuyManager() external view returns (address);
 

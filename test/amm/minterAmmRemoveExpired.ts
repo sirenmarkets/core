@@ -1,5 +1,5 @@
 import seedRandom from "seedrandom"
-import { expectRevert, time } from "@openzeppelin/test-helpers"
+import { expectRevert, time, BN } from "@openzeppelin/test-helpers"
 import { contract } from "hardhat"
 import {
   SeriesControllerInstance,
@@ -146,6 +146,7 @@ contract("Minter AMM Remove expired series", (accounts) => {
     const STRIKE_PRICE_3 = 15002 * 1e8
     const STRIKE_PRICE_4 = 15003 * 1e8
     const STRIKE_PRICE_5 = 15003 * 1e8
+
     let ret = await deployedSeriesController.createSeries(
       {
         underlyingToken: collateralToken.address,
@@ -332,13 +333,15 @@ contract("Minter AMM Remove expired series", (accounts) => {
 
         seriesExpirations.push(isClosedSeries ? "closed" : "open")
 
+        const strike = STRIKE_PRICE + k * 1e8
+
         await deployedSeriesController.createSeries(
           {
             underlyingToken: collateralToken.address,
             priceToken: priceToken.address,
             collateralToken: collateralToken.address,
           },
-          [STRIKE_PRICE + k * 1e8],
+          [strike],
           [expiryDate],
           [deployedAmm.address],
           false,

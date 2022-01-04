@@ -30,7 +30,7 @@ contract("Series Expirations", (accounts) => {
       deployedSeriesController.updateAllowedExpirations([date1], {
         from: aliceAccount,
       }),
-      "SeriesController: Caller is not the owner",
+      "!admin",
     )
 
     // Verify setting an expiration works from owner acct
@@ -39,7 +39,7 @@ contract("Series Expirations", (accounts) => {
     // Verify adding the same one doesn't work since it is not greater than the last
     await expectRevert(
       deployedSeriesController.updateAllowedExpirations([date1]),
-      "Order!",
+      "!Order",
     )
 
     // Verify adding a later non-aligned (not 8 AM) gets rejected

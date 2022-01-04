@@ -3,6 +3,7 @@
 pragma solidity 0.8.0;
 
 import "./ISeriesController.sol";
+import "../configuration/IAddressesProvider.sol";
 
 /// This contract stores all new local variables for the SeriesController.sol contract.
 /// This allows us to upgrade the contract and add new variables without worrying about
@@ -21,7 +22,7 @@ abstract contract SeriesControllerStorageV1 is ISeriesController {
     ISeriesController.Fees internal fees;
 
     /// @notice Monotonically incrementing index, used when creating Series.
-    uint64 public latestIndex;
+    uint64 public override latestIndex;
 
     /// @dev The address of the ERC1155Controler that performs minting and burning of option tokens
     address public override erc1155Controller;
@@ -65,6 +66,15 @@ abstract contract SeriesControllerStorageV1 is ISeriesController {
     // @note The 0th element in the list (first one) is a place holder, since we do not want any
     // expirations with ID 0 (we need to verify in the mapping that 0 means it is not set)
     uint256[] public allowedExpirationsList;
+}
+
+abstract contract SeriesControllerStorageV2 is SeriesControllerStorageV1 {
+    IAddressesProvider public addressesProvider;
+
+    mapping(bytes32 => bool) public addedSeries;
+
+    bytes32 public constant SERIES_DEPLOYER_ROLE =
+        keccak256("SERIES_DEPLOYER_ROLE");
 }
 
 // Next version example:

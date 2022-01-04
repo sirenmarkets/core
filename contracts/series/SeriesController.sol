@@ -9,6 +9,7 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 
 import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
 import "./ISeriesController.sol";
@@ -20,6 +21,7 @@ import "../token/IERC20Lib.sol";
 import "../amm/IMinterAmm.sol";
 import "./SeriesLibrary.sol";
 import "./SeriesControllerStorage.sol";
+import "../amm/IAmmFactory.sol";
 
 /// @title SeriesController
 /// @notice The SeriesController implements all of the logic for minting and interacting with option tokens
@@ -42,7 +44,7 @@ contract SeriesController is
     PausableUpgradeable,
     AccessControlUpgradeable,
     Proxiable,
-    SeriesControllerStorageV1
+    SeriesControllerStorageV2
 {
     /** Use safe ERC20 functions for any token transfers since people don't follow the ERC20 standard */
     using SafeERC20 for IERC20;
@@ -51,9 +53,17 @@ contract SeriesController is
 
     /// @notice Check if the msg.sender is the privileged DEFAULT_ADMIN_ROLE holder
     modifier onlyOwner() {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "!admin");
+
+        _;
+    }
+
+    /// @notice Check if the msg.sender is the privileged SERIES_DEPLOYER_ROLE holder
+    modifier onlySeriesDeployer() {
         require(
-            hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
-            "SeriesController: Caller is not the owner"
+            hasRole(SERIES_DEPLOYER_ROLE, msg.sender) ||
+                hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
+            "!deployer"
         );
 
         _;
@@ -66,7 +76,7 @@ contract SeriesController is
     /// `private` function that does the actual work.
     modifier nonReentrant() {
         // On the first call to nonReentrant, _notEntered will be true
-        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
+        require(_status != _ENTERED, "!reentrant");
 
         // Any calls to nonReentrant after this point will fail
         _status = _ENTERED;
@@ -595,6 +605,7 @@ contract SeriesController is
         __Pausable_init();
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(PAUSER_ROLE, msg.sender);
+        _setupRole(SERIES_DEPLOYER_ROLE, msg.sender);
 
         require(_priceOracle != address(0x0), "Invalid _priceOracle");
         require(_vault != address(0x0), "Invalid _vault");
@@ -631,13 +642,13 @@ contract SeriesController is
 
     /// @notice Pauses all non-admin functions
     function pause() external virtual {
-        require(hasRole(PAUSER_ROLE, msg.sender), "Invalid PAUSER_ROLE");
+        require(hasRole(PAUSER_ROLE, msg.sender), "!PAUSER");
         _pause();
     }
 
     /// @notice Unpauses all non-admin functions
     function unpause() external virtual {
-        require(hasRole(PAUSER_ROLE, msg.sender), "Invalid PAUSER_ROLE");
+        require(hasRole(PAUSER_ROLE, msg.sender), "!PAUSER");
         _unpause();
     }
 
@@ -705,35 +716,23 @@ contract SeriesController is
         uint40[] calldata _expirationDates,
         address[] calldata _restrictedMinters,
         bool _isPutOption
-    ) external onlyOwner {
-        require(_strikePrices.length != 0, "Invalid _strikePrices");
+    ) external override onlySeriesDeployer {
+        require(_strikePrices.length != 0, "!strikePrices");
 
-        require(
-            _strikePrices.length == _expirationDates.length,
-            "Invalid Array Len"
-        );
+        require(_strikePrices.length == _expirationDates.length, "!Array");
 
         // validate token data
-        require(
-            _tokens.underlyingToken != address(0x0),
-            "Invalid underlyingToken"
-        );
-        require(_tokens.priceToken != address(0x0), "Invalid priceToken");
-        require(
-            _tokens.collateralToken != address(0x0),
-            "Invalid collateralToken"
-        );
+        require(_tokens.underlyingToken != address(0x0), "!Underlying");
+        require(_tokens.priceToken != address(0x0), "!Price");
+        require(_tokens.collateralToken != address(0x0), "!Collateral");
 
         // validate that the token data makes sense given whether it's a Put or a Call
         if (_isPutOption) {
-            require(
-                _tokens.underlyingToken != _tokens.collateralToken,
-                "Invalid Put Tokens"
-            );
+            require(_tokens.underlyingToken != _tokens.collateralToken, "!Put");
         } else {
             require(
                 _tokens.underlyingToken == _tokens.collateralToken,
-                "Invalid Call Tokens"
+                "!Call"
             );
         }
 
@@ -742,7 +741,7 @@ contract SeriesController is
         // mint option tokens for that Series. However, this would not be the case because down in
         // SeriesController.mintOptions we check if the caller has the MINTER_ROLE, and so the original intent
         // of having anyone allowed to mint option tokens for that Series would not be honored.
-        require(_restrictedMinters.length != 0, "Invalid _restrictedMinters");
+        require(_restrictedMinters.length != 0, "!restrictedMinters");
 
         // add the privileged minters if they haven't already been added
         for (uint256 i = 0; i < _restrictedMinters.length; i++) {
@@ -806,18 +805,29 @@ contract SeriesController is
     function createSeriesInternal(
         uint40 _expirationDate,
         bool _isPutOption,
-        ISeriesController.Tokens calldata _tokens,
+        ISeriesController.Tokens memory _tokens,
         uint256 _strikePrice
-    ) private view returns (Series memory) {
+    ) private returns (Series memory) {
         // validate price and expiration
-        require(_strikePrice != 0, "Invalid _strikePrice");
-        require(_expirationDate > block.timestamp, "Invalid _expirationDate");
+        require(_strikePrice != 0, "!strikePrice");
+        require(_expirationDate > block.timestamp, "!expirationDate");
 
         // Validate the expiration has been added to the list by the owner
-        require(
-            allowedExpirationsMap[_expirationDate] > 0,
-            "_expirationDate not set"
+        require(allowedExpirationsMap[_expirationDate] > 0, "!expiration");
+
+        // Add to created series mapping so we can track if it has been added before
+        bytes32 seriesHash = keccak256(
+            abi.encode(
+                _expirationDate,
+                _isPutOption,
+                _tokens.underlyingToken,
+                _tokens.priceToken,
+                _tokens.collateralToken,
+                _strikePrice
+            )
         );
+        require(!addedSeries[seriesHash], "!series");
+        addedSeries[seriesHash] = true;
 
         return
             ISeriesController.Series(
@@ -840,12 +850,12 @@ contract SeriesController is
     {
         // NOTE: this assumes that values in the allSeries array are never removed,
         // which is fine because there's currently no way to remove Series
-        require(allSeries.length > _seriesId, "Invalid _seriesId");
+        require(allSeries.length > _seriesId, "!_seriesId");
 
-        require(state(_seriesId) == SeriesState.OPEN, "Series Not Open");
+        require(state(_seriesId) == SeriesState.OPEN, "!Open");
 
         // Is the caller one of the AMM pools, which are the only addresses with the MINTER_ROLE?
-        require(hasRole(MINTER_ROLE, msg.sender), "Not Minter Role");
+        require(hasRole(MINTER_ROLE, msg.sender), "!Minter");
 
         uint256 wIndex = SeriesLibrary.wTokenIndex(_seriesId);
         uint256 bIndex = SeriesLibrary.bTokenIndex(_seriesId);
@@ -901,7 +911,7 @@ contract SeriesController is
     ) external override whenNotPaused nonReentrant {
         // We support only European style options so we exercise only after expiry, and only using
         // the settlement price set at expiration
-        require(state(_seriesId) == SeriesState.EXPIRED, "Series Not Expired");
+        require(state(_seriesId) == SeriesState.EXPIRED, "!Expired");
 
         // Save off the caller
         address redeemer = msg.sender;
@@ -916,7 +926,7 @@ contract SeriesController is
         );
 
         // Only ITM exercise results in payoff
-        require(!_revertOtm || collateralAmount > 0, "Not ITM");
+        require(!_revertOtm || collateralAmount > 0, "!ITM");
 
         Series memory currentSeries = allSeries[_seriesId];
 
@@ -973,7 +983,7 @@ contract SeriesController is
         whenNotPaused
         nonReentrant
     {
-        require(state(_seriesId) == SeriesState.EXPIRED, "Series Not Expired");
+        require(state(_seriesId) == SeriesState.EXPIRED, "!Expired");
 
         // Save off the caller
         address redeemer = msg.sender;
@@ -1038,7 +1048,7 @@ contract SeriesController is
         whenNotPaused
         nonReentrant
     {
-        require(state(_seriesId) == SeriesState.OPEN, "Series Not Open");
+        require(state(_seriesId) == SeriesState.OPEN, "!Open");
 
         // Save off the caller
         address redeemer = msg.sender;
@@ -1117,7 +1127,7 @@ contract SeriesController is
     /// @param _newAdmin the address of the new DEFAULT_ADMIN_ROLE and PAUSER_ROLE holder
     /// @dev only the admin address may call this function
     function transferOwnership(address _newAdmin) external onlyOwner {
-        require(_newAdmin != msg.sender, "Invalid Owner");
+        require(_newAdmin != msg.sender, "!Owner");
 
         // first make _newAdmin the a pauser
         grantRole(PAUSER_ROLE, _newAdmin);
@@ -1134,13 +1144,13 @@ contract SeriesController is
         renounceRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    /// @notice Update the priceOracle used when creating new Series
-    /// @dev This means the new price oracle must have settlement prices set such that all
-    /// existing Series can get their settlement price
-    function setPriceOracle(address _priceOracle) external onlyOwner {
-        require(_priceOracle != address(0x0), "Invalid Address");
-
-        priceOracle = _priceOracle;
+    /// @notice Update the addressProvider used for other contract lookups
+    function setAddressesProvider(address _addressesProvider)
+        external
+        onlyOwner
+    {
+        require(_addressesProvider != address(0x0), "!addr");
+        addressesProvider = IAddressesProvider(_addressesProvider);
     }
 
     /// @notice Sets the settlement price for all settlement dates prior to the current block timestamp
@@ -1178,7 +1188,7 @@ contract SeriesController is
             // Verify the next timestamp added is newer than the last one (empty should return 0)
             require(
                 (allowedExpirationsList[nextExpirationID - 1] < timestamps[i]),
-                "Order!"
+                "!Order"
             );
 
             // Ensure the date is aligned
