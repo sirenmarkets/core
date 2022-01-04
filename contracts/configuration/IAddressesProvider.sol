@@ -54,10 +54,6 @@ interface IAddressesProvider {
 
     function setAmmFactory(address ammFactory) external;
 
-    function getErc1155Controller() external view returns (address);
-
-    function setErc1155Controller(address erc1155Controller) external;
-
     function getDirectBuyManager() external view returns (address);
 
     function setDirectBuyManager(address directBuyManager) external;

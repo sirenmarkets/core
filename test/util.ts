@@ -396,10 +396,6 @@ export async function setupSingletonTestContracts(
     erc1155ControllerProxy.address,
   )
 
-  await deployedAddressesProvider.setErc1155Controller(
-    deployedERC1155Controller.address,
-  )
-
   // initialize the vault and erc1155 controller
   await deployedVault.__SeriesVault_init(deployedSeriesController.address)
   await deployedERC1155Controller.__ERC1155Controller_init(

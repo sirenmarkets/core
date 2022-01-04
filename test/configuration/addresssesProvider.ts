@@ -110,27 +110,4 @@ contract("Address Provider Set/Get Verification", (accounts) => {
     const addr = await addrProvider.getAmmFactory()
     assert.equal(addr, randomAddress)
   })
-
-  it("Verifies Erc1155Controller Address", async () => {
-    const randomAddress = accounts[5]
-
-    const addrProvider = await deploy()
-    addrProvider.__AddressessProvider_init()
-
-    // Verify non admin can't set address
-    await expectRevert(
-      addrProvider.setErc1155Controller(randomAddress, { from: accounts[2] }),
-      "Ownable: caller is not the owner",
-    )
-
-    // Update the address
-    let ret = await addrProvider.setErc1155Controller(randomAddress)
-    expectEvent(ret, "Erc1155ControllerUpdated", {
-      newAddress: randomAddress,
-    })
-
-    // Get and verify
-    const addr = await addrProvider.getErc1155Controller()
-    assert.equal(addr, randomAddress)
-  })
 })
