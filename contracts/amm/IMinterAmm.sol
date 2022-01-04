@@ -42,6 +42,8 @@ interface IMinterAmm {
 
     function getVolatility(uint64 _seriesId) external view returns (uint256);
 
+    function getBaselineVolatility() external view returns (uint256);
+
     function getAllVolatilities() external view returns (uint256[] memory);
 
     function calculateFees(uint256 bTokenAmount, uint256 collateralAmount)
@@ -52,4 +54,6 @@ interface IMinterAmm {
     function updateAddressesProvider(address _addressesProvider) external;
 
     function getCurrentUnderlyingPrice() external view returns (uint256);
+    
+    function collateralBalance() external view returns (uint256);
 }

@@ -58,14 +58,14 @@ abstract contract SeriesControllerStorageV1 is ISeriesController {
     // Mapping is (ExpirationDate => ExpirationID); If the expiration ID is not 0 then it is a valid expiration date.
     // This is a convenience lookup mapping -> corresponds with allowedExpirationsList
     // ExpirationID lookup of value 0 means it is not set
-    mapping(uint256 => uint256) public allowedExpirationsMap;
+    mapping(uint256 => uint256) public override allowedExpirationsMap;
 
     /// @dev Stores an array of allowed expirations.
     // The index in the array is the ExpirationID, the value is the ExpirationDate
     // This is a convenience lookup array -> corresponds with allowedExpirations
     // @note The 0th element in the list (first one) is a place holder, since we do not want any
     // expirations with ID 0 (we need to verify in the mapping that 0 means it is not set)
-    uint256[] public allowedExpirationsList;
+    uint256[] public override allowedExpirationsList;
 }
 
 abstract contract SeriesControllerStorageV2 is SeriesControllerStorageV1 {

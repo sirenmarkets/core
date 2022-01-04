@@ -26,6 +26,7 @@ contract AddressesProvider is
     bytes32 private constant AIRSWAP_LIGHT = "AIRSWAP_LIGHT";
     bytes32 private constant AMM_FACTORY = "AMM_FACTORY";
     bytes32 private constant DIRECT_BUY_MANAGER = "DIRECT_BUY_MANAGER";
+    bytes32 private constant WTOKEN_VAULT = "WTOKEN_VAULT";
 
     ///////////////////// MUTATING FUNCTIONS /////////////////////
 
@@ -162,5 +163,14 @@ contract AddressesProvider is
     {
         _addresses[DIRECT_BUY_MANAGER] = directBuyManager;
         emit DirectBuyManagerUpdated(directBuyManager);
+    }
+
+    function getWTokenVault() external view override returns (address) {
+        return getAddress(WTOKEN_VAULT);
+    }
+
+    function setWTokenVault(address wTokenVault) external override onlyOwner {
+        _addresses[WTOKEN_VAULT] = wTokenVault;
+        emit WTokenVaultUpdated(wTokenVault);
     }
 }

@@ -90,8 +90,12 @@ abstract contract MinterAmmStorageV2 is MinterAmmStorageV1 {
     ///Replaces volatilityFactor
     mapping(uint64 => SeriesVolatility) public seriesVolatilities;
 
-    /// @dev The address for the VolatilityOracle
+    /// @dev The address for the AddressesProvider
     IAddressesProvider addressesProvider;
+}
+
+abstract contract MinterAmmStorageV3 is MinterAmmStorageV2 {
+    uint256 public lockedCollateral;
 }
 
 // Next version example:

@@ -7,6 +7,7 @@ const ERC1155Controller = artifacts.require("ERC1155Controller")
 const MockPriceOracle = artifacts.require("MockPriceOracle")
 const MinterAmm = artifacts.require("MinterAmm")
 const AmmFactory = artifacts.require("AmmFactory")
+const WTokenVault = artifacts.require("WTokenVault")
 
 // This fixture exists to replicate truffle's "migrations" setup logic
 // but for hardhat
@@ -37,4 +38,7 @@ module.exports = async () => {
 
   const addressesProvider = await AddressesProvider.new()
   AddressesProvider.setAsDeployed(addressesProvider)
+
+  const wTokenVault = await WTokenVault.new()
+  WTokenVault.setAsDeployed(wTokenVault)
 }
