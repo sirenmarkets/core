@@ -25,7 +25,6 @@ contract AddressesProvider is
     bytes32 private constant BLACKSCHOLES = "BLACKSCHOLES";
     bytes32 private constant AIRSWAP_LIGHT = "AIRSWAP_LIGHT";
     bytes32 private constant AMM_FACTORY = "AMM_FACTORY";
-    bytes32 private constant ERC1155_CONTROLLER = "ERC1155_CONTROLLER";
     bytes32 private constant DIRECT_BUY_MANAGER = "DIRECT_BUY_MANAGER";
 
     ///////////////////// MUTATING FUNCTIONS /////////////////////
@@ -150,19 +149,6 @@ contract AddressesProvider is
     function setAmmFactory(address ammFactory) external override onlyOwner {
         _addresses[AMM_FACTORY] = ammFactory;
         emit AmmFactoryUpdated(ammFactory);
-    }
-
-    function getErc1155Controller() external view override returns (address) {
-        return getAddress(ERC1155_CONTROLLER);
-    }
-
-    function setErc1155Controller(address erc1155Controller)
-        external
-        override
-        onlyOwner
-    {
-        _addresses[ERC1155_CONTROLLER] = erc1155Controller;
-        emit Erc1155ControllerUpdated(erc1155Controller);
     }
 
     function getDirectBuyManager() external view override returns (address) {

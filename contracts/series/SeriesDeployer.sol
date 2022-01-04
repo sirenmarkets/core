@@ -242,19 +242,21 @@ contract SeriesDeployer is
         expirations[0] = _expirationDate;
         minters[0] = address(_existingAmm);
 
+        ISeriesController seriesController = ISeriesController(
+            addressesProvider.getSeriesController()
+        );
+
         // Get the series controller and create the series
-        ISeriesController(addressesProvider.getSeriesController()).createSeries(
-                ammTokens,
-                strikes,
-                expirations,
-                minters,
-                _isPutOption
-            );
+        seriesController.createSeries(
+            ammTokens,
+            strikes,
+            expirations,
+            minters,
+            _isPutOption
+        );
 
         // We know the series we just created is the latest minus 1
-        uint64 createdSeriesId = ISeriesController(
-            addressesProvider.getSeriesController()
-        ).latestIndex() - 1;
+        uint64 createdSeriesId = seriesController.latestIndex() - 1;
 
         // Move the collateral into this address and approve the AMM
         IERC20(ammTokens.collateralToken).transferFrom(
@@ -275,14 +277,16 @@ contract SeriesDeployer is
         );
 
         // Send bTokens to buyer
-        bytes memory data;
-        IERC1155(addressesProvider.getErc1155Controller()).safeTransferFrom(
-            address(this),
-            msg.sender,
-            SeriesLibrary.bTokenIndex(createdSeriesId),
-            amtBought,
-            data
-        );
+        {
+            bytes memory data;
+            IERC1155(seriesController.erc1155Controller()).safeTransferFrom(
+                address(this),
+                msg.sender,
+                SeriesLibrary.bTokenIndex(createdSeriesId),
+                amtBought,
+                data
+            );
+        }
 
         // Send any unused collateral back to buyer
         if (IERC20(ammTokens.collateralToken).balanceOf(address(this)) > 0) {
