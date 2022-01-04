@@ -300,6 +300,79 @@ contract("Auto Series Creation", (accounts) => {
     )
   })
 
+  it("Checks limit per expiration", async () => {
+    ;({
+      underlyingToken,
+      collateralToken,
+      priceToken,
+      deployedSeriesController,
+      expiration,
+      deployedAmm,
+      deployedAddressesProvider,
+      deployedERC1155Controller,
+      deployedSeriesDeployer,
+    } = await setupAllTestContracts({
+      strikePrice: STRIKE_PRICE.toString(),
+      oraclePrice: UNDERLYING_PRICE,
+      annualizedVolatility: ANNUALIZED_VOLATILITY,
+    }))
+
+    // Add a new expiration
+    const newExpiration = expiration + ONE_WEEK_DURATION
+    await deployedSeriesController.updateAllowedExpirations([newExpiration])
+
+    // Mint and approve tokens
+    await underlyingToken.mint(aliceAccount, 10e8)
+    await underlyingToken.approve(deployedSeriesDeployer.address, 10e8, {
+      from: aliceAccount,
+    })
+
+    // Get the index count
+    const beforeCount = await deployedSeriesController.latestIndex()
+
+    await deployedSeriesDeployer.updateAllowedTokenStrikeRanges(
+      underlyingToken.address,
+      50, // min 50% of underlying price
+      300, // max 300% of underlying price
+      1e8,
+    )
+
+    // Create 15 series
+    const promises = []
+    for (let i = 0; i < 15; i++) {
+      promises.push(
+        deployedSeriesDeployer.autoCreateSeriesAndBuy(
+          deployedAmm.address,
+          STRIKE_PRICE + i * 1e8,
+          newExpiration,
+          false,
+          1e4,
+          1e4,
+          {
+            from: aliceAccount,
+          },
+        ),
+      )
+    }
+    await Promise.all(promises)
+
+    // Try creating another one
+    await expectRevert(
+      deployedSeriesDeployer.autoCreateSeriesAndBuy(
+        deployedAmm.address,
+        STRIKE_PRICE + 15 * 1e8,
+        newExpiration,
+        false,
+        1e4,
+        1e4,
+        {
+          from: aliceAccount,
+        },
+      ),
+      "!limit",
+    )
+  })
+
   it("Allows series deployer to create", async () => {
     ;({
       underlyingToken,
@@ -370,6 +443,35 @@ contract("Auto Series Creation", (accounts) => {
     assert(
       collateralBalance.gt(new BN(0)),
       "Alice should not have spent all funds",
+    )
+  })
+
+  it("Allows to set limit of series per expiration", async () => {
+    ;({
+      underlyingToken,
+      collateralToken,
+      priceToken,
+      deployedSeriesController,
+      expiration,
+      deployedAmm,
+      deployedAddressesProvider,
+      deployedERC1155Controller,
+      deployedSeriesDeployer,
+    } = await setupAllTestContracts({
+      strikePrice: STRIKE_PRICE.toString(),
+      oraclePrice: UNDERLYING_PRICE,
+      annualizedVolatility: ANNUALIZED_VOLATILITY,
+    }))
+
+    let ret = await deployedSeriesDeployer.updateSeriesPerExpirationLimit(7)
+    expectEvent(ret, "SeriesPerExpirationLimitUpdated", {
+      seriesPerExpirationLimit: "7",
+    })
+
+    assertBNEq(
+      await deployedSeriesDeployer.seriesPerExpirationLimit(),
+      "7",
+      "seriesPerExpirationLimit should be correct",
     )
   })
 })

@@ -36,6 +36,8 @@ contract SeriesDeployer is
         uint256 increment
     );
 
+    event SeriesPerExpirationLimitUpdated(uint256 seriesPerExpirationLimit);
+
     /// @dev These contract variables, as well as the `nonReentrant` modifier further down below,
     /// are copied from OpenZeppelin's ReentrancyGuard contract. We chose to copy ReentrancyGuard instead of
     /// having SeriesController inherit it because we intend use this SeriesController contract to upgrade already-deployed
@@ -54,6 +56,12 @@ contract SeriesDeployer is
 
     /// @dev For any token, track the ranges that are allowed for a strike price on the auto series creation feature
     mapping(address => TokenStrikeRange) public allowedStrikeRanges;
+
+    /// @dev Max series for each expiration date
+    uint256 public seriesPerExpirationLimit;
+
+    /// @dev Counter of created series for each expiration date
+    mapping(uint256 => uint256) public seriesPerExpirationCount;
 
     /// @notice Check if the msg.sender is the privileged DEFAULT_ADMIN_ROLE holder
     modifier onlyOwner() {
@@ -89,6 +97,7 @@ contract SeriesDeployer is
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
 
         addressesProvider = _addressesProvider;
+        seriesPerExpirationLimit = 15;
     }
 
     /// @dev added since both base classes implement this function
@@ -121,6 +130,16 @@ contract SeriesDeployer is
     {
         require(_addressesProvider != address(0x0), "Invalid Address");
         addressesProvider = IAddressesProvider(_addressesProvider);
+    }
+
+    /// @dev Update limit of series per expiration date
+    function updateSeriesPerExpirationLimit(uint256 _seriesPerExpirationLimit)
+        public
+        onlyOwner
+    {
+        seriesPerExpirationLimit = _seriesPerExpirationLimit;
+
+        emit SeriesPerExpirationLimitUpdated(_seriesPerExpirationLimit);
     }
 
     /// @notice This function allows the owner address to update allowed strikes for the auto series creation feature
@@ -166,6 +185,14 @@ contract SeriesDeployer is
         uint256 _bTokenAmount,
         uint256 _collateralMaximum
     ) public nonReentrant returns (uint64) {
+        // Check limit per expiration
+        seriesPerExpirationCount[_expirationDate] += 1;
+        require(
+            seriesPerExpirationCount[_expirationDate] <=
+                seriesPerExpirationLimit,
+            "!limit"
+        );
+
         // Save off the ammTokens
         ISeriesController.Tokens memory ammTokens = ISeriesController.Tokens(
             address(_existingAmm.underlyingToken()),
