@@ -278,7 +278,6 @@ contract AmmDataProvider is IAmmDataProvider {
                 seriesController.state(seriesId) ==
                 ISeriesController.SeriesState.EXPIRED
             ) {
-                uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
                 uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
 
                 // Get wToken balance excluding locked tokens

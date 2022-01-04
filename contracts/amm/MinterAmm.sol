@@ -419,7 +419,6 @@ contract MinterAmm is
             ammCollateralBalance = _sellActiveTokens(
                 lpTokenAmount,
                 lpTokenSupply,
-                msg.sender,
                 ammCollateralBalance
             );
         } else {
@@ -499,9 +498,6 @@ contract MinterAmm is
             ) {
                 claimExpiredTokens(seriesId);
 
-                ISeriesController.Series memory series = seriesController
-                    .series(seriesId);
-
                 // Handle edge case: If, prior to removing the Series, i was the index of the last Series
                 // in openSeries, then after the removal `i` will point to one beyond the end of the array.
                 // This means we've iterated through all of the Series in `openSeries`, and we should break
@@ -557,9 +553,8 @@ contract MinterAmm is
     function _sellActiveTokens(
         uint256 lpTokenAmount,
         uint256 lpTokenSupply,
-        address redeemer,
         uint256 collateralLeft
-    ) internal returns (uint256) {
+    ) internal view returns (uint256) {
         IWTokenVault wTokenVault = IWTokenVault(
             addressesProvider.getWTokenVault()
         );
