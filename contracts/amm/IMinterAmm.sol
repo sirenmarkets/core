@@ -20,7 +20,7 @@ interface IMinterAmm {
         IERC20 _underlyingToken,
         IERC20 _priceToken,
         IERC20 _collateralToken,
-        address _tokenImplementation,
+        ISimpleToken _lpToken,
         uint16 _tradeFeeBasisPoints
     ) external;
 
@@ -44,8 +44,6 @@ interface IMinterAmm {
 
     function getBaselineVolatility() external view returns (uint256);
 
-    function getAllVolatilities() external view returns (uint256[] memory);
-
     function calculateFees(uint256 bTokenAmount, uint256 collateralAmount)
         external
         view
@@ -56,4 +54,10 @@ interface IMinterAmm {
     function getCurrentUnderlyingPrice() external view returns (uint256);
     
     function collateralBalance() external view returns (uint256);
+
+    function setAmmConfig(
+        int256 _ivShift,
+        bool _dynamicIvEnabled,
+        uint16 _ivDriftRate
+    ) external;
 }

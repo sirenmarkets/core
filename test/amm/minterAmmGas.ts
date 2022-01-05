@@ -60,6 +60,9 @@ contract("Minter AMM Gas Measurement", (accounts) => {
       strikePrice: STRIKE_PRICE.toString(),
       oraclePrice: BTC_ORACLE_PRICE,
     }))
+
+    // Enable dynamic IV
+    await deployedAmm.setAmmConfig((0e18).toString(), true, 14400) // 0 vol bump, 4hr drift rate
   })
 
   it("Measures gas for single-series: 0 open and 1 expired", async () => {
@@ -156,7 +159,7 @@ contract("Minter AMM Gas Measurement", (accounts) => {
       printGasLog("bTokenBuy 1", ret.receipt.gasUsed)
       assert.isBelow(
         ret.receipt.gasUsed,
-        550_000,
+        600_000,
         "bTokenBuy gas should be below threshold",
       )
 

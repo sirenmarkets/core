@@ -4,11 +4,13 @@ pragma solidity 0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/IAccessControlUpgradeable.sol";
 import "../proxy/Proxy.sol";
 import "../proxy/Proxiable.sol";
 import "./IMinterAmm.sol";
 import "../series/ISeriesController.sol";
 import "../configuration/IAddressesProvider.sol";
+import "../token/IERC20Lib.sol";
 
 /// @title AmmFactory
 /// @author The Siren Devs
@@ -169,6 +171,10 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
             address(_collateralToken) != address(0x0),
             "Invalid _collateralToken"
         );
+        require(
+            address(_underlyingToken) != address(_priceToken),
+            "_underlyingToken cannot equal _priceToken"
+        );
 
         // Verify a amm with this name does not exist
         bytes32 assetPair = keccak256(
@@ -181,6 +187,27 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
 
         require(amms[assetPair] == address(0x0), "AMM name already registered");
 
+        // Create the lpToken and initialize it
+        Proxy lpTokenProxy = new Proxy(tokenImplementation);
+        ISimpleToken lpToken = ISimpleToken(address(lpTokenProxy));
+
+        // AMM name will be <underlying>-<price>-<collateral>, e.g. WBTC-USDC-WBTC for a WBTC Call AMM
+        string memory ammName = string(
+            abi.encodePacked(
+                IERC20Lib(address(_underlyingToken)).symbol(),
+                "-",
+                IERC20Lib(address(_priceToken)).symbol(),
+                "-",
+                IERC20Lib(address(_collateralToken)).symbol()
+            )
+        );
+        string memory lpTokenName = string(abi.encodePacked("LP-", ammName));
+        lpToken.initialize(
+            lpTokenName,
+            lpTokenName,
+            IERC20Lib(address(_collateralToken)).decimals()
+        );
+
         // Deploy a new proxy pointing at the AMM impl
         Proxy ammProxy = new Proxy(ammImplementation);
         IMinterAmm newAmm = IMinterAmm(address(ammProxy));
@@ -191,8 +218,17 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
             _underlyingToken,
             _priceToken,
             _collateralToken,
-            tokenImplementation,
+            lpToken,
             _tradeFeeBasisPoints
+        );
+
+        IAccessControlUpgradeable(address(lpToken)).grantRole(
+            keccak256("MINTER_ROLE"),
+            address(newAmm)
+        );
+        IAccessControlUpgradeable(address(lpToken)).grantRole(
+            keccak256("BURNER_ROLE"),
+            address(newAmm)
         );
 
         // Set owner to msg.sender

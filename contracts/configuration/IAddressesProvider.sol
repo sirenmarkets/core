@@ -21,6 +21,7 @@ interface IAddressesProvider {
     event AirswapLightUpdated(address indexed newAddress);
     event AmmFactoryUpdated(address indexed newAddress);    
     event WTokenVaultUpdated(address indexed newAddress);
+    event AmmConfigUpdated(address indexed newAddress);
 
     function setAddress(bytes32 id, address newAddress) external;
 
@@ -61,4 +62,8 @@ interface IAddressesProvider {
     function getWTokenVault() external view returns (address);
 
     function setWTokenVault(address wTokenVault) external;
+
+    function getAmmConfig() external view returns (address);
+
+    function setAmmConfig(address ammConfig) external;
 }

@@ -39,6 +39,8 @@ const STATE_EXPIRED = 1
 const oneDay = 60 * 60 * 24
 const oneWeek = 7 * oneDay
 
+const SERIES_LIMIT = 60
+
 contract("AMM Series Limit Verification", (accounts) => {
   const ownerAccount = accounts[0]
   const aliceAccount = accounts[1]
@@ -60,10 +62,10 @@ contract("AMM Series Limit Verification", (accounts) => {
     }))
   })
 
-  it("Expect revert when adding more than 100 series", async () => {
-    for (let i = 0; i < 101; i++) {
+  it(`Expect revert when adding more than ${SERIES_LIMIT} series`, async () => {
+    for (let i = 0; i < SERIES_LIMIT + 1; i++) {
       // Deploy additional series
-      if (i < 100) {
+      if (i < SERIES_LIMIT) {
         await setupSeries({
           deployedSeriesController,
           underlyingToken,
@@ -85,13 +87,13 @@ contract("AMM Series Limit Verification", (accounts) => {
           strikePrice: STRIKE_PRICE.toString(),
           isPutOption: false,
         })
-        await expectRevert(seriesPromise, "Too many open series")
+        await expectRevert(seriesPromise, "E24") // Too many open series
       }
     }
   })
 
-  it("Add 100 series successfully", async () => {
-    for (let i = 0; i < 100; i++) {
+  it(`Add ${SERIES_LIMIT} series successfully`, async () => {
+    for (let i = 0; i < SERIES_LIMIT; i++) {
       await setupSeries({
         deployedSeriesController,
         underlyingToken,

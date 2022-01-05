@@ -27,6 +27,7 @@ contract AddressesProvider is
     bytes32 private constant AMM_FACTORY = "AMM_FACTORY";
     bytes32 private constant DIRECT_BUY_MANAGER = "DIRECT_BUY_MANAGER";
     bytes32 private constant WTOKEN_VAULT = "WTOKEN_VAULT";
+    bytes32 private constant AMM_CONFIG = "AMM_CONFIG";
 
     ///////////////////// MUTATING FUNCTIONS /////////////////////
 
@@ -172,5 +173,14 @@ contract AddressesProvider is
     function setWTokenVault(address wTokenVault) external override onlyOwner {
         _addresses[WTOKEN_VAULT] = wTokenVault;
         emit WTokenVaultUpdated(wTokenVault);
+    }
+
+    function getAmmConfig() external view override returns (address) {
+        return getAddress(AMM_CONFIG);
+    }
+
+    function setAmmConfig(address ammConfig) external override onlyOwner {
+        _addresses[AMM_CONFIG] = ammConfig;
+        emit AmmConfigUpdated(ammConfig);
     }
 }

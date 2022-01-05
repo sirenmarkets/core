@@ -117,7 +117,11 @@ contract SeriesController is
         override
         returns (ISeriesController.Series memory)
     {
-        return allSeries[seriesId];
+        ISeriesController.Series memory series = allSeries[seriesId];
+
+        // check series exists
+        require(series.expirationDate > 0, "!series");
+        return series;
     }
 
     /// @notice Calculate the fee to charge given some amount

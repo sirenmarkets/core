@@ -717,6 +717,9 @@ export async function setupAmm({
 
   const deployedAmm = await MinterAmm.at(ammAddress)
 
+  // Set default volatility config
+  await deployedAmm.setAmmConfig((0.2e18).toString(), false, 0)
+
   const lpToken = await SimpleToken.at(await deployedAmm.lpToken())
 
   return {
