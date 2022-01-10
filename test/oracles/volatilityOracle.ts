@@ -32,7 +32,7 @@ const MockPriceOracle: MockPriceOracleContract =
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
 
 const wbtcDecimals = 8
-const PRICE_TOLERANCE = 2e5
+const PRICE_TOLERANCE = 2e7
 /**
  * Testing MinterAmm volatility oracle updates
  */
@@ -44,6 +44,7 @@ contract("Volatility Oracle", (accounts) => {
   let deployedPriceOracle
 
   let PERIOD = 86400
+
   const WINDOW_IN_DAYS = 90 // 3 month vol data
   const COMMIT_PHASE_DURATION = 3600 // 30 mins
 
@@ -137,39 +138,40 @@ contract("Volatility Oracle", (accounts) => {
         BigNumber.from("2248393"),
         BigNumber.from("3068199"),
       ]
+      let topOfPeriod1 = 1642323398
+      await time.increaseTo(topOfPeriod1)
 
-      const topOfPeriod = (await getTopOfPeriod()) + PERIOD
-      await time.increaseTo(topOfPeriod)
-
-      await deployedMockVolatilityOracle.addTokenPair(
+      await deployedVolatilityOracle.addTokenPair(
         underlyingToken.address,
         priceToken.address,
       )
 
       for (let i = 0; i < values.length; i++) {
-        await deployedPriceOracle.setLatestAnswer(values[i].toString())
-        await deployedMockVolatilityOracle.setPrice(values[i])
-        const topOfPeriod = (await getTopOfPeriod()) + PERIOD
-        await time.increaseTo(topOfPeriod)
-        await deployedMockVolatilityOracle.commit(
+        let value = parseUnits(values[i].toString())
+        deployedPriceOracle.setLatestAnswer(value.toString())
+
+        let topOfPeriod2 = (await getTopOfPeriod()) + PERIOD
+        await time.increaseTo(topOfPeriod2)
+
+        await deployedVolatilityOracle.commit(
           underlyingToken.address,
           priceToken.address,
         )
-        let stdev = await deployedMockVolatilityOracle.vol(
+        let stdev = await deployedVolatilityOracle.vol(
           underlyingToken.address,
           priceToken.address,
         )
         assert.equal(await stdev.toString(), stdevs[i].toString())
       }
-      let stdev = await deployedMockVolatilityOracle.vol(
+      let stdev = await deployedVolatilityOracle.vol(
         underlyingToken.address,
         priceToken.address,
       )
     })
   })
 
-  describe("Checks the  the vol", async () => {
-    it("updates the vol", async function () {
+  describe("Checks the the vol against off chain tests", async () => {
+    it("updates the vol over 4 sets of 90 days", async function () {
       let valueSet1 = [
         340.6160218128092, 341.4437964782809, 350.0556765681245,
         365.33944481939363, 370.4718109734285, 374.4970150925736,
@@ -204,16 +206,17 @@ contract("Volatility Oracle", (accounts) => {
       ]
 
       const topOfPeriod = (await getTopOfPeriod()) + PERIOD
-      await time.increaseTo(topOfPeriod)
 
-      await deployedMockVolatilityOracle.addTokenPair(
+      await deployedVolatilityOracle.addTokenPair(
         underlyingToken.address,
         priceToken.address,
       )
+
       let onChainVol1 = await calculateVolOnChain(valueSet1)
       let offChainVol1 = parseInt(
         ((await calculateVolOffChain(valueSet1)) * 1e8).toString(),
       )
+
       console.log("Values 1", onChainVol1.toString())
       console.log("ValuesOffChain 1", offChainVol1)
 
@@ -221,7 +224,7 @@ contract("Volatility Oracle", (accounts) => {
         onChainVol1.toString(),
         offChainVol1.toString(),
         PRICE_TOLERANCE,
-        "Off Chain and On Chain should not differ more than 0.02%",
+        "Off Chain and On Chain should not differ more than 2%",
       )
       let valueSet2 = [
         1025.6547675669035, 1103.3582516225742, 1208.5750928728885,
@@ -267,7 +270,7 @@ contract("Volatility Oracle", (accounts) => {
         onChainVol2.toString(),
         offChainVol2.toString(),
         PRICE_TOLERANCE,
-        "Off Chain and On Chain should not differ more than 0.02%",
+        "Off Chain and On Chain should not differ more than 2%",
       )
 
       let valueSet3 = [
@@ -314,7 +317,7 @@ contract("Volatility Oracle", (accounts) => {
         onChainVol3.toString(),
         offChainVol3.toString(),
         PRICE_TOLERANCE,
-        "Off Chain and On Chain should not differ more than 0.02%",
+        "Off Chain and On Chain should not differ more than 2%",
       )
 
       let valueSet4 = [
@@ -361,7 +364,7 @@ contract("Volatility Oracle", (accounts) => {
         onChainVol4.toString(),
         offChainVol4.toString(),
         PRICE_TOLERANCE,
-        "Off Chain and On Chain should not differ more than 0.02%",
+        "Off Chain and On Chain should not differ more than 2%",
       )
 
       let valueSet5 = [
@@ -408,7 +411,7 @@ contract("Volatility Oracle", (accounts) => {
         onChainVol5.toString(),
         offChainVol5.toString(),
         PRICE_TOLERANCE,
-        "Off Chain and On Chain should not differ more than 0.02%",
+        "Off Chain and On Chain should not differ more than 2%",
       )
     }).timeout(10000000)
   }).timeout(10000000)
@@ -430,6 +433,7 @@ contract("Volatility Oracle", (accounts) => {
     result.setDate(result.getDate() - days)
     return result.getTime()
   }
+
   async function getData(url) {
     try {
       let data = await axios.get(url)
@@ -442,21 +446,21 @@ contract("Volatility Oracle", (accounts) => {
   async function calculateVolOnChain(vals) {
     for (let i = 0; i < vals.length; i++) {
       let value = parseUnits(vals[i].toString())
-      await deployedPriceOracle.setLatestAnswer(value.toString())
-      await deployedMockVolatilityOracle.setPrice(value)
+      deployedPriceOracle.setLatestAnswer(value.toString())
       const topOfPeriod = (await getTopOfPeriod()) + PERIOD
       await time.increaseTo(topOfPeriod)
 
-      await deployedMockVolatilityOracle.commit(
+      await deployedVolatilityOracle.commit(
         underlyingToken.address,
         priceToken.address,
       )
     }
-    return await deployedMockVolatilityOracle.vol(
+    return await deployedVolatilityOracle.annualizedVol(
       underlyingToken.address,
       priceToken.address,
     )
   }
+
   async function calculateVolOffChain(vals) {
     let SDV = []
     for (let i = 0; i < vals.length - 1; i++) {
@@ -468,8 +472,10 @@ contract("Volatility Oracle", (accounts) => {
   function getStandardDeviation(array) {
     const n = array.length
     const mean = array.reduce((a, b) => a + b) / n
-    return Math.sqrt(
-      array.map((x) => Math.pow(x - mean, 2)).reduce((a, b) => a + b) / n,
+    return (
+      Math.sqrt(
+        array.map((x) => Math.pow(x - mean, 2)).reduce((a, b) => a + b) / n,
+      ) * 19.1049731745
     )
   }
 })
