@@ -58,6 +58,21 @@ contract MockVolatilityOracle is DSMath, VolatilityOracle {
         return _annualizedVol[underlyingToken][priceToken];
     }
 
+    function mockAnnualizedVol(address underlyingToken, address priceToken)
+        public
+        view
+        virtual
+        returns (uint256 annualStdev)
+    {
+        return
+            Welford
+                .stdev(
+                    observationCount(underlyingToken, priceToken, false),
+                    int256(accumulators[underlyingToken][priceToken].dsq)
+                )
+                .mul(annualizationConstant);
+    }
+
     function setAnnualizedVol(
         address underlyingToken,
         address priceToken,
