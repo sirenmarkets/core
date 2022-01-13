@@ -24,7 +24,6 @@ import { parseUnits } from "ethers/lib/utils"
 import math, { MathArray } from "mathjs"
 
 let deployedVolatilityOracle
-let deployedMockVolatilityOracle
 
 const MockPriceOracle: MockPriceOracleContract =
   artifacts.require("MockPriceOracle")
@@ -32,7 +31,7 @@ const MockPriceOracle: MockPriceOracleContract =
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
 
 const wbtcDecimals = 8
-const PRICE_TOLERANCE = 2e7
+const VOL_TOLERANCE = 2e6
 /**
  * Testing MinterAmm volatility oracle updates
  */
@@ -82,11 +81,6 @@ contract("Volatility Oracle", (accounts) => {
     )
 
     deployedVolatilityOracle = await volatility.deploy(
-      PERIOD,
-      deployedMockPriceOracle.address,
-      WINDOW_IN_DAYS,
-    )
-    deployedMockVolatilityOracle = await MockVolatility.deploy(
       PERIOD,
       deployedMockPriceOracle.address,
       WINDOW_IN_DAYS,
@@ -223,7 +217,7 @@ contract("Volatility Oracle", (accounts) => {
       assertBNEqWithTolerance(
         onChainVol1.toString(),
         offChainVol1.toString(),
-        PRICE_TOLERANCE,
+        VOL_TOLERANCE,
         "Off Chain and On Chain should not differ more than 2%",
       )
       let valueSet2 = [
@@ -269,7 +263,7 @@ contract("Volatility Oracle", (accounts) => {
       assertBNEqWithTolerance(
         onChainVol2.toString(),
         offChainVol2.toString(),
-        PRICE_TOLERANCE,
+        VOL_TOLERANCE,
         "Off Chain and On Chain should not differ more than 2%",
       )
 
@@ -316,7 +310,7 @@ contract("Volatility Oracle", (accounts) => {
       assertBNEqWithTolerance(
         onChainVol3.toString(),
         offChainVol3.toString(),
-        PRICE_TOLERANCE,
+        VOL_TOLERANCE,
         "Off Chain and On Chain should not differ more than 2%",
       )
 
@@ -363,7 +357,7 @@ contract("Volatility Oracle", (accounts) => {
       assertBNEqWithTolerance(
         onChainVol4.toString(),
         offChainVol4.toString(),
-        PRICE_TOLERANCE,
+        VOL_TOLERANCE,
         "Off Chain and On Chain should not differ more than 2%",
       )
 
@@ -410,7 +404,7 @@ contract("Volatility Oracle", (accounts) => {
       assertBNEqWithTolerance(
         onChainVol5.toString(),
         offChainVol5.toString(),
-        PRICE_TOLERANCE,
+        VOL_TOLERANCE,
         "Off Chain and On Chain should not differ more than 2%",
       )
     }).timeout(10000000)
