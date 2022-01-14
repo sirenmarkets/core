@@ -17,11 +17,8 @@ import {
   MockPriceOracleContract,
   SimpleTokenContract,
   SimpleTokenInstance,
-  MockPriceOracleInstance,
-  PriceOracleInstance,
 } from "../../typechain"
 import { parseUnits } from "ethers/lib/utils"
-import math, { MathArray } from "mathjs"
 
 let deployedVolatilityOracle
 
@@ -75,11 +72,6 @@ contract("Volatility Oracle", (accounts) => {
 
     const volatility = await ethers.getContractFactory("VolatilityOracle", {})
 
-    const MockVolatility = await ethers.getContractFactory(
-      "MockVolatilityOracle",
-      {},
-    )
-
     deployedVolatilityOracle = await volatility.deploy(
       PERIOD,
       deployedMockPriceOracle.address,
@@ -132,7 +124,7 @@ contract("Volatility Oracle", (accounts) => {
         BigNumber.from("2248393"),
         BigNumber.from("3068199"),
       ]
-      let topOfPeriod1 = 1642323398
+      let topOfPeriod1 = (await getTopOfPeriod()) + PERIOD
       await time.increaseTo(topOfPeriod1)
 
       await deployedVolatilityOracle.addTokenPair(
@@ -157,10 +149,6 @@ contract("Volatility Oracle", (accounts) => {
         )
         assert.equal(await stdev.toString(), stdevs[i].toString())
       }
-      let stdev = await deployedVolatilityOracle.vol(
-        underlyingToken.address,
-        priceToken.address,
-      )
     })
   })
 
@@ -198,8 +186,6 @@ contract("Volatility Oracle", (accounts) => {
         735.5908981625738, 752.8559324490188, 738.6169381520413,
         730.1473402196374, 777.6960653039432, 967.0005967288458,
       ]
-
-      const topOfPeriod = (await getTopOfPeriod()) + PERIOD
 
       await deployedVolatilityOracle.addTokenPair(
         underlyingToken.address,
@@ -420,21 +406,6 @@ contract("Volatility Oracle", (accounts) => {
       topOfPeriod = latestTimestamp + rem + PERIOD
     }
     return topOfPeriod
-  }
-
-  function subtractDates(date, days) {
-    var result = new Date(date)
-    result.setDate(result.getDate() - days)
-    return result.getTime()
-  }
-
-  async function getData(url) {
-    try {
-      let data = await axios.get(url)
-      return data
-    } catch (err) {
-      console.log(err)
-    }
   }
 
   async function calculateVolOnChain(vals) {
