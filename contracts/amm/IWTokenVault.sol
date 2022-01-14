@@ -4,11 +4,13 @@ interface IWTokenVault {
     event WTokensLocked(
         address ammAddress,
         address redeemer,
+        uint256 expirationId,
         uint256 lpSharesMinted
     );
     event LpSharesRedeemed(
         address ammAddress,
         address redeemer,
+        uint256 expirationId,
         uint256 numShares,
         uint256 collateralAmount
     );
@@ -31,7 +33,9 @@ interface IWTokenVault {
         uint256 volatility
     ) external;
 
-    function redeemCollateral(address redeemer) external returns (uint256);
+    function redeemCollateral(uint256 expirationId, address redeemer)
+        external
+        returns (uint256);
 
     function lockCollateral(
         uint64 seriesId,
