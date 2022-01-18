@@ -492,15 +492,27 @@ contract MinterAmm is
         emit LpTokensBurned(msg.sender, collateralTokenSent, lpTokenAmount);
     }
 
-    /// Withdraws locked collateral post-expiration
-    function withdrawLockedCollateral() external nonReentrant {
+    /// Withdraws locked collateral
+    function withdrawLockedCollateral(uint64[] memory expirationIds)
+        external
+        nonReentrant
+    {
         // Claim all expired tokens
         claimAllExpiredTokens();
 
         uint256 claimableCollateral;
 
-        claimableCollateral += IWTokenVault(addressesProvider.getWTokenVault())
-            .redeemCollateral(msg.sender);
+        for (uint256 i = 0; i < expirationIds.length; i++) {
+            uint64 expirationId = expirationIds[i];
+            uint256 expiration = seriesController.allowedExpirationsList(
+                expirationId
+            );
+            require(expiration > 0, "E18");
+
+            claimableCollateral += IWTokenVault(
+                addressesProvider.getWTokenVault()
+            ).redeemCollateral(expirationId, msg.sender);
+        }
 
         lockedCollateral -= claimableCollateral;
 
@@ -520,6 +532,9 @@ contract MinterAmm is
             address(this),
             seriesId
         );
+
+        if (lockedWTokenBalance == 0) return;
+
         uint256 closedWTokens = Math.min(lockedWTokenBalance, wTokenAmountMax);
         uint256 collateralToLock = (collateralAmountMax * closedWTokens) /
             wTokenAmountMax;
