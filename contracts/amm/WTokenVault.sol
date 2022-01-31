@@ -41,6 +41,18 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
         __Ownable_init();
     }
 
+    /// @notice update the logic contract for this proxy contract
+    /// @param _newImplementation the address of the new WTokenVault implementation
+    /// @dev only the admin address may call this function
+    function updateImplementation(address _newImplementation)
+        external
+        onlyOwner
+    {
+        require(_newImplementation != address(0x0), "!implementation");
+
+        _updateCodeAddress(_newImplementation);
+    }
+
     function getWTokenBalance(address poolAddress, uint64 seriesId)
         external
         view
