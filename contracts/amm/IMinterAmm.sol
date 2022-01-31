@@ -52,7 +52,7 @@ interface IMinterAmm {
     function updateAddressesProvider(address _addressesProvider) external;
 
     function getCurrentUnderlyingPrice() external view returns (uint256);
-    
+
     function collateralBalance() external view returns (uint256);
 
     function setAmmConfig(
@@ -60,4 +60,6 @@ interface IMinterAmm {
         bool _dynamicIvEnabled,
         uint16 _ivDriftRate
     ) external;
+
+    function claimAllExpiredTokens() external;
 }
