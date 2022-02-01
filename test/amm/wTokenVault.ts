@@ -210,12 +210,14 @@ contract("wToken Vault", (accounts) => {
         ammAddress: deployedAmm.address,
         redeemer: ownerAccount,
         expirationDate: expiration.toString(),
+        wTokenAmount: "50000000",
         lpSharesMinted: "48066391", // 1e8 * 50% * (1 - 0.038) = 0.48
       })
       expectEvent(ret, "WTokensLocked", {
         ammAddress: deployedAmm.address,
         redeemer: ownerAccount,
         expirationDate: expiration2.toString(),
+        wTokenAmount: "100000000",
         lpSharesMinted: "93472668", // 2e8 * 50% * (1 - 0.065) = 0.93
       })
 

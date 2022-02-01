@@ -56,9 +56,9 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
         uint256 underlyingPrice;
         uint256 volatility;
         uint64[] allSeries;
-        uint256[] allExpirations;
         uint256[] lockedValue;
         uint256[] poolValue;
+        uint256[] wTokenAmounts;
     }
 
     /// Lock active wTokens grouped by expiration
@@ -95,6 +95,9 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
             vars.expirationIdMax - vars.expirationIdMin + 1
         );
         vars.poolValue = new uint256[](
+            vars.expirationIdMax - vars.expirationIdMin + 1
+        );
+        vars.wTokenAmounts = new uint256[](
             vars.expirationIdMax - vars.expirationIdMin + 1
         );
 
@@ -151,6 +154,9 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
                     vars.lockedValue[expirationId - vars.expirationIdMin] +=
                         (wTokenAmount * valuePerToken) /
                         1e18;
+                    vars.wTokenAmounts[
+                        expirationId - vars.expirationIdMin
+                    ] += wTokenAmount;
                 }
             }
         }
@@ -191,6 +197,7 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
                     address(amm),
                     redeemer,
                     expirationDate,
+                    vars.wTokenAmounts[i],
                     newSupply - existingSupply
                 );
             }

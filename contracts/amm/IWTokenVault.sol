@@ -5,6 +5,7 @@ interface IWTokenVault {
         address ammAddress,
         address redeemer,
         uint256 expirationDate,
+        uint256 wTokenAmount,
         uint256 lpSharesMinted
     );
     event LpSharesRedeemed(
