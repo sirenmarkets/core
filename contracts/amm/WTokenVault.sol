@@ -19,14 +19,14 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
     /// locked wTokens by seriesId
     mapping(address => mapping(uint64 => uint256)) public lockedWTokens;
 
-    /// total supply of pool shares by expirationId
+    /// total supply of pool shares by expiration date
     mapping(address => mapping(uint256 => uint256)) public lpSharesSupply;
 
     /// balance of shares for each LP in expiration pool
     mapping(address => mapping(uint256 => mapping(address => uint256)))
         public lpShares;
 
-    /// locked collateral by expirationId
+    /// locked collateral by expiration date
     mapping(address => mapping(uint256 => uint256)) public lockedCollateral;
 
     /// redeemed collateral by LP
@@ -68,9 +68,9 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
         uint256 underlyingPrice;
         uint256 volatility;
         uint64[] allSeries;
-        uint256[] allExpirations;
         uint256[] lockedValue;
         uint256[] poolValue;
+        uint256[] wTokenAmounts;
     }
 
     /// Lock active wTokens grouped by expiration
@@ -107,6 +107,9 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
             vars.expirationIdMax - vars.expirationIdMin + 1
         );
         vars.poolValue = new uint256[](
+            vars.expirationIdMax - vars.expirationIdMin + 1
+        );
+        vars.wTokenAmounts = new uint256[](
             vars.expirationIdMax - vars.expirationIdMin + 1
         );
 
@@ -163,6 +166,9 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
                     vars.lockedValue[expirationId - vars.expirationIdMin] +=
                         (wTokenAmount * valuePerToken) /
                         1e18;
+                    vars.wTokenAmounts[
+                        expirationId - vars.expirationIdMin
+                    ] += wTokenAmount;
                 }
             }
         }
@@ -173,15 +179,16 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
             i++
         ) {
             if (vars.lockedValue[i] > 0) {
-                uint256 expirationId = i + vars.expirationIdMin;
+                uint256 expirationDate = seriesController
+                    .allowedExpirationsList(i + vars.expirationIdMin);
                 // Add locked collateral to the expiration ID
                 vars.poolValue[i] += lockedCollateral[address(amm)][
-                    expirationId
+                    expirationDate
                 ];
 
                 // Update LP shares balance and supply
                 uint256 existingSupply = lpSharesSupply[address(amm)][
-                    expirationId
+                    expirationDate
                 ];
                 uint256 newSupply;
                 if (existingSupply == 0) {
@@ -193,15 +200,16 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
                         vars.poolValue[i];
                 }
 
-                lpShares[address(amm)][expirationId][redeemer] +=
+                lpShares[address(amm)][expirationDate][redeemer] +=
                     newSupply -
                     existingSupply;
-                lpSharesSupply[address(amm)][expirationId] = newSupply;
+                lpSharesSupply[address(amm)][expirationDate] = newSupply;
 
                 emit WTokensLocked(
                     address(amm),
                     redeemer,
-                    expirationId,
+                    expirationDate,
+                    vars.wTokenAmounts[i],
                     newSupply - existingSupply
                 );
             }
@@ -209,7 +217,7 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
     }
 
     /// Redeem locked collateral
-    function redeemCollateral(uint256 expirationId, address redeemer)
+    function redeemCollateral(uint256 expirationDate, address redeemer)
         external
         override
         returns (uint256)
@@ -217,21 +225,22 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
         address ammAddress = msg.sender;
 
         require(
-            lpShares[ammAddress][expirationId][redeemer] > 0,
+            lpShares[ammAddress][expirationDate][redeemer] > 0,
             "No shares in this pool"
         );
 
-        uint256 numShares = lpShares[ammAddress][expirationId][redeemer];
+        uint256 numShares = lpShares[ammAddress][expirationDate][redeemer];
 
-        uint256 collateralAmount = (lockedCollateral[ammAddress][expirationId] *
-            numShares) / lpSharesSupply[ammAddress][expirationId];
+        uint256 collateralAmount = (lockedCollateral[ammAddress][
+            expirationDate
+        ] * numShares) / lpSharesSupply[ammAddress][expirationDate];
 
-        uint256 redeemed = redeemedCollateral[ammAddress][expirationId][
+        uint256 redeemed = redeemedCollateral[ammAddress][expirationDate][
             redeemer
         ];
 
         if (collateralAmount > redeemed) {
-            redeemedCollateral[ammAddress][expirationId][
+            redeemedCollateral[ammAddress][expirationDate][
                 redeemer
             ] = collateralAmount;
 
@@ -243,7 +252,7 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
         emit LpSharesRedeemed(
             ammAddress,
             redeemer,
-            expirationId,
+            expirationDate,
             numShares,
             collateralAmount
         );
@@ -266,11 +275,7 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
             seriesId
         );
 
-        uint256 expirationId = seriesController.allowedExpirationsMap(
-            series.expirationDate
-        );
-
-        lockedCollateral[ammAddress][expirationId] += collateralAmount;
+        lockedCollateral[ammAddress][series.expirationDate] += collateralAmount;
         lockedWTokens[ammAddress][seriesId] -= wTokenAmount;
 
         emit CollateralLocked(
