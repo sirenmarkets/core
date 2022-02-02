@@ -226,6 +226,18 @@ contract("wToken Vault", (accounts) => {
         true,
       )
 
+      // Check locked value
+      assertBNEq(
+        await deployedWTokenVault.getLockedValue(deployedAmm.address, 1),
+        "48066391",
+        `Locked value should be correct for expiration 1`,
+      )
+      assertBNEq(
+        await deployedWTokenVault.getLockedValue(deployedAmm.address, 2),
+        "93472668",
+        `Locked value should be correct for expiration 2`,
+      )
+
       assertBNEqWithTolerance(
         poolValueBefore,
         poolValueAfter.mul(new BN(2)),
@@ -415,6 +427,16 @@ contract("wToken Vault", (accounts) => {
         await deployedAmm.lockedCollateral(),
         0,
         "Locked collateral should be 0",
+      )
+      assertBNEq(
+        await deployedWTokenVault.getLockedValue(deployedAmm.address, 1),
+        0,
+        `Locked value should be 0 for expiration 1`,
+      )
+      assertBNEq(
+        await deployedWTokenVault.getLockedValue(deployedAmm.address, 2),
+        0,
+        `Locked value should be 0 for expiration 2`,
       )
     })
 
@@ -607,6 +629,20 @@ contract("wToken Vault", (accounts) => {
 
       // Expiration 1
       await mineBlock(expiration)
+
+      // Check redeemable collateral
+      assertBNEq(
+        await deployedWTokenVault.lockedCollateral(deployedAmm.address, 1),
+        "13096968",
+        "AMM stored lockedCollateral should be correct",
+      )
+      assertBNEq(
+        await deployedWTokenVault.contract.methods
+          .getRedeemableCollateral(deployedAmm.address, 1)
+          .call(),
+        "38075282",
+        "AMM redeemable collateral should be more due to expired wTokens",
+      )
 
       // LP2 withdraws locked collateral
       ret = await deployedAmm.withdrawLockedCollateral(
@@ -995,6 +1031,18 @@ contract("wToken Vault", (accounts) => {
         `Pool value should be reduced by half`,
       )
 
+      // Check locked value
+      assertBNEq(
+        await deployedWTokenVault.getLockedValue(deployedAmm.address, 1),
+        "6729294826",
+        `Locked value should be 0 for expiration 1`,
+      )
+      assertBNEq(
+        await deployedWTokenVault.getLockedValue(deployedAmm.address, 2),
+        "13086173636",
+        `Locked value should be 0 for expiration 1`,
+      )
+
       // wToken balances shouldn't change
       const wTokenAmmBalanceNew1 = await deployedERC1155Controller.balanceOf(
         deployedAmm.address,
@@ -1153,6 +1201,17 @@ contract("wToken Vault", (accounts) => {
         await deployedAmm.lockedCollateral(),
         0,
         "Locked collateral should be 0",
+      )
+
+      assertBNEq(
+        await deployedWTokenVault.getLockedValue(deployedAmm.address, 1),
+        0,
+        `Locked value should be 0 for expiration 1`,
+      )
+      assertBNEq(
+        await deployedWTokenVault.getLockedValue(deployedAmm.address, 2),
+        0,
+        `Locked value should be 0 for expiration 2`,
       )
     })
   })

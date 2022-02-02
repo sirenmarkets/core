@@ -285,4 +285,91 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
             wTokenAmount
         );
     }
+
+    // View functions for front-end //
+
+    /// Get value of all locked wTokens for a given expirationId
+    function getLockedValue(address _ammAddress, uint256 _expirationId)
+        external
+        view
+        override
+        returns (uint256)
+    {
+        LocalVars memory vars;
+
+        ISeriesController seriesController = ISeriesController(
+            addressesProvider.getSeriesController()
+        );
+        IMinterAmm amm = IMinterAmm(_ammAddress);
+        vars.allSeries = amm.getAllSeries();
+
+        if (vars.allSeries.length > 0) {
+            address underlyingToken = address(amm.underlyingToken());
+            address priceToken = address(amm.priceToken());
+
+            vars.underlyingPrice = IPriceOracle(
+                addressesProvider.getPriceOracle()
+            ).getCurrentPrice(underlyingToken, priceToken);
+
+            vars.volatility = amm.getBaselineVolatility();
+        }
+
+        uint256 lockedValue = 0;
+
+        for (uint256 i = 0; i < vars.allSeries.length; i++) {
+            uint64 seriesId = vars.allSeries[i];
+            ISeriesController.Series memory series = seriesController.series(
+                seriesId
+            );
+
+            if (
+                seriesController.state(seriesId) ==
+                ISeriesController.SeriesState.OPEN
+            ) {
+                uint256 expirationId = seriesController.allowedExpirationsMap(
+                    series.expirationDate
+                );
+
+                if (expirationId != _expirationId) continue;
+
+                uint256 bPrice = IAmmDataProvider(
+                    addressesProvider.getAmmDataProvider()
+                ).getPriceForSeries(seriesId, vars.volatility);
+
+                uint256 valuePerToken;
+                if (series.isPutOption) {
+                    valuePerToken = seriesController.getCollateralPerUnderlying(
+                            seriesId,
+                            (series.strikePrice * 1e18) /
+                                vars.underlyingPrice -
+                                bPrice,
+                            vars.underlyingPrice
+                        );
+                } else {
+                    valuePerToken = 1e18 - bPrice;
+                }
+
+                uint256 poolWTokenBalance = lockedWTokens[address(amm)][
+                    seriesId
+                ];
+                if (poolWTokenBalance > 0) {
+                    lockedValue += (poolWTokenBalance * valuePerToken) / 1e18;
+                }
+            }
+        }
+
+        return lockedValue;
+    }
+
+    /// Get redeemable collateral including expired wTokens
+    function getRedeemableCollateral(address _ammAddress, uint256 _expirationId)
+        external
+        override
+        returns (uint256)
+    {
+        IMinterAmm amm = IMinterAmm(_ammAddress);
+        amm.claimAllExpiredTokens();
+
+        return lockedCollateral[_ammAddress][_expirationId];
+    }
 }

@@ -540,7 +540,7 @@ contract MinterAmm is
 
     /// @notice Claims any remaining collateral from all expired series whose wToken is held by the AMM, and removes
     /// the expired series from the AMM's collection of series
-    function claimAllExpiredTokens() public {
+    function claimAllExpiredTokens() public override {
         for (uint256 i = 0; i < openSeries.length(); i++) {
             uint64 seriesId = uint64(openSeries.at(i));
             while (
