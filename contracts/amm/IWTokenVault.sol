@@ -44,12 +44,13 @@ interface IWTokenVault {
         uint256 wTokenAmount
     ) external;
 
-    function getLockedValue(address _ammAddress, uint256 _expirationId)
+    function getLockedValue(address _ammAddress, uint256 _expirationDate)
         external
         view
         returns (uint256);
 
-    function getRedeemableCollateral(address _ammAddress, uint256 _expirationId)
-        external
-        returns (uint256);
+    function getRedeemableCollateral(
+        address _ammAddress,
+        uint256 _expirationDate
+    ) external returns (uint256);
 }

@@ -228,12 +228,18 @@ contract("wToken Vault", (accounts) => {
 
       // Check locked value
       assertBNEq(
-        await deployedWTokenVault.getLockedValue(deployedAmm.address, 1),
+        await deployedWTokenVault.getLockedValue(
+          deployedAmm.address,
+          expiration,
+        ),
         "48066391",
         `Locked value should be correct for expiration 1`,
       )
       assertBNEq(
-        await deployedWTokenVault.getLockedValue(deployedAmm.address, 2),
+        await deployedWTokenVault.getLockedValue(
+          deployedAmm.address,
+          expiration2,
+        ),
         "93472668",
         `Locked value should be correct for expiration 2`,
       )
@@ -429,12 +435,18 @@ contract("wToken Vault", (accounts) => {
         "Locked collateral should be 0",
       )
       assertBNEq(
-        await deployedWTokenVault.getLockedValue(deployedAmm.address, 1),
+        await deployedWTokenVault.getLockedValue(
+          deployedAmm.address,
+          expiration,
+        ),
         0,
         `Locked value should be 0 for expiration 1`,
       )
       assertBNEq(
-        await deployedWTokenVault.getLockedValue(deployedAmm.address, 2),
+        await deployedWTokenVault.getLockedValue(
+          deployedAmm.address,
+          expiration2,
+        ),
         0,
         `Locked value should be 0 for expiration 2`,
       )
@@ -632,13 +644,16 @@ contract("wToken Vault", (accounts) => {
 
       // Check redeemable collateral
       assertBNEq(
-        await deployedWTokenVault.lockedCollateral(deployedAmm.address, 1),
+        await deployedWTokenVault.lockedCollateral(
+          deployedAmm.address,
+          expiration,
+        ),
         "13096968",
         "AMM stored lockedCollateral should be correct",
       )
       assertBNEq(
         await deployedWTokenVault.contract.methods
-          .getRedeemableCollateral(deployedAmm.address, 1)
+          .getRedeemableCollateral(deployedAmm.address, expiration)
           .call(),
         "38075282",
         "AMM redeemable collateral should be more due to expired wTokens",
@@ -1033,12 +1048,18 @@ contract("wToken Vault", (accounts) => {
 
       // Check locked value
       assertBNEq(
-        await deployedWTokenVault.getLockedValue(deployedAmm.address, 1),
+        await deployedWTokenVault.getLockedValue(
+          deployedAmm.address,
+          expiration,
+        ),
         "6729294826",
         `Locked value should be 0 for expiration 1`,
       )
       assertBNEq(
-        await deployedWTokenVault.getLockedValue(deployedAmm.address, 2),
+        await deployedWTokenVault.getLockedValue(
+          deployedAmm.address,
+          expiration2,
+        ),
         "13086173636",
         `Locked value should be 0 for expiration 1`,
       )
@@ -1204,12 +1225,18 @@ contract("wToken Vault", (accounts) => {
       )
 
       assertBNEq(
-        await deployedWTokenVault.getLockedValue(deployedAmm.address, 1),
+        await deployedWTokenVault.getLockedValue(
+          deployedAmm.address,
+          expiration,
+        ),
         0,
         `Locked value should be 0 for expiration 1`,
       )
       assertBNEq(
-        await deployedWTokenVault.getLockedValue(deployedAmm.address, 2),
+        await deployedWTokenVault.getLockedValue(
+          deployedAmm.address,
+          expiration2,
+        ),
         0,
         `Locked value should be 0 for expiration 2`,
       )
