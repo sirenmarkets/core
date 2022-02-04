@@ -16,7 +16,7 @@ contract("Proxy Vault Verification", (accounts) => {
     const { deployedSeriesController, deployedVault } =
       await setupAllTestContracts()
     await expectRevert(
-      deployedVault.__SeriesVault_init(deployedSeriesController.address),
+      deployedVault.initialize(deployedSeriesController.address),
       "Initializable: contract is already initialized",
     )
   })
@@ -58,7 +58,7 @@ contract("Proxy Vault Verification", (accounts) => {
       "SeriesVault: Sender must be the seriesController",
     )
 
-    // since setupAllTestContracts calls SeriesController.__SeriesController_init, which calls
+    // since setupAllTestContracts calls SeriesController.initialize, which calls
     // setERC1155ApprovalForController, we should see that the allowance has been set correctly
     assert.strictEqual(
       await deployedERC1155Controller.isApprovedForAll(

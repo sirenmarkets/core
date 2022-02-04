@@ -76,7 +76,7 @@ contract("Address Provider Set/Get Verification", (accounts) => {
       proxyAddressesProvider.address,
     )
 
-    deployedAddressesProvider2.__AddressessProvider_init()
+    deployedAddressesProvider2.initialize()
 
     let getAddress = await deployedAddressesProvider2.getSeriesController()
 
@@ -92,7 +92,7 @@ contract("Address Provider Set/Get Verification", (accounts) => {
     const randomAddress = accounts[5]
 
     const addrProvider = await deploy()
-    addrProvider.__AddressessProvider_init()
+    addrProvider.initialize()
 
     // Verify non admin can't set address
     await expectRevert(
