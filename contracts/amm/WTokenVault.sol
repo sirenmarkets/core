@@ -288,8 +288,8 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
 
     // View functions for front-end //
 
-    /// Get value of all locked wTokens for a given expirationId
-    function getLockedValue(address _ammAddress, uint256 _expirationId)
+    /// Get value of all locked wTokens for a given expiration date
+    function getLockedValue(address _ammAddress, uint256 _expirationDate)
         external
         view
         override
@@ -326,11 +326,7 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
                 seriesController.state(seriesId) ==
                 ISeriesController.SeriesState.OPEN
             ) {
-                uint256 expirationId = seriesController.allowedExpirationsMap(
-                    series.expirationDate
-                );
-
-                if (expirationId != _expirationId) continue;
+                if (series.expirationDate != _expirationDate) continue;
 
                 uint256 bPrice = IAmmDataProvider(
                     addressesProvider.getAmmDataProvider()
@@ -362,14 +358,13 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
     }
 
     /// Get redeemable collateral including expired wTokens
-    function getRedeemableCollateral(address _ammAddress, uint256 _expirationId)
-        external
-        override
-        returns (uint256)
-    {
+    function getRedeemableCollateral(
+        address _ammAddress,
+        uint256 _expirationDate
+    ) external override returns (uint256) {
         IMinterAmm amm = IMinterAmm(_ammAddress);
         amm.claimAllExpiredTokens();
 
-        return lockedCollateral[_ammAddress][_expirationId];
+        return lockedCollateral[_ammAddress][_expirationDate];
     }
 }
