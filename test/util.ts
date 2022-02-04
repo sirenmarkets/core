@@ -373,7 +373,7 @@ export async function setupSingletonTestContracts(
     proxyAddressesProvider.address,
   )
 
-  deployedAddressesProvider.__AddressessProvider_init()
+  deployedAddressesProvider.initialize()
 
   const proxyContract = await Proxy.new(seriesControllerLogic.address)
   const deployedSeriesController = await SeriesController.at(
