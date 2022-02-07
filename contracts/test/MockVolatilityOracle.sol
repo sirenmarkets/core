@@ -15,12 +15,6 @@ contract MockVolatilityOracle is DSMath, VolatilityOracle {
 
     mapping(address => mapping(address => uint256)) public _annualizedVol;
 
-    constructor(
-        uint32 _period,
-        IPriceOracle _priceOracle,
-        uint256 _windowInDays
-    ) VolatilityOracle(_period, _priceOracle, _windowInDays) {}
-
     function setPrice(uint256 price) public {
         _price = price;
     }

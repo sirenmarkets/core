@@ -19,7 +19,6 @@ export async function deployAmm(
   let resp = await (
     await ammFactoryContract.createAmm(
       sirenOracleAddress,
-      ammDataProviderAddress,
       underlyingTokenAddress,
       priceTokenAddress,
       collateralTokenAddress,

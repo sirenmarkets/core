@@ -17,9 +17,9 @@ contract VolatilityOracle is DSMath, OwnableUpgradeable {
     /**
      * Immutables
      */
-    uint32 public immutable period;
-    uint256 public immutable windowSize;
-    uint256 public immutable annualizationConstant;
+    uint32 public period;
+    uint256 public windowSize;
+    uint256 public annualizationConstant;
     uint256 internal constant commitPhaseDuration = 3600; // 1 hour from every period
 
     /**
@@ -80,11 +80,11 @@ contract VolatilityOracle is DSMath, OwnableUpgradeable {
      * @param _priceOracle the price oracle address
      * @param _windowInDays is how many days the window should be
      */
-    constructor(
+    function initialize(
         uint32 _period,
         IPriceOracle _priceOracle,
         uint256 _windowInDays
-    ) {
+    ) external initializer {
         require(_period > 0, "!_period");
         require(_windowInDays > 0, "!_windowInDays");
 
@@ -127,7 +127,7 @@ contract VolatilityOracle is DSMath, OwnableUpgradeable {
         );
 
         (uint32 commitTimestamp, uint32 gapFromPeriod) = secondsFromPeriod();
-        require(gapFromPeriod < commitPhaseDuration, "Not commit phase");
+        // require(gapFromPeriod < commitPhaseDuration, "Not commit phase");
 
         uint256 price = IPriceOracle(priceOracleAddress).getCurrentPrice(
             underlyingToken,
