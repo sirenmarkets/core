@@ -29,3 +29,17 @@ export class Amm extends DataSourceTemplate {
     DataSourceTemplate.createWithContext("Amm", [address.toHex()], context);
   }
 }
+
+export class WTokenVault extends DataSourceTemplate {
+  static create(address: Address): void {
+    DataSourceTemplate.create("WTokenVault", [address.toHex()]);
+  }
+
+  static createWithContext(address: Address, context: DataSourceContext): void {
+    DataSourceTemplate.createWithContext(
+      "WTokenVault",
+      [address.toHex()],
+      context
+    );
+  }
+}

@@ -36,6 +36,24 @@ export class AMMInitialized__Params {
   }
 }
 
+export class AddressesProviderUpdated extends ethereum.Event {
+  get params(): AddressesProviderUpdated__Params {
+    return new AddressesProviderUpdated__Params(this);
+  }
+}
+
+export class AddressesProviderUpdated__Params {
+  _event: AddressesProviderUpdated;
+
+  constructor(event: AddressesProviderUpdated) {
+    this._event = event;
+  }
+
+  get addressesProvider(): Address {
+    return this._event.parameters[0].value.toAddress();
+  }
+}
+
 export class BTokensBought extends ethereum.Event {
   get params(): BTokensBought__Params {
     return new BTokensBought__Params(this);
@@ -114,6 +132,32 @@ export class CodeAddressUpdated__Params {
   }
 }
 
+export class ConfigUpdated extends ethereum.Event {
+  get params(): ConfigUpdated__Params {
+    return new ConfigUpdated__Params(this);
+  }
+}
+
+export class ConfigUpdated__Params {
+  _event: ConfigUpdated;
+
+  constructor(event: ConfigUpdated) {
+    this._event = event;
+  }
+
+  get ivShift(): BigInt {
+    return this._event.parameters[0].value.toBigInt();
+  }
+
+  get dynamicIvEnabled(): boolean {
+    return this._event.parameters[1].value.toBoolean();
+  }
+
+  get ivDriftRate(): i32 {
+    return this._event.parameters[2].value.toI32();
+  }
+}
+
 export class LpTokensBurned extends ethereum.Event {
   get params(): LpTokensBurned__Params {
     return new LpTokensBurned__Params(this);
@@ -163,42 +207,6 @@ export class LpTokensMinted__Params {
 
   get lpTokensMinted(): BigInt {
     return this._event.parameters[2].value.toBigInt();
-  }
-}
-
-export class NewAmmDataProvider extends ethereum.Event {
-  get params(): NewAmmDataProvider__Params {
-    return new NewAmmDataProvider__Params(this);
-  }
-}
-
-export class NewAmmDataProvider__Params {
-  _event: NewAmmDataProvider;
-
-  constructor(event: NewAmmDataProvider) {
-    this._event = event;
-  }
-
-  get newAmmDataProvider(): Address {
-    return this._event.parameters[0].value.toAddress();
-  }
-}
-
-export class NewSirenPriceOracle extends ethereum.Event {
-  get params(): NewSirenPriceOracle__Params {
-    return new NewSirenPriceOracle__Params(this);
-  }
-}
-
-export class NewSirenPriceOracle__Params {
-  _event: NewSirenPriceOracle;
-
-  constructor(event: NewSirenPriceOracle) {
-    this._event = event;
-  }
-
-  get newSirenPriceOracle(): Address {
-    return this._event.parameters[0].value.toAddress();
   }
 }
 
@@ -290,24 +298,6 @@ export class TradeFeesUpdated__Params {
   }
 }
 
-export class VolatilityFactorUpdated extends ethereum.Event {
-  get params(): VolatilityFactorUpdated__Params {
-    return new VolatilityFactorUpdated__Params(this);
-  }
-}
-
-export class VolatilityFactorUpdated__Params {
-  _event: VolatilityFactorUpdated;
-
-  constructor(event: VolatilityFactorUpdated) {
-    this._event = event;
-  }
-
-  get newVolatilityFactor(): BigInt {
-    return this._event.parameters[0].value.toBigInt();
-  }
-}
-
 export class WTokensSold extends ethereum.Event {
   get params(): WTokensSold__Params {
     return new WTokensSold__Params(this);
@@ -370,7 +360,7 @@ export class MinterAmm__getSeriesResultValue0TokensStruct extends ethereum.Tuple
   }
 }
 
-export class MinterAmm__getVirtualReservesResult {
+export class MinterAmm__seriesVolatilitiesResult {
   value0: BigInt;
   value1: BigInt;
 
@@ -477,140 +467,6 @@ export class MinterAmm extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(value[0].toBigInt());
   }
 
-  bTokenGetCollateralIn(seriesId: BigInt, bTokenAmount: BigInt): BigInt {
-    let result = super.call(
-      "bTokenGetCollateralIn",
-      "bTokenGetCollateralIn(uint64,uint256):(uint256)",
-      [
-        ethereum.Value.fromUnsignedBigInt(seriesId),
-        ethereum.Value.fromUnsignedBigInt(bTokenAmount)
-      ]
-    );
-
-    return result[0].toBigInt();
-  }
-
-  try_bTokenGetCollateralIn(
-    seriesId: BigInt,
-    bTokenAmount: BigInt
-  ): ethereum.CallResult<BigInt> {
-    let result = super.tryCall(
-      "bTokenGetCollateralIn",
-      "bTokenGetCollateralIn(uint64,uint256):(uint256)",
-      [
-        ethereum.Value.fromUnsignedBigInt(seriesId),
-        ethereum.Value.fromUnsignedBigInt(bTokenAmount)
-      ]
-    );
-    if (result.reverted) {
-      return new ethereum.CallResult();
-    }
-    let value = result.value;
-    return ethereum.CallResult.fromValue(value[0].toBigInt());
-  }
-
-  bTokenGetCollateralInWithoutFees(
-    seriesId: BigInt,
-    bTokenAmount: BigInt
-  ): BigInt {
-    let result = super.call(
-      "bTokenGetCollateralInWithoutFees",
-      "bTokenGetCollateralInWithoutFees(uint64,uint256):(uint256)",
-      [
-        ethereum.Value.fromUnsignedBigInt(seriesId),
-        ethereum.Value.fromUnsignedBigInt(bTokenAmount)
-      ]
-    );
-
-    return result[0].toBigInt();
-  }
-
-  try_bTokenGetCollateralInWithoutFees(
-    seriesId: BigInt,
-    bTokenAmount: BigInt
-  ): ethereum.CallResult<BigInt> {
-    let result = super.tryCall(
-      "bTokenGetCollateralInWithoutFees",
-      "bTokenGetCollateralInWithoutFees(uint64,uint256):(uint256)",
-      [
-        ethereum.Value.fromUnsignedBigInt(seriesId),
-        ethereum.Value.fromUnsignedBigInt(bTokenAmount)
-      ]
-    );
-    if (result.reverted) {
-      return new ethereum.CallResult();
-    }
-    let value = result.value;
-    return ethereum.CallResult.fromValue(value[0].toBigInt());
-  }
-
-  bTokenGetCollateralOut(seriesId: BigInt, bTokenAmount: BigInt): BigInt {
-    let result = super.call(
-      "bTokenGetCollateralOut",
-      "bTokenGetCollateralOut(uint64,uint256):(uint256)",
-      [
-        ethereum.Value.fromUnsignedBigInt(seriesId),
-        ethereum.Value.fromUnsignedBigInt(bTokenAmount)
-      ]
-    );
-
-    return result[0].toBigInt();
-  }
-
-  try_bTokenGetCollateralOut(
-    seriesId: BigInt,
-    bTokenAmount: BigInt
-  ): ethereum.CallResult<BigInt> {
-    let result = super.tryCall(
-      "bTokenGetCollateralOut",
-      "bTokenGetCollateralOut(uint64,uint256):(uint256)",
-      [
-        ethereum.Value.fromUnsignedBigInt(seriesId),
-        ethereum.Value.fromUnsignedBigInt(bTokenAmount)
-      ]
-    );
-    if (result.reverted) {
-      return new ethereum.CallResult();
-    }
-    let value = result.value;
-    return ethereum.CallResult.fromValue(value[0].toBigInt());
-  }
-
-  bTokenGetCollateralOutWithoutFees(
-    seriesId: BigInt,
-    bTokenAmount: BigInt
-  ): BigInt {
-    let result = super.call(
-      "bTokenGetCollateralOutWithoutFees",
-      "bTokenGetCollateralOutWithoutFees(uint64,uint256):(uint256)",
-      [
-        ethereum.Value.fromUnsignedBigInt(seriesId),
-        ethereum.Value.fromUnsignedBigInt(bTokenAmount)
-      ]
-    );
-
-    return result[0].toBigInt();
-  }
-
-  try_bTokenGetCollateralOutWithoutFees(
-    seriesId: BigInt,
-    bTokenAmount: BigInt
-  ): ethereum.CallResult<BigInt> {
-    let result = super.tryCall(
-      "bTokenGetCollateralOutWithoutFees",
-      "bTokenGetCollateralOutWithoutFees(uint64,uint256):(uint256)",
-      [
-        ethereum.Value.fromUnsignedBigInt(seriesId),
-        ethereum.Value.fromUnsignedBigInt(bTokenAmount)
-      ]
-    );
-    if (result.reverted) {
-      return new ethereum.CallResult();
-    }
-    let value = result.value;
-    return ethereum.CallResult.fromValue(value[0].toBigInt());
-  }
-
   bTokenSell(
     seriesId: BigInt,
     bTokenAmount: BigInt,
@@ -641,53 +497,6 @@ export class MinterAmm extends ethereum.SmartContract {
         ethereum.Value.fromUnsignedBigInt(seriesId),
         ethereum.Value.fromUnsignedBigInt(bTokenAmount),
         ethereum.Value.fromUnsignedBigInt(collateralMinimum)
-      ]
-    );
-    if (result.reverted) {
-      return new ethereum.CallResult();
-    }
-    let value = result.value;
-    return ethereum.CallResult.fromValue(value[0].toBigInt());
-  }
-
-  calcPrice(
-    timeUntilExpiry: BigInt,
-    strike: BigInt,
-    currentPrice: BigInt,
-    volatility: BigInt,
-    isPutOption: boolean
-  ): BigInt {
-    let result = super.call(
-      "calcPrice",
-      "calcPrice(uint256,uint256,uint256,uint256,bool):(uint256)",
-      [
-        ethereum.Value.fromUnsignedBigInt(timeUntilExpiry),
-        ethereum.Value.fromUnsignedBigInt(strike),
-        ethereum.Value.fromUnsignedBigInt(currentPrice),
-        ethereum.Value.fromUnsignedBigInt(volatility),
-        ethereum.Value.fromBoolean(isPutOption)
-      ]
-    );
-
-    return result[0].toBigInt();
-  }
-
-  try_calcPrice(
-    timeUntilExpiry: BigInt,
-    strike: BigInt,
-    currentPrice: BigInt,
-    volatility: BigInt,
-    isPutOption: boolean
-  ): ethereum.CallResult<BigInt> {
-    let result = super.tryCall(
-      "calcPrice",
-      "calcPrice(uint256,uint256,uint256,uint256,bool):(uint256)",
-      [
-        ethereum.Value.fromUnsignedBigInt(timeUntilExpiry),
-        ethereum.Value.fromUnsignedBigInt(strike),
-        ethereum.Value.fromUnsignedBigInt(currentPrice),
-        ethereum.Value.fromUnsignedBigInt(volatility),
-        ethereum.Value.fromBoolean(isPutOption)
       ]
     );
     if (result.reverted) {
@@ -729,6 +538,29 @@ export class MinterAmm extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(value[0].toBigInt());
   }
 
+  collateralBalance(): BigInt {
+    let result = super.call(
+      "collateralBalance",
+      "collateralBalance():(uint256)",
+      []
+    );
+
+    return result[0].toBigInt();
+  }
+
+  try_collateralBalance(): ethereum.CallResult<BigInt> {
+    let result = super.tryCall(
+      "collateralBalance",
+      "collateralBalance():(uint256)",
+      []
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBigInt());
+  }
+
   collateralToken(): Address {
     let result = super.call(
       "collateralToken",
@@ -750,6 +582,29 @@ export class MinterAmm extends ethereum.SmartContract {
     }
     let value = result.value;
     return ethereum.CallResult.fromValue(value[0].toAddress());
+  }
+
+  dynamicIvEnabled(): boolean {
+    let result = super.call(
+      "dynamicIvEnabled",
+      "dynamicIvEnabled():(bool)",
+      []
+    );
+
+    return result[0].toBoolean();
+  }
+
+  try_dynamicIvEnabled(): ethereum.CallResult<boolean> {
+    let result = super.tryCall(
+      "dynamicIvEnabled",
+      "dynamicIvEnabled():(bool)",
+      []
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBoolean());
   }
 
   erc1155Controller(): Address {
@@ -813,22 +668,66 @@ export class MinterAmm extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(value[0].toBigIntArray());
   }
 
-  getCollateralValueOfAllExpiredOptionTokens(): BigInt {
+  getAmmDataProvider(): Address {
     let result = super.call(
-      "getCollateralValueOfAllExpiredOptionTokens",
-      "getCollateralValueOfAllExpiredOptionTokens():(uint256)",
+      "getAmmDataProvider",
+      "getAmmDataProvider():(address)",
+      []
+    );
+
+    return result[0].toAddress();
+  }
+
+  try_getAmmDataProvider(): ethereum.CallResult<Address> {
+    let result = super.tryCall(
+      "getAmmDataProvider",
+      "getAmmDataProvider():(address)",
+      []
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toAddress());
+  }
+
+  getBaselineVolatility(): BigInt {
+    let result = super.call(
+      "getBaselineVolatility",
+      "getBaselineVolatility():(uint256)",
       []
     );
 
     return result[0].toBigInt();
   }
 
-  try_getCollateralValueOfAllExpiredOptionTokens(): ethereum.CallResult<
-    BigInt
-  > {
+  try_getBaselineVolatility(): ethereum.CallResult<BigInt> {
     let result = super.tryCall(
-      "getCollateralValueOfAllExpiredOptionTokens",
-      "getCollateralValueOfAllExpiredOptionTokens():(uint256)",
+      "getBaselineVolatility",
+      "getBaselineVolatility():(uint256)",
+      []
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBigInt());
+  }
+
+  getCurrentUnderlyingPrice(): BigInt {
+    let result = super.call(
+      "getCurrentUnderlyingPrice",
+      "getCurrentUnderlyingPrice():(uint256)",
+      []
+    );
+
+    return result[0].toBigInt();
+  }
+
+  try_getCurrentUnderlyingPrice(): ethereum.CallResult<BigInt> {
+    let result = super.tryCall(
+      "getCurrentUnderlyingPrice",
+      "getCurrentUnderlyingPrice():(uint256)",
       []
     );
     if (result.reverted) {
@@ -859,31 +758,6 @@ export class MinterAmm extends ethereum.SmartContract {
     }
     let value = result.value;
     return ethereum.CallResult.fromValue(value[0].toAddress());
-  }
-
-  getOptionTokensSaleValue(lpTokenAmount: BigInt): BigInt {
-    let result = super.call(
-      "getOptionTokensSaleValue",
-      "getOptionTokensSaleValue(uint256):(uint256)",
-      [ethereum.Value.fromUnsignedBigInt(lpTokenAmount)]
-    );
-
-    return result[0].toBigInt();
-  }
-
-  try_getOptionTokensSaleValue(
-    lpTokenAmount: BigInt
-  ): ethereum.CallResult<BigInt> {
-    let result = super.tryCall(
-      "getOptionTokensSaleValue",
-      "getOptionTokensSaleValue(uint256):(uint256)",
-      [ethereum.Value.fromUnsignedBigInt(lpTokenAmount)]
-    );
-    if (result.reverted) {
-      return new ethereum.CallResult();
-    }
-    let value = result.value;
-    return ethereum.CallResult.fromValue(value[0].toBigInt());
   }
 
   getPriceForSeries(seriesId: BigInt): BigInt {
@@ -936,23 +810,21 @@ export class MinterAmm extends ethereum.SmartContract {
     );
   }
 
-  getTotalPoolValue(includeUnclaimed: boolean): BigInt {
+  getVolatility(_seriesId: BigInt): BigInt {
     let result = super.call(
-      "getTotalPoolValue",
-      "getTotalPoolValue(bool):(uint256)",
-      [ethereum.Value.fromBoolean(includeUnclaimed)]
+      "getVolatility",
+      "getVolatility(uint64):(uint256)",
+      [ethereum.Value.fromUnsignedBigInt(_seriesId)]
     );
 
     return result[0].toBigInt();
   }
 
-  try_getTotalPoolValue(
-    includeUnclaimed: boolean
-  ): ethereum.CallResult<BigInt> {
+  try_getVolatility(_seriesId: BigInt): ethereum.CallResult<BigInt> {
     let result = super.tryCall(
-      "getTotalPoolValue",
-      "getTotalPoolValue(bool):(uint256)",
-      [ethereum.Value.fromBoolean(includeUnclaimed)]
+      "getVolatility",
+      "getVolatility(uint64):(uint256)",
+      [ethereum.Value.fromUnsignedBigInt(_seriesId)]
     );
     if (result.reverted) {
       return new ethereum.CallResult();
@@ -961,37 +833,80 @@ export class MinterAmm extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(value[0].toBigInt());
   }
 
-  getVirtualReserves(seriesId: BigInt): MinterAmm__getVirtualReservesResult {
-    let result = super.call(
-      "getVirtualReserves",
-      "getVirtualReserves(uint64):(uint256,uint256)",
-      [ethereum.Value.fromUnsignedBigInt(seriesId)]
-    );
+  ivDriftRate(): i32 {
+    let result = super.call("ivDriftRate", "ivDriftRate():(uint16)", []);
 
-    return new MinterAmm__getVirtualReservesResult(
-      result[0].toBigInt(),
-      result[1].toBigInt()
-    );
+    return result[0].toI32();
   }
 
-  try_getVirtualReserves(
-    seriesId: BigInt
-  ): ethereum.CallResult<MinterAmm__getVirtualReservesResult> {
+  try_ivDriftRate(): ethereum.CallResult<i32> {
+    let result = super.tryCall("ivDriftRate", "ivDriftRate():(uint16)", []);
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toI32());
+  }
+
+  ivShift(): BigInt {
+    let result = super.call("ivShift", "ivShift():(int256)", []);
+
+    return result[0].toBigInt();
+  }
+
+  try_ivShift(): ethereum.CallResult<BigInt> {
+    let result = super.tryCall("ivShift", "ivShift():(int256)", []);
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBigInt());
+  }
+
+  lightAirswapAddress(): Address {
+    let result = super.call(
+      "lightAirswapAddress",
+      "lightAirswapAddress():(address)",
+      []
+    );
+
+    return result[0].toAddress();
+  }
+
+  try_lightAirswapAddress(): ethereum.CallResult<Address> {
     let result = super.tryCall(
-      "getVirtualReserves",
-      "getVirtualReserves(uint64):(uint256,uint256)",
-      [ethereum.Value.fromUnsignedBigInt(seriesId)]
+      "lightAirswapAddress",
+      "lightAirswapAddress():(address)",
+      []
     );
     if (result.reverted) {
       return new ethereum.CallResult();
     }
     let value = result.value;
-    return ethereum.CallResult.fromValue(
-      new MinterAmm__getVirtualReservesResult(
-        value[0].toBigInt(),
-        value[1].toBigInt()
-      )
+    return ethereum.CallResult.fromValue(value[0].toAddress());
+  }
+
+  lockedCollateral(): BigInt {
+    let result = super.call(
+      "lockedCollateral",
+      "lockedCollateral():(uint256)",
+      []
     );
+
+    return result[0].toBigInt();
+  }
+
+  try_lockedCollateral(): ethereum.CallResult<BigInt> {
+    let result = super.tryCall(
+      "lockedCollateral",
+      "lockedCollateral():(uint256)",
+      []
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBigInt());
   }
 
   lpToken(): Address {
@@ -1198,6 +1113,39 @@ export class MinterAmm extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(value[0].toAddress());
   }
 
+  seriesVolatilities(param0: BigInt): MinterAmm__seriesVolatilitiesResult {
+    let result = super.call(
+      "seriesVolatilities",
+      "seriesVolatilities(uint64):(uint256,uint256)",
+      [ethereum.Value.fromUnsignedBigInt(param0)]
+    );
+
+    return new MinterAmm__seriesVolatilitiesResult(
+      result[0].toBigInt(),
+      result[1].toBigInt()
+    );
+  }
+
+  try_seriesVolatilities(
+    param0: BigInt
+  ): ethereum.CallResult<MinterAmm__seriesVolatilitiesResult> {
+    let result = super.tryCall(
+      "seriesVolatilities",
+      "seriesVolatilities(uint64):(uint256,uint256)",
+      [ethereum.Value.fromUnsignedBigInt(param0)]
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(
+      new MinterAmm__seriesVolatilitiesResult(
+        value[0].toBigInt(),
+        value[1].toBigInt()
+      )
+    );
+  }
+
   supportsInterface(interfaceId: Bytes): boolean {
     let result = super.call(
       "supportsInterface",
@@ -1289,77 +1237,6 @@ export class MinterAmm extends ethereum.SmartContract {
     let value = result.value;
     return ethereum.CallResult.fromValue(value[0].toBigInt());
   }
-
-  wTokenGetCollateralOut(seriesId: BigInt, wTokenAmount: BigInt): BigInt {
-    let result = super.call(
-      "wTokenGetCollateralOut",
-      "wTokenGetCollateralOut(uint64,uint256):(uint256)",
-      [
-        ethereum.Value.fromUnsignedBigInt(seriesId),
-        ethereum.Value.fromUnsignedBigInt(wTokenAmount)
-      ]
-    );
-
-    return result[0].toBigInt();
-  }
-
-  try_wTokenGetCollateralOut(
-    seriesId: BigInt,
-    wTokenAmount: BigInt
-  ): ethereum.CallResult<BigInt> {
-    let result = super.tryCall(
-      "wTokenGetCollateralOut",
-      "wTokenGetCollateralOut(uint64,uint256):(uint256)",
-      [
-        ethereum.Value.fromUnsignedBigInt(seriesId),
-        ethereum.Value.fromUnsignedBigInt(wTokenAmount)
-      ]
-    );
-    if (result.reverted) {
-      return new ethereum.CallResult();
-    }
-    let value = result.value;
-    return ethereum.CallResult.fromValue(value[0].toBigInt());
-  }
-
-  wTokenSell(
-    seriesId: BigInt,
-    wTokenAmount: BigInt,
-    collateralMinimum: BigInt
-  ): BigInt {
-    let result = super.call(
-      "wTokenSell",
-      "wTokenSell(uint64,uint256,uint256):(uint256)",
-      [
-        ethereum.Value.fromUnsignedBigInt(seriesId),
-        ethereum.Value.fromUnsignedBigInt(wTokenAmount),
-        ethereum.Value.fromUnsignedBigInt(collateralMinimum)
-      ]
-    );
-
-    return result[0].toBigInt();
-  }
-
-  try_wTokenSell(
-    seriesId: BigInt,
-    wTokenAmount: BigInt,
-    collateralMinimum: BigInt
-  ): ethereum.CallResult<BigInt> {
-    let result = super.tryCall(
-      "wTokenSell",
-      "wTokenSell(uint64,uint256,uint256):(uint256)",
-      [
-        ethereum.Value.fromUnsignedBigInt(seriesId),
-        ethereum.Value.fromUnsignedBigInt(wTokenAmount),
-        ethereum.Value.fromUnsignedBigInt(collateralMinimum)
-      ]
-    );
-    if (result.reverted) {
-      return new ethereum.CallResult();
-    }
-    let value = result.value;
-    return ethereum.CallResult.fromValue(value[0].toBigInt());
-  }
 }
 
 export class AddSeriesCall extends ethereum.Call {
@@ -1431,6 +1308,68 @@ export class BTokenBuyCall__Outputs {
 
   get value0(): BigInt {
     return this._call.outputValues[0].value.toBigInt();
+  }
+}
+
+export class BTokenDirectBuyCall extends ethereum.Call {
+  get inputs(): BTokenDirectBuyCall__Inputs {
+    return new BTokenDirectBuyCall__Inputs(this);
+  }
+
+  get outputs(): BTokenDirectBuyCall__Outputs {
+    return new BTokenDirectBuyCall__Outputs(this);
+  }
+}
+
+export class BTokenDirectBuyCall__Inputs {
+  _call: BTokenDirectBuyCall;
+
+  constructor(call: BTokenDirectBuyCall) {
+    this._call = call;
+  }
+
+  get seriesId(): BigInt {
+    return this._call.inputValues[0].value.toBigInt();
+  }
+
+  get nonce(): BigInt {
+    return this._call.inputValues[1].value.toBigInt();
+  }
+
+  get expiry(): BigInt {
+    return this._call.inputValues[2].value.toBigInt();
+  }
+
+  get signerWallet(): Address {
+    return this._call.inputValues[3].value.toAddress();
+  }
+
+  get signerAmount(): BigInt {
+    return this._call.inputValues[4].value.toBigInt();
+  }
+
+  get senderAmount(): BigInt {
+    return this._call.inputValues[5].value.toBigInt();
+  }
+
+  get v(): i32 {
+    return this._call.inputValues[6].value.toI32();
+  }
+
+  get r(): Bytes {
+    return this._call.inputValues[7].value.toBytes();
+  }
+
+  get s(): Bytes {
+    return this._call.inputValues[8].value.toBytes();
+  }
+}
+
+export class BTokenDirectBuyCall__Outputs {
+  _call: BTokenDirectBuyCall;
+
+  constructor(call: BTokenDirectBuyCall) {
+    this._call = call;
   }
 }
 
@@ -1553,32 +1492,28 @@ export class InitializeCall__Inputs {
     return this._call.inputValues[0].value.toAddress();
   }
 
-  get _sirenPriceOracle(): Address {
+  get _addressesProvider(): Address {
     return this._call.inputValues[1].value.toAddress();
   }
 
-  get _ammDataProvider(): Address {
+  get _underlyingToken(): Address {
     return this._call.inputValues[2].value.toAddress();
   }
 
-  get _underlyingToken(): Address {
+  get _priceToken(): Address {
     return this._call.inputValues[3].value.toAddress();
   }
 
-  get _priceToken(): Address {
+  get _collateralToken(): Address {
     return this._call.inputValues[4].value.toAddress();
   }
 
-  get _collateralToken(): Address {
+  get _lpToken(): Address {
     return this._call.inputValues[5].value.toAddress();
   }
 
-  get _tokenImplementation(): Address {
-    return this._call.inputValues[6].value.toAddress();
-  }
-
   get _tradeFeeBasisPoints(): i32 {
-    return this._call.inputValues[7].value.toI32();
+    return this._call.inputValues[6].value.toI32();
   }
 }
 
@@ -1750,6 +1685,44 @@ export class RenounceOwnershipCall__Outputs {
   }
 }
 
+export class SetAmmConfigCall extends ethereum.Call {
+  get inputs(): SetAmmConfigCall__Inputs {
+    return new SetAmmConfigCall__Inputs(this);
+  }
+
+  get outputs(): SetAmmConfigCall__Outputs {
+    return new SetAmmConfigCall__Outputs(this);
+  }
+}
+
+export class SetAmmConfigCall__Inputs {
+  _call: SetAmmConfigCall;
+
+  constructor(call: SetAmmConfigCall) {
+    this._call = call;
+  }
+
+  get _ivShift(): BigInt {
+    return this._call.inputValues[0].value.toBigInt();
+  }
+
+  get _dynamicIvEnabled(): boolean {
+    return this._call.inputValues[1].value.toBoolean();
+  }
+
+  get _ivDriftRate(): i32 {
+    return this._call.inputValues[2].value.toI32();
+  }
+}
+
+export class SetAmmConfigCall__Outputs {
+  _call: SetAmmConfigCall;
+
+  constructor(call: SetAmmConfigCall) {
+    this._call = call;
+  }
+}
+
 export class SetTradingFeeParamsCall extends ethereum.Call {
   get inputs(): SetTradingFeeParamsCall__Inputs {
     return new SetTradingFeeParamsCall__Inputs(this);
@@ -1788,36 +1761,6 @@ export class SetTradingFeeParamsCall__Outputs {
   }
 }
 
-export class SetVolatilityFactorCall extends ethereum.Call {
-  get inputs(): SetVolatilityFactorCall__Inputs {
-    return new SetVolatilityFactorCall__Inputs(this);
-  }
-
-  get outputs(): SetVolatilityFactorCall__Outputs {
-    return new SetVolatilityFactorCall__Outputs(this);
-  }
-}
-
-export class SetVolatilityFactorCall__Inputs {
-  _call: SetVolatilityFactorCall;
-
-  constructor(call: SetVolatilityFactorCall) {
-    this._call = call;
-  }
-
-  get _volatilityFactor(): BigInt {
-    return this._call.inputValues[0].value.toBigInt();
-  }
-}
-
-export class SetVolatilityFactorCall__Outputs {
-  _call: SetVolatilityFactorCall;
-
-  constructor(call: SetVolatilityFactorCall) {
-    this._call = call;
-  }
-}
-
 export class TransferOwnershipCall extends ethereum.Call {
   get inputs(): TransferOwnershipCall__Inputs {
     return new TransferOwnershipCall__Inputs(this);
@@ -1848,32 +1791,32 @@ export class TransferOwnershipCall__Outputs {
   }
 }
 
-export class UpdateAmmDataProviderCall extends ethereum.Call {
-  get inputs(): UpdateAmmDataProviderCall__Inputs {
-    return new UpdateAmmDataProviderCall__Inputs(this);
+export class UpdateAddressesProviderCall extends ethereum.Call {
+  get inputs(): UpdateAddressesProviderCall__Inputs {
+    return new UpdateAddressesProviderCall__Inputs(this);
   }
 
-  get outputs(): UpdateAmmDataProviderCall__Outputs {
-    return new UpdateAmmDataProviderCall__Outputs(this);
+  get outputs(): UpdateAddressesProviderCall__Outputs {
+    return new UpdateAddressesProviderCall__Outputs(this);
   }
 }
 
-export class UpdateAmmDataProviderCall__Inputs {
-  _call: UpdateAmmDataProviderCall;
+export class UpdateAddressesProviderCall__Inputs {
+  _call: UpdateAddressesProviderCall;
 
-  constructor(call: UpdateAmmDataProviderCall) {
+  constructor(call: UpdateAddressesProviderCall) {
     this._call = call;
   }
 
-  get _newAmmDataProvider(): Address {
+  get _addressesProvider(): Address {
     return this._call.inputValues[0].value.toAddress();
   }
 }
 
-export class UpdateAmmDataProviderCall__Outputs {
-  _call: UpdateAmmDataProviderCall;
+export class UpdateAddressesProviderCall__Outputs {
+  _call: UpdateAddressesProviderCall;
 
-  constructor(call: UpdateAmmDataProviderCall) {
+  constructor(call: UpdateAddressesProviderCall) {
     this._call = call;
   }
 }
@@ -1905,48 +1848,6 @@ export class UpdateImplementationCall__Outputs {
 
   constructor(call: UpdateImplementationCall) {
     this._call = call;
-  }
-}
-
-export class WTokenSellCall extends ethereum.Call {
-  get inputs(): WTokenSellCall__Inputs {
-    return new WTokenSellCall__Inputs(this);
-  }
-
-  get outputs(): WTokenSellCall__Outputs {
-    return new WTokenSellCall__Outputs(this);
-  }
-}
-
-export class WTokenSellCall__Inputs {
-  _call: WTokenSellCall;
-
-  constructor(call: WTokenSellCall) {
-    this._call = call;
-  }
-
-  get seriesId(): BigInt {
-    return this._call.inputValues[0].value.toBigInt();
-  }
-
-  get wTokenAmount(): BigInt {
-    return this._call.inputValues[1].value.toBigInt();
-  }
-
-  get collateralMinimum(): BigInt {
-    return this._call.inputValues[2].value.toBigInt();
-  }
-}
-
-export class WTokenSellCall__Outputs {
-  _call: WTokenSellCall;
-
-  constructor(call: WTokenSellCall) {
-    this._call = call;
-  }
-
-  get value0(): BigInt {
-    return this._call.outputValues[0].value.toBigInt();
   }
 }
 
@@ -1984,6 +1885,36 @@ export class WithdrawCapitalCall__Outputs {
   _call: WithdrawCapitalCall;
 
   constructor(call: WithdrawCapitalCall) {
+    this._call = call;
+  }
+}
+
+export class WithdrawLockedCollateralCall extends ethereum.Call {
+  get inputs(): WithdrawLockedCollateralCall__Inputs {
+    return new WithdrawLockedCollateralCall__Inputs(this);
+  }
+
+  get outputs(): WithdrawLockedCollateralCall__Outputs {
+    return new WithdrawLockedCollateralCall__Outputs(this);
+  }
+}
+
+export class WithdrawLockedCollateralCall__Inputs {
+  _call: WithdrawLockedCollateralCall;
+
+  constructor(call: WithdrawLockedCollateralCall) {
+    this._call = call;
+  }
+
+  get expirationDates(): Array<BigInt> {
+    return this._call.inputValues[0].value.toBigIntArray();
+  }
+}
+
+export class WithdrawLockedCollateralCall__Outputs {
+  _call: WithdrawLockedCollateralCall;
+
+  constructor(call: WithdrawLockedCollateralCall) {
     this._call = call;
   }
 }

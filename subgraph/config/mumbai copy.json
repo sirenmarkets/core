@@ -1,15 +1,15 @@
 {
   "network": "mumbai",
-  "ammFactoryAddress": "0x5e91dd687abc4cd3429c2a72e32a1317377af6e9",
+  "ammFactoryAddress": "0xb0F1F3bed6543336A981D1B2677B6d4Ead276176",
   "ammFactoryStartBlock": 17431847,
-  "controllerAddress": "0xC854c563B7406725D8f37858Dc7CA033ceeEbf2B",
+  "controllerAddress": "0xc854c563b7406725d8f37858dc7ca033ceeebf2b",
   "controllerStartBlock": 17431847,
   "vaultAddress": "0x707a010588ad03fcaf638523127d5555a9572bbf",
   "vaultStartBlock": 17431847,
   "erc1155ControllerAddress": "0x839760e661356706d0c78de115301085cca49214",
   "erc1155ControllerStartBlock": 17431847,
-  "priceOracleAddress": "0xa711c6ce7B0Af13AdEc36c902DaAC6d68f480616",
+  "priceOracleAddress": "0xa711c6ce7b0af13adec36c902daac6d68f480616",
   "priceOracleStartBlock": 17431847,
-  "volatilityOracleAddress": "0x79dfE9b63a0D49b27bAf653952403A39B0D9cf3C",
+  "volatilityOracleAddress": "0x2286eab440644025df4e221bceaf73c03c4c4278",
   "volatilityOracleBlock": 21841278
 }
