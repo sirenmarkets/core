@@ -24,10 +24,24 @@
           let accountArray = [event.redeemer.toHexString()]
           newLockedExpirationPool.accounts = accountArray
 
+          let expirationPoolsArray = account.lockedExpirationPools.push(newLockedExpirationPool.id)
+          account.lockedExpirationPools = expirationPoolsArray
+
+          account.save()
+
           newLockedExpirationPool.save()
 
       }
       else {
+        for(let i = 0; i < lockedExpirationPool.accounts.length; i++) { 
+          if(event.address.toHexString() == lockedExpirationPool.accounts[i]) { 
+            break;
+          }
+          if (i === lockedExpirationPool.accounts.length - 1) {
+            let newAccountsArray = lockedExpirationPool.accounts.push(event.address.toHexString())
+            lockedExpirationPool.accounts = newAccountsArray
+        }
+        }
         let newLockedWTokens = lockedExpirationPool.lockedWTokens + event.wTokenAmount
         lockedExpirationPool.lockedWTokens = newLockedWTokens
         lockedExpirationPool.save()
@@ -38,10 +52,10 @@
     // instruct the graph-node that to index the new Amm
     
   }
-  
+
   export function handleCollateralLocked(event: CollateralLocked): void {
     let series = SeriesEntity.load(event.seriesId)
-   
+
     let id = event.ammAddress.toHexString() + '-' + series.expirationDate
     let lockedExpirationPool = LockedExpirationPool.load(id)
 
