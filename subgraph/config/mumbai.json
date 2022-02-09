@@ -1,6 +1,6 @@
 {
   "network": "mumbai",
-  "ammFactoryAddress": "0x5e91dd687abc4cd3429c2a72e32a1317377af6e9",
+  "ammFactoryAddress": "0x773A16e5E047635FCDDE524352229dE61a2a4B89",
   "ammFactoryStartBlock": 17431847,
   "controllerAddress": "0xC854c563B7406725D8f37858Dc7CA033ceeEbf2B",
   "controllerStartBlock": 17431847,

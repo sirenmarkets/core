@@ -99,7 +99,7 @@ type SeriesAmm @entity {
   " Equal to: <seriesID>-<AmmID>"
   id: ID!
   series: SeriesEntity!
-  amm: Amm!
+  amm: Amm
 }
 
 enum FeeType {
@@ -198,7 +198,7 @@ type Account @entity {
   ammTokenEvents: [AmmTokenEvent!]! @derivedFrom(field: "account")
 
   "LockedExpirationPools that this account has interacted with"
-  lockedExpirationPools: [LockedExpirationPool!]!
+  lockedExpirationPools: [LockedExpirationPool!]
 }
 
 ## ERC1155
