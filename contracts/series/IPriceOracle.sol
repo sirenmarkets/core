@@ -3,6 +3,12 @@
 pragma solidity 0.8.0;
 
 interface IPriceOracle {
+    struct PriceFeed {
+        address underlyingToken;
+        address priceToken;
+        address oracle;
+    }
+
     function getSettlementPrice(
         address underlyingToken,
         address priceToken,
@@ -33,4 +39,11 @@ interface IPriceOracle {
         address priceToken,
         address oracle
     ) external;
+
+    function getPriceFeed(uint256 feedId)
+        external
+        view
+        returns (IPriceOracle.PriceFeed memory);
+
+    function getPriceFeedsCount() external view returns (uint256);
 }
