@@ -113,6 +113,21 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
         emit AmmImplementationUpdated(ammImplementation);
     }
 
+    /**
+     * The owner can update the AMM implementation address that will be used for future AMMs
+     */
+    function updateAddressesProviderImplementation(
+        IAddressesProvider newAddressesProviderImplementation
+    ) external onlyOwner {
+        require(
+            address(newAddressesProviderImplementation) != address(0x0),
+            "Invalid newAddressesProviderImplementation"
+        );
+
+        // Update the address
+        addressesProvider = newAddressesProviderImplementation;
+    }
+
     /// @notice The owner can update the token implementation address that will be used for future AMMs
     function updateTokenImplementation(address newTokenImplementation)
         external

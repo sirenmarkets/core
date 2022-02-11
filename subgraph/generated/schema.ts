@@ -3846,12 +3846,20 @@ export class LockedExpirationPool extends Entity {
     this.set("availableCollateral", Value.fromBigInt(value));
   }
 
-  get accounts(): Array<string> {
+  get accounts(): Array<string> | null {
     let value = this.get("accounts");
-    return value.toStringArray();
+    if (value === null || value.kind == ValueKind.NULL) {
+      return null;
+    } else {
+      return value.toStringArray();
+    }
   }
 
-  set accounts(value: Array<string>) {
-    this.set("accounts", Value.fromStringArray(value));
+  set accounts(value: Array<string> | null) {
+    if (value === null) {
+      this.unset("accounts");
+    } else {
+      this.set("accounts", Value.fromStringArray(value as Array<string>));
+    }
   }
 }

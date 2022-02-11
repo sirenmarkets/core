@@ -109,7 +109,7 @@ dataSources:
     source:
       address: "{{priceOracleAddress}}"
       abi: PriceOracle
-      startBlock: {{priceOracleStartBlock}}
+      startBlock: {{ammFactoryStartBlock}}
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.4
@@ -125,6 +125,32 @@ dataSources:
         - event: OracleSet(address,address,address,uint256)
           handler: handleOracleSet
       file: ./src/mappings/priceOracle.ts
+  - kind: ethereum/contract
+    name: WTokenVault
+    network: {{network}}
+    source:
+      address: "{{wTokenVaultAddress}}"
+      abi: WTokenVault
+      startBlock: {{ammFactoryStartBlock}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.4
+      language: wasm/assemblyscript
+      entities:
+        - Amm
+      abis:
+        - name: WTokenVault
+          file: ../artifacts/contracts/amm/WTokenVault.sol/WTokenVault.json
+        - name: MinterAmm
+          file: ../artifacts/contracts/amm/MinterAmm.sol/MinterAmm.json
+      eventHandlers:
+        - event: WTokensLocked(address,address,uint256,uint256,uint256)
+          handler: handleWTokensLocked
+        - event: LpSharesRedeemed(address,address,uint256,uint256,uint256)
+          handler: handleLpSharesRedeemed
+        - event: CollateralLocked(address,uint64,uint256,uint256)
+          handler: handleCollateralLocked
+      file: ./src/mappings/wtokenVault.ts
 templates:
   - kind: ethereum/contract
     name: SimpleToken
@@ -178,26 +204,4 @@ templates:
           handler: handleBTokensSold
         - event: WTokensSold(address,uint64,uint256,uint256)
           handler: handleWTokensSold
-      file: ./src/mappings/amm.ts
-  - kind: ethereum/contract
-    name: WTokenVault
-    network: {{network}}
-    source:
-      abi: WTokenVault
-    mapping:
-      kind: ethereum/events
-      apiVersion: 0.0.4
-      language: wasm/assemblyscript
-      entities:
-        - Amm
-      abis:
-        - name: WTokenVault
-          file: ../artifacts/contracts/amm/WTokenVault.sol/WTokenVault.json
-      eventHandlers:
-        - event: WTokensLocked(address,address,uint256,uint256,uint256)
-          handler: handleWTokensLocked
-        - event: LpSharesRedeemed(address,address,uint256,uint256,uint256)
-          handler: handleLpSharesRedeemed
-        - event: CollateralLocked(address,uint64,uint256,uint256)
-          handler: handleCollateralLocked
       file: ./src/mappings/amm.ts

@@ -422,6 +422,36 @@ export class TransferOwnershipCall__Outputs {
   }
 }
 
+export class UpdateAddressesProviderImplementationCall extends ethereum.Call {
+  get inputs(): UpdateAddressesProviderImplementationCall__Inputs {
+    return new UpdateAddressesProviderImplementationCall__Inputs(this);
+  }
+
+  get outputs(): UpdateAddressesProviderImplementationCall__Outputs {
+    return new UpdateAddressesProviderImplementationCall__Outputs(this);
+  }
+}
+
+export class UpdateAddressesProviderImplementationCall__Inputs {
+  _call: UpdateAddressesProviderImplementationCall;
+
+  constructor(call: UpdateAddressesProviderImplementationCall) {
+    this._call = call;
+  }
+
+  get newAddressesProviderImplementation(): Address {
+    return this._call.inputValues[0].value.toAddress();
+  }
+}
+
+export class UpdateAddressesProviderImplementationCall__Outputs {
+  _call: UpdateAddressesProviderImplementationCall;
+
+  constructor(call: UpdateAddressesProviderImplementationCall) {
+    this._call = call;
+  }
+}
+
 export class UpdateAmmImplementationCall extends ethereum.Call {
   get inputs(): UpdateAmmImplementationCall__Inputs {
     return new UpdateAmmImplementationCall__Inputs(this);
