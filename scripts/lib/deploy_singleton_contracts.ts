@@ -1,5 +1,4 @@
 import * as hre from "hardhat"
-import { blackScholes } from "../../test/util"
 const { request, gql } = require("graphql-request")
 
 const V2_SUBGRAPH_URL = process.env.V2_SUBGRAPH_URL
