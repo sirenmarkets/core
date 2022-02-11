@@ -1173,7 +1173,9 @@ contract("wToken Vault", (accounts) => {
         from: aliceAccount,
       })
 
-      let expirationDate2 = deployedSeriesController.expirationDate(seriesId2)
+      let expirationDate2 = await deployedSeriesController.expirationDate(
+        seriesId2,
+      )
       parseLogs(ret, deployedWTokenVault.contract) // parse WTokenVault events
 
       lockedCollateral += Math.floor(

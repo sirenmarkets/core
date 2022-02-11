@@ -1181,5 +1181,5 @@ contract("Proxy Series Verification", (accounts) => {
         carolAccount,
       )),
     )
-  })
+  }).timeout(10000000)
 })
