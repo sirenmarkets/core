@@ -128,7 +128,13 @@ export async function setUpMockVolatilityOracle(
   volatility: number,
 ): Promise<MockVolatilityOracleInstance> {
   const deployedMockVolatilityOracle: MockVolatilityOracleInstance =
-    await MockVolatilityOracle.new(period)
+    await MockVolatilityOracle.new()
+
+  deployedMockVolatilityOracle.initialize(
+    period,
+    mockPriceOracleAddress,
+    windowInDays,
+  )
 
   await deployedMockVolatilityOracle.addTokenPair(
     underlyingAddress,
