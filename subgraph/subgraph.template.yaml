@@ -141,6 +141,8 @@ dataSources:
       abis:
         - name: WTokenVault
           file: ../artifacts/contracts/amm/WTokenVault.sol/WTokenVault.json
+        - name: MinterAmm
+          file: ../artifacts/contracts/amm/MinterAmm.sol/MinterAmm.json
       eventHandlers:
         - event: WTokensLocked(address,address,uint256,uint256,uint256)
           handler: handleWTokensLocked

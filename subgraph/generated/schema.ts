@@ -1233,13 +1233,24 @@ export class Account extends Entity {
     this.set("ammTokenEvents", Value.fromStringArray(value));
   }
 
-  get lockedExpirationPools(): Array<string> {
+  get lockedExpirationPools(): Array<string> | null {
     let value = this.get("lockedExpirationPools");
-    return value.toStringArray();
+    if (value === null || value.kind == ValueKind.NULL) {
+      return null;
+    } else {
+      return value.toStringArray();
+    }
   }
 
-  set lockedExpirationPools(value: Array<string>) {
-    this.set("lockedExpirationPools", Value.fromStringArray(value));
+  set lockedExpirationPools(value: Array<string> | null) {
+    if (value === null) {
+      this.unset("lockedExpirationPools");
+    } else {
+      this.set(
+        "lockedExpirationPools",
+        Value.fromStringArray(value as Array<string>)
+      );
+    }
   }
 }
 

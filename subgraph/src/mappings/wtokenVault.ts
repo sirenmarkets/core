@@ -2,18 +2,24 @@
   
   import { WTokenVault, WTokensLocked, LpSharesRedeemed, CollateralLocked } from "../../generated/templates/WTokenVault/WTokenVault"
   import {
+    MinterAmm as AmmContract,
+  } from "../../generated/templates/Amm/MinterAmm"
+  import {
     LockedExpirationPool,
     Account,
     SeriesEntity,
-    SeriesAmm
+    SeriesAmm,
+    ERC1155Controller,
+    SeriesController
   } from "../../generated/schema"
-  import { ethereum, BigInt} from "@graphprotocol/graph-ts"
+  import { ethereum, BigInt, log} from "@graphprotocol/graph-ts"
+  import { getOrCreateAccount } from "./account"
 
   export function handleWTokensLocked(event: WTokensLocked): void {
       let id = event.params.ammAddress.toHexString() + '-' + event.params.expirationDate.toHexString()
 
       let lockedExpirationPool = LockedExpirationPool.load(id)
-      let account = Account.load(event.address.toHexString())
+      let account = getOrCreateAccount(event.params.redeemer)
 
       if(lockedExpirationPool == null) {
           let newLockedExpirationPool = new LockedExpirationPool(id);
@@ -23,18 +29,23 @@
           let availableCollateral:BigInt = new BigInt(0)
           newLockedExpirationPool.availableCollateral =  availableCollateral
 
-          // account.lockedExpirationPools.push(newLockedExpirationPool.id)
+          let accountsArray = account.lockedExpirationPools;
 
-          // account.lockedExpirationPools = account.lockedExpirationPools
-
-          // account.save()
+          accountsArray.push(newLockedExpirationPool.id)
+          account.lockedExpirationPools = accountsArray
+          account.save()
 
           newLockedExpirationPool.save()
 
       }
       else {
-        let lockedExpirationAccounts = lockedExpirationPool.accounts
+          if(!account.lockedExpirationPools.includes(lockedExpirationPool.id)) {
+            let accountsArray = account.lockedExpirationPools;
+            accountsArray.push(lockedExpirationPool.id)
+            account.lockedExpirationPools = accountsArray
 
+            account.save()
+          }
         let newLockedWTokens: BigInt = lockedExpirationPool.lockedWTokens.plus(event.params.wTokenAmount)
 
         lockedExpirationPool.lockedWTokens = newLockedWTokens
@@ -47,7 +58,9 @@
   }
   
   export function handleCollateralLocked(event: CollateralLocked): void {
-    // let seriesAmm = SeriesAmm.load(event.params.ammAddress.toHexString()+'-'+event.params.seriesId.toHexString())
+    // let ammContract = AmmContract.bind(event.address)
+    // let seriesController = ammContract.try_seriesController()
+    // let seriesAmm = SeriesAmm.load(seriesController.toString() + '-' + event.params.seriesId.toHexString()+'-'+event.params.ammAddress.toHexString())
     // let series = SeriesEntity.load(seriesAmm.series)
 
     // let id = event.params.ammAddress.toHexString() + '-' + series.expirationDate.toHexString()
