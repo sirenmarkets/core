@@ -72,7 +72,8 @@ contract("Volatility Oracle", (accounts) => {
 
     const volatility = await ethers.getContractFactory("VolatilityOracle", {})
 
-    deployedVolatilityOracle = await volatility.deploy(
+    deployedVolatilityOracle = await volatility.deploy()
+    deployedVolatilityOracle.initialize(
       PERIOD,
       deployedMockPriceOracle.address,
       WINDOW_IN_DAYS,
@@ -131,7 +132,7 @@ contract("Volatility Oracle", (accounts) => {
         underlyingToken.address,
         priceToken.address,
       )
-
+      await time.increase(topOfPeriod1)
       for (let i = 0; i < values.length; i++) {
         let value = parseUnits(values[i].toString())
         deployedPriceOracle.setLatestAnswer(value.toString())
