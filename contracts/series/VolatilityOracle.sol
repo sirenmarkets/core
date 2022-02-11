@@ -127,7 +127,7 @@ contract VolatilityOracle is DSMath, OwnableUpgradeable {
         );
 
         (uint32 commitTimestamp, uint32 gapFromPeriod) = secondsFromPeriod();
-        // require(gapFromPeriod < commitPhaseDuration, "Not commit phase");
+        require(gapFromPeriod < commitPhaseDuration, "Not commit phase");
 
         uint256 price = IPriceOracle(priceOracleAddress).getCurrentPrice(
             underlyingToken,
