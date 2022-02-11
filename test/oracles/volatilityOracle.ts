@@ -393,35 +393,6 @@ contract("Volatility Oracle", (accounts) => {
         VOL_TOLERANCE,
         "Off Chain and On Chain should not differ more than 2%",
       )
-
-      let token = "ethereum"
-      let url = `https://api.coingecko.com/api/v3/coins/${token}/market_chart/range?vs_currency=usd&from=${
-        subtractDates(Date.now(), 90) / 1000
-      }&to=${Date.now() / 1000}`
-      console.log(url)
-      let priceObj = await getData(url)
-
-      let prices = priceObj.data.prices
-      console.log(prices.length)
-      let valueSet6 = []
-      for (let x = 0; x < prices.length; x++) {
-        valueSet6.push(prices[x][1])
-      }
-      console.log(valueSet6.length)
-
-      let onChainVol6 = await calculateVolOnChain(valueSet6)
-      let offChainVol6 = parseInt(
-        ((await calculateVolOffChain(valueSet6)) * 1e8).toString(),
-      )
-      console.log("Values 5", onChainVol6.toString())
-      console.log("ValuesOffChain 5", offChainVol6)
-
-      assertBNEqWithTolerance(
-        onChainVol6.toString(),
-        offChainVol6.toString(),
-        VOL_TOLERANCE,
-        "Off Chain and On Chain should not differ more than 2%",
-      )
     }).timeout(10000000)
   }).timeout(10000000)
   const getTopOfPeriod = async () => {
@@ -448,32 +419,6 @@ contract("Volatility Oracle", (accounts) => {
         priceToken.address,
       )
     }
-    console.log(
-      "_____________________Volatility_________________________________",
-    )
-
-    console.log(
-      "annualized vol",
-      await deployedVolatilityOracle.annualizedVol(
-        underlyingToken.address,
-        priceToken.address,
-      ),
-    )
-    console.log(
-      "_____________________Accumulator_________________________________",
-    )
-    let accumulator = await deployedVolatilityOracle.accumulators(
-      underlyingToken.address,
-      priceToken.address,
-    )
-    console.log("currentObservationIndex")
-    console.log(accumulator.currentObservationIndex.toString())
-    console.log("lastTimestamp")
-    console.log(accumulator.lastTimestamp.toString())
-    console.log("mean")
-    console.log(accumulator.mean.toString())
-    console.log("dsq")
-    console.log(accumulator.dsq.toString())
 
     return await deployedVolatilityOracle.annualizedVol(
       underlyingToken.address,
@@ -497,18 +442,5 @@ contract("Volatility Oracle", (accounts) => {
         array.map((x) => Math.pow(x - mean, 2)).reduce((a, b) => a + b) / n,
       ) * 19.1049731745
     )
-  }
-  function subtractDates(date, days) {
-    var result = new Date(date)
-    result.setDate(result.getDate() - days)
-    return result.getTime()
-  }
-  async function getData(url) {
-    try {
-      let data = await axios.get(url)
-      return data
-    } catch (err) {
-      console.log(err)
-    }
   }
 })
