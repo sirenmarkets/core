@@ -17,7 +17,7 @@ interface IWTokenVault {
     );
     event CollateralLocked(
         address ammAddress,
-        uint64 seriesId,
+        uint256 expirationDate,
         uint256 collateralAmount,
         uint256 wTokenAmount
     );

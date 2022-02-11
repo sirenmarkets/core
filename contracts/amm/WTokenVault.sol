@@ -280,7 +280,7 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
 
         emit CollateralLocked(
             ammAddress,
-            seriesId,
+            series.expirationDate,
             collateralAmount,
             wTokenAmount
         );

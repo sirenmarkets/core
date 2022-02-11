@@ -148,7 +148,7 @@ dataSources:
           handler: handleWTokensLocked
         - event: LpSharesRedeemed(address,address,uint256,uint256,uint256)
           handler: handleLpSharesRedeemed
-        - event: CollateralLocked(address,uint64,uint256,uint256)
+        - event: CollateralLocked(address,uint256,uint256,uint256)
           handler: handleCollateralLocked
       file: ./src/mappings/wtokenVault.ts
 templates:

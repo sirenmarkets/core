@@ -198,7 +198,7 @@ type Account @entity {
   ammTokenEvents: [AmmTokenEvent!]! @derivedFrom(field: "account")
 
   "LockedExpirationPools that this account has interacted with"
-  lockedExpirationPools: [LockedExpirationPool!]
+  lockedExpirationPools: [LockedExpirationPool!]!
 }
 
 ## ERC1155
@@ -699,5 +699,5 @@ type LockedExpirationPool @entity {
   expirationDate: BigInt! ##make this the ID
   availableCollateral: BigInt!
   "Accounts that this LockedExpirationPool has interacted with"
-  accounts: [Account!] @derivedFrom(field: "lockedExpirationPools")
+  accounts: [Account!]! @derivedFrom(field: "lockedExpirationPools")
 }

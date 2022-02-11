@@ -45,7 +45,7 @@ export class CollateralLocked__Params {
     return this._event.parameters[0].value.toAddress();
   }
 
-  get seriesId(): BigInt {
+  get expirationDate(): BigInt {
     return this._event.parameters[1].value.toBigInt();
   }
 

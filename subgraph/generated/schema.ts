@@ -1241,24 +1241,13 @@ export class Account extends Entity {
     this.set("ammTokenEvents", Value.fromStringArray(value));
   }
 
-  get lockedExpirationPools(): Array<string> | null {
+  get lockedExpirationPools(): Array<string> {
     let value = this.get("lockedExpirationPools");
-    if (value === null || value.kind == ValueKind.NULL) {
-      return null;
-    } else {
-      return value.toStringArray();
-    }
+    return value.toStringArray();
   }
 
-  set lockedExpirationPools(value: Array<string> | null) {
-    if (value === null) {
-      this.unset("lockedExpirationPools");
-    } else {
-      this.set(
-        "lockedExpirationPools",
-        Value.fromStringArray(value as Array<string>)
-      );
-    }
+  set lockedExpirationPools(value: Array<string>) {
+    this.set("lockedExpirationPools", Value.fromStringArray(value));
   }
 }
 
@@ -3846,20 +3835,12 @@ export class LockedExpirationPool extends Entity {
     this.set("availableCollateral", Value.fromBigInt(value));
   }
 
-  get accounts(): Array<string> | null {
+  get accounts(): Array<string> {
     let value = this.get("accounts");
-    if (value === null || value.kind == ValueKind.NULL) {
-      return null;
-    } else {
-      return value.toStringArray();
-    }
+    return value.toStringArray();
   }
 
-  set accounts(value: Array<string> | null) {
-    if (value === null) {
-      this.unset("accounts");
-    } else {
-      this.set("accounts", Value.fromStringArray(value as Array<string>));
-    }
+  set accounts(value: Array<string>) {
+    this.set("accounts", Value.fromStringArray(value));
   }
 }

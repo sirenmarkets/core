@@ -6,14 +6,14 @@
     "codegen": "npm run prepare && graph codegen",
     "build": "npm run prepare && graph build",
     "prepare": "mustache ./config/${NETWORK:-local}.json subgraph.template.yaml > subgraph.yaml",
-    "deploy-remote": "npm run codegen && npm run build && graph deploy ${NAME:-null} --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/ --access-token d3f08ff3f5d8463aabeb1623f9ce277c",
+    "deploy-remote": "npm run codegen && npm run build && graph deploy ${NAME:-null} --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/ --access-token 057d4382f1b548bdbe3e79114a249ded",
     "create-local": "npm run prepare && graph create --node http://localhost:8020/ sirenmarkets/protocol-v2",
     "remove-local": "graph remove --node http://localhost:8020/ pascalclub/protocol-v2",
     "deploy-local": "npm run prepare && graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 pascalclub/protocol-v2",
     "deploy-rinkeby": "NETWORK=rinkeby NAME=pascalclub/protocol-v2-rinkeby npm run deploy-remote",
     "deploy-mainnet": "NETWORK=mainnet NAME=sirenmarkets/protocol-v2 npm run deploy-remote",
     "deploy-matic": "NETWORK=matic NAME=sirenmarkets/protocol-v2-matic npm run deploy-remote",
-    "deploy-mumbai": "NETWORK=mumbai NAME=sirenmarkets/protocol-v2-mumbai npm run deploy-remote",
+    "deploy-mumbai": "NETWORK=mumbai NAME=mysticdakra/my-subgraph npm run deploy-remote",
     "graph-auth": "graph auth https://api.thegraph.com/deploy/ --"
   },
   "dependencies": {

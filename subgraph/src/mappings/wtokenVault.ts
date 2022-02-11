@@ -19,10 +19,12 @@
       let id = event.params.ammAddress.toHexString() + '-' + event.params.expirationDate.toHexString()
 
       let lockedExpirationPool = LockedExpirationPool.load(id)
+
       let account = getOrCreateAccount(event.params.redeemer)
 
       if(lockedExpirationPool == null) {
           let newLockedExpirationPool = new LockedExpirationPool(id);
+
           newLockedExpirationPool.amm = event.params.ammAddress.toHexString()
           newLockedExpirationPool.lockedWTokens = event.params.wTokenAmount
           newLockedExpirationPool.expirationDate = event.params.expirationDate
@@ -30,7 +32,6 @@
           newLockedExpirationPool.availableCollateral =  availableCollateral
 
           let accountsArray = account.lockedExpirationPools;
-
           accountsArray.push(newLockedExpirationPool.id)
           account.lockedExpirationPools = accountsArray
           account.save()
@@ -58,17 +59,13 @@
   }
 
   export function handleCollateralLocked(event: CollateralLocked): void {
-    // let ammContract = AmmContract.bind(event.address)
-    // let seriesController = ammContract.try_seriesController()
-    // let seriesAmm = SeriesAmm.load(seriesController.toString() + '-' + event.params.seriesId.toHexString()+'-'+event.params.ammAddress.toHexString())
-    // let series = SeriesEntity.load(seriesAmm.series)
 
-    // let id = event.params.ammAddress.toHexString() + '-' + series.expirationDate.toHexString()
-    // let lockedExpirationPool = LockedExpirationPool.load(id)
+    let id = event.params.ammAddress.toHexString() + '-' + event.params.expirationDate.toHexString()
+    let lockedExpirationPool = LockedExpirationPool.load(id)
 
-    // lockedExpirationPool.availableCollateral =  lockedExpirationPool.availableCollateral.plus(event.params.collateralAmount)
-    // lockedExpirationPool.lockedWTokens = lockedExpirationPool.lockedWTokens.minus(event.params.wTokenAmount)
+    lockedExpirationPool.availableCollateral =  lockedExpirationPool.availableCollateral.plus(event.params.collateralAmount)
+    lockedExpirationPool.lockedWTokens = lockedExpirationPool.lockedWTokens.minus(event.params.wTokenAmount)
 
-    // lockedExpirationPool.save()
+    lockedExpirationPool.save()
 
   }
