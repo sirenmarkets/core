@@ -26,7 +26,8 @@ interface IPriceOracle {
     function setSettlementPriceForDate(
         address underlyingToken,
         address priceToken,
-        uint256 date
+        uint256 date,
+        uint80 roundId
     ) external;
 
     function get8amWeeklyOrDailyAligned(uint256 _timestamp)

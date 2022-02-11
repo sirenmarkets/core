@@ -61,55 +61,83 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
         dateOffset = _dateOffset;
     }
 
-    /// @notice Stores the current price from the oracle specified by the pair underlyingToken-priceToken
+    /// @notice Stores the price from the oracle specified by the pair underlyingToken-priceToken
     /// @param underlyingToken Should be equal to the Series' underlyingToken field
     /// @param priceToken Should be equal to the Series' priceToken field
-    /// @dev More than a single settlement price may be set, because this function will set all prices for each
-    /// prior date until it reaches a settlement date that previously had a price set, or it runs
-    /// out of gas
-    /// @dev This function should be called each dateOffset as soon as the block.timestamp passes 8am UTC, so that
-    /// the current spot price we set is as close to the price at 8am UTC. If we this is called at 8:30am,
-    /// for instance, and the 8am UTC price hasn't been set yet, then we're going to set a price that is 30
-    /// minutes later than intended. This will be more impactful the more volatile prices are.
     function setSettlementPrice(address underlyingToken, address priceToken)
         external
         override
     {
+        AggregatorV3Interface aggregator = AggregatorV3Interface(
+            oracles[underlyingToken][priceToken]
+        );
+
         require(
-            oracles[underlyingToken][priceToken] != address(0x0),
+            address(aggregator) != address(0x0),
             "no oracle address for this token pair"
         );
 
-        // fetch the current spot price for this pair's oracle, and set all previous
         // settlement dates that have not yet had their price set to that spot price
-        uint256 spotPrice = getCurrentPrice(underlyingToken, priceToken);
         uint256 priorAligned8am = get8amWeeklyOrDailyAligned(block.timestamp);
         uint256 currentSettlementPrice = settlementPrices[underlyingToken][
             priceToken
         ][priorAligned8am];
 
-        // keep going back 1 dateOffset until we reach a settlement date that has already been set by a previous
-        // call to PriceOracle.setSettlementPrice
-        while (currentSettlementPrice == 0) {
+        if (currentSettlementPrice == 0) {
+            (uint80 lastRoundId, , , , ) = aggregator.latestRoundData();
+
+            // Find first round after the settlement date
+            (
+                uint80 targetRoundId,
+                uint256 targetPrice
+            ) = findFirstRoundAfterDate(
+                    underlyingToken,
+                    priceToken,
+                    priorAligned8am,
+                    lastRoundId
+                );
+
+            require(targetPrice > 0, "!targetPrice");
+
             settlementPrices[underlyingToken][priceToken][
                 priorAligned8am
-            ] = spotPrice;
+            ] = targetPrice;
 
             emit SettlementPriceSet(
                 underlyingToken,
                 priceToken,
                 priorAligned8am,
-                spotPrice
+                targetPrice
             );
-
-            // go back exactly 1 dateOffset's worth of time to the previous 8am UTC date
-            priorAligned8am -= dateOffset;
-
-            // update the currentSettlementPrice so the while loop will eventually break
-            currentSettlementPrice = settlementPrices[underlyingToken][
-                priceToken
-            ][priorAligned8am];
         }
+    }
+
+    /// @dev find earliest round after given timestamp searching backwards starting from `startWithRound`
+    function findFirstRoundAfterDate(
+        address underlyingToken,
+        address priceToken,
+        uint256 timestamp,
+        uint80 startWithRound
+    ) internal view returns (uint80 targetRoundId, uint256 targetPrice) {
+        AggregatorV3Interface aggregator = AggregatorV3Interface(
+            oracles[underlyingToken][priceToken]
+        );
+
+        (uint80 roundId, int256 answer, , uint256 roundTimestamp, ) = aggregator
+            .getRoundData(startWithRound);
+        uint80 targetRoundId;
+
+        while (roundTimestamp >= timestamp) {
+            if (answer > 0) {
+                targetRoundId = roundId;
+                targetPrice = uint256(answer);
+            }
+
+            roundId -= 1;
+            (, answer, , roundTimestamp, ) = aggregator.getRoundData(roundId);
+        }
+
+        return (targetRoundId, targetPrice);
     }
 
     /// @notice get the settlement price with the given underlyingToken and priceToken,
@@ -136,11 +164,11 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
         return (settlementPrice != 0, settlementPrice);
     }
 
-    /// @notice Stores the current price from the oracle specified by the pair underlyingToken-priceToken for the
-    /// given settlement date
+    /// @notice Stores the price from the oracle specified by the pair underlyingToken-priceToken for the
+    /// given settlement date and roundId
     /// @param underlyingToken Should be equal to the Markets' underlyingToken field
     /// @param priceToken Should be equal to the Markets' priceToken field
-    /// @dev This function exists only to prevent scenarios where the while loop in PriceOracle.setSettlementPrice
+    /// @dev This function exists only to prevent scenarios where the while loop in PriceOracle.findFirstRoundAfterDate
     /// consumes too much gas and fails with an Out Of Gas error. Since this function only sets a single date, it
     /// is in no danger of running out of gas
     /// @param date A date aligned to 8am UTC and offset by dateOffset which the settlement price should be set on
@@ -149,10 +177,15 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
     function setSettlementPriceForDate(
         address underlyingToken,
         address priceToken,
-        uint256 date
+        uint256 date,
+        uint80 roundId
     ) external override {
+        AggregatorV3Interface aggregator = AggregatorV3Interface(
+            oracles[underlyingToken][priceToken]
+        );
+
         require(
-            oracles[underlyingToken][priceToken] != address(0x0),
+            address(aggregator) != address(0x0),
             "no oracle address for this token pair"
         );
 
@@ -167,28 +200,46 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
         // which we cannot allow
         require(date <= block.timestamp, "date must be in the past");
 
-        // we cannot allow gaps in the settlement date prices, otherwise PriceOracle.setSettlementDate will not be
-        // able to set the gap settlement price. For example, if time T were to have a price set, T + offset
-        // did not, and T + (2 * offset) _did_ have the price set, then PriceOracle.setSettlementDate would never be
-        // able to set the price for the T + offset date. In order to prevent this we check to see if the prior
-        // dateOffset-aligned date's price has been set, which by induction proves there are no gaps
-        require(
-            settlementPrices[underlyingToken][priceToken][date - dateOffset] !=
-                0,
-            "must use the earliest date without a price set"
-        );
-
         // we do not want to overwrite a settlement date that has already had its price set, so we end execution
         // early if we find that to be true
         if (settlementPrices[underlyingToken][priceToken][date] != 0) {
             return;
         }
 
-        // fetch the current spot price for this pair's oracle, and set it as the price for the given date
-        uint256 spotPrice = getCurrentPrice(underlyingToken, priceToken);
-        settlementPrices[underlyingToken][priceToken][date] = spotPrice;
+        // we check that provided roundId is the earliest round after the settlement date
+        (, int256 price, , uint256 roundTimestamp, ) = aggregator.getRoundData(
+            roundId
+        );
 
-        emit SettlementPriceSet(underlyingToken, priceToken, date, spotPrice);
+        require(date <= roundTimestamp, "!roundId");
+        require(price >= 0, "!price");
+
+        bool isCorrectRoundId;
+        uint80 previousRoundId = roundId - 1;
+
+        while (!isCorrectRoundId) {
+            (, , , uint256 previousRoundTimestamp, ) = aggregator.getRoundData(
+                previousRoundId
+            );
+
+            if (previousRoundTimestamp == 0) {
+                require(previousRoundId > 0, "!previousRoundId");
+                previousRoundId = previousRoundId - 1;
+            } else if (previousRoundTimestamp > date) {
+                revert("!first");
+            } else {
+                isCorrectRoundId = true;
+            }
+        }
+
+        settlementPrices[underlyingToken][priceToken][date] = uint256(price);
+
+        emit SettlementPriceSet(
+            underlyingToken,
+            priceToken,
+            date,
+            uint256(price)
+        );
     }
 
     /// @notice Use an oracle keyed by the underlyingToken-priceToken pair to fetch the current price
