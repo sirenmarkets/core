@@ -174,13 +174,4 @@ contract AddressesProvider is
         _addresses[WTOKEN_VAULT] = wTokenVault;
         emit WTokenVaultUpdated(wTokenVault);
     }
-
-    function getAmmConfig() external view override returns (address) {
-        return getAddress(AMM_CONFIG);
-    }
-
-    function setAmmConfig(address ammConfig) external override onlyOwner {
-        _addresses[AMM_CONFIG] = ammConfig;
-        emit AmmConfigUpdated(ammConfig);
-    }
 }

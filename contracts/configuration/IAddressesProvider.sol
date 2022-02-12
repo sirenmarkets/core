@@ -19,7 +19,7 @@ interface IAddressesProvider {
     event VolatilityOracleUpdated(address indexed newAddress);
     event BlackScholesUpdated(address indexed newAddress);
     event AirswapLightUpdated(address indexed newAddress);
-    event AmmFactoryUpdated(address indexed newAddress);    
+    event AmmFactoryUpdated(address indexed newAddress);
     event WTokenVaultUpdated(address indexed newAddress);
     event AmmConfigUpdated(address indexed newAddress);
 
@@ -62,8 +62,4 @@ interface IAddressesProvider {
     function getWTokenVault() external view returns (address);
 
     function setWTokenVault(address wTokenVault) external;
-
-    function getAmmConfig() external view returns (address);
-
-    function setAmmConfig(address ammConfig) external;
 }
