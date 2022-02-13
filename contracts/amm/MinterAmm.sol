@@ -543,31 +543,14 @@ contract MinterAmm is
     function claimAllExpiredTokens() public override {
         uint64[] memory allSeries = getAllSeries();
 
-        for (uint64 i = 0; i < allSeries.length(); i++) {
-            uint64 seriesId = uint64(allSeries.at(i));
+        for (uint256 i = 0; i < allSeries.length; i++) {
+            uint64 seriesId = uint64(allSeries[i]);
             if (
-                seriesController.state(_seriesId) ==
+                seriesController.state(seriesId) ==
                 ISeriesController.SeriesState.EXPIRED
             ) {
                 claimExpiredTokens(seriesId);
             }
-            // while (
-            //     seriesController.state(seriesId) ==
-            //     ISeriesController.SeriesState.EXPIRED
-            // ) {
-            //     claimExpiredTokens(seriesId);
-
-            //     // Handle edge case: If, prior to removing the Series, i was the index of the last Series
-            //     // in openSeries, then after the removal `i` will point to one beyond the end of the array.
-            //     // This means we've iterated through all of the Series in `openSeries`, and we should break
-            //     // out of the while loop. At this point i == openSeries.length(), so the outer for loop
-            //     // will end as well
-            //     if (i == openSeries.length()) {
-            //         break;
-            //     } else {
-            //         seriesId = uint64(openSeries.at(i));
-            //     }
-            // }
         }
     }
 
