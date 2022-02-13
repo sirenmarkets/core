@@ -259,7 +259,7 @@ contract SeriesDeployer is
         uint64 createdSeriesId = seriesController.latestIndex() - 1;
 
         // Move the collateral into this address and approve the AMM
-        IERC20(ammTokens.collateralToken).transferFrom(
+        IERC20(ammTokens.collateralToken).safeTransferFrom(
             msg.sender,
             address(this),
             _collateralMaximum
