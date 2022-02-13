@@ -1180,11 +1180,10 @@ contract SeriesController is
     function setSettlementPrice(uint64 _seriesId) internal {
         Series memory currentSeries = allSeries[_seriesId];
 
-        return
-            IPriceOracle(priceOracle).setSettlementPrice(
-                address(currentSeries.tokens.underlyingToken),
-                address(currentSeries.tokens.priceToken)
-            );
+        IPriceOracle(priceOracle).setSettlementPrice(
+            address(currentSeries.tokens.underlyingToken),
+            address(currentSeries.tokens.priceToken)
+        );
     }
 
     /// @notice This function allows the owner address to update allowed expirations for the auto series creation feature
