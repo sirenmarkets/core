@@ -338,32 +338,6 @@ contract("wToken Vault", (accounts) => {
         `Pool value shouldn't change much because of the sale`,
       )
 
-      // Withdraw collateral before expiration
-      ret = await deployedAmm.withdrawLockedCollateral([
-        expiration,
-        expiration2,
-      ])
-      parseLogs(ret, deployedWTokenVault.contract) // parse WTokenVault events
-      expectEvent(ret, "LpSharesRedeemed", {
-        ammAddress: deployedAmm.address,
-        redeemer: ownerAccount,
-        numShares: "48066391",
-        collateralAmount: "48463849",
-      })
-
-      // Trying to withdraw again should redeem 0
-      ret = await deployedAmm.withdrawLockedCollateral([
-        expiration,
-        expiration2,
-      ])
-      parseLogs(ret, deployedWTokenVault.contract) // parse WTokenVault events
-      expectEvent(ret, "LpSharesRedeemed", {
-        ammAddress: deployedAmm.address,
-        redeemer: ownerAccount,
-        numShares: "48066391",
-        collateralAmount: "0",
-      })
-
       await mineBlock(expiration) // increase time past series1 expiration
 
       await setNextBlockTimestamp(expiration + 10)
@@ -375,7 +349,7 @@ contract("wToken Vault", (accounts) => {
       parseLogs(ret, deployedWTokenVault.contract) // parse WTokenVault events
 
       lockedCollateral += Math.floor(
-        (2e8 - ret.logs[0].args["collateralPaid"]) / 2 - 48463849,
+        (2e8 - ret.logs[0].args["collateralPaid"]) / 2,
       )
       assertBNEq(
         await deployedAmm.lockedCollateral(),
@@ -617,7 +591,7 @@ contract("wToken Vault", (accounts) => {
         lpSharesMinted: "29814008", //
       })
 
-      // LP1 withdraws locked collateral early
+      // LP1 tries to withdraw locked collateral early
       ret = await deployedAmm.withdrawLockedCollateral(
         [expiration, expiration2],
         {
@@ -625,19 +599,8 @@ contract("wToken Vault", (accounts) => {
         },
       )
       parseLogs(ret, deployedWTokenVault.contract) // parse WTokenVault events
-
-      expectEvent(ret, "LpSharesRedeemed", {
-        ammAddress: deployedAmm.address,
-        redeemer: ownerAccount,
-        numShares: "13092381",
-        collateralAmount: "4562497",
-      })
-      expectEvent(ret, "LpSharesRedeemed", {
-        ammAddress: deployedAmm.address,
-        redeemer: ownerAccount,
-        numShares: "25581259",
-        collateralAmount: "11854379",
-      })
+      // make sure no collateral is redeemed
+      expectEvent.notEmitted(ret, "LpSharesRedeemed")
 
       // Expiration 1
       await mineBlock(expiration)
@@ -671,14 +634,9 @@ contract("wToken Vault", (accounts) => {
       expectEvent(ret, "LpSharesRedeemed", {
         ammAddress: deployedAmm.address,
         redeemer: lp2Account,
+        expirationDate: expiration.toString(),
         numShares: "24490217",
         collateralAmount: "24811268", // 1.013 per share
-      })
-      expectEvent(ret, "LpSharesRedeemed", {
-        ammAddress: deployedAmm.address,
-        redeemer: lp2Account,
-        numShares: "29814008",
-        collateralAmount: "13815838", // 0.46 per share
       })
 
       // Oracle price changes
@@ -782,14 +740,14 @@ contract("wToken Vault", (accounts) => {
         redeemer: ownerAccount,
         expirationDate: expiration.toString(),
         numShares: "13092381",
-        collateralAmount: "8701516", // 4562497 + 8701516 = 13264013 (1.013 per share)
+        collateralAmount: "13264013", // 13264013 (1.013 per share)
       })
       expectEvent(ret, "LpSharesRedeemed", {
         ammAddress: deployedAmm.address,
         redeemer: ownerAccount,
         expirationDate: expiration2.toString(),
         numShares: "25581259",
-        collateralAmount: "13016130", // 0.50 per share
+        collateralAmount: "24870509", // 0.97 per share
       })
 
       // LP2 claims from expired pool
@@ -800,13 +758,14 @@ contract("wToken Vault", (accounts) => {
         },
       )
       parseLogs(ret, deployedWTokenVault.contract) // parse WTokenVault events
+      // console.log(JSON.stringify(ret.logs, null, 2))
 
       expectEvent(ret, "LpSharesRedeemed", {
         ammAddress: deployedAmm.address,
         redeemer: lp2Account,
         expirationDate: expiration2.toString(),
         numShares: "29814008",
-        collateralAmount: "15169817", // 0.50 per share
+        collateralAmount: "28985655", // 0.97 per share
       })
 
       // LP3 claims from expired pool
