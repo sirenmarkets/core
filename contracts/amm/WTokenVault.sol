@@ -222,6 +222,9 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
         override
         returns (uint256)
     {
+        // Don't allow redemptions until expiration is reached
+        if (expirationDate > block.timestamp) return 0;
+
         address ammAddress = msg.sender;
 
         require(
@@ -246,7 +249,8 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
 
             collateralAmount -= redeemed;
         } else {
-            collateralAmount = 0;
+            // Don't emmit event if nothing is redeemed
+            return 0;
         }
 
         emit LpSharesRedeemed(
