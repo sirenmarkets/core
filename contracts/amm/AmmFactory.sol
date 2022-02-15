@@ -48,24 +48,7 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
         address _tokenImplementation,
         ISeriesController _seriesController,
         IAddressesProvider _addressesProvider
-    ) external {
-        __AmmFactory_init(
-            _ammImplementation,
-            _tokenImplementation,
-            _seriesController,
-            _addressesProvider
-        );
-    }
-
-    /**
-     * Initialization function that only allows itself to be called once
-     */
-    function __AmmFactory_init(
-        address _ammImplementation,
-        address _tokenImplementation,
-        ISeriesController _seriesController,
-        IAddressesProvider _addressesProvider
-    ) internal initializer {
+    ) external initializer {
         // Verify addresses
         require(
             _ammImplementation != address(0x0),

@@ -312,6 +312,8 @@ contract MinterAmm is
         ];
         seriesVolatility.volatility = uint256(newIV);
         seriesVolatility.updatedAt = block.timestamp;
+
+        return uint256(newIV);
     }
 
     function getBaselineVolatility() public view override returns (uint256) {
@@ -335,6 +337,8 @@ contract MinterAmm is
     ) public onlyOwner {
         tradeFeeBasisPoints = _tradeFeeBasisPoints;
         maxOptionFeeBasisPoints = _maxOptionFeeBasisPoints;
+
+        require(address(_feeDestinationAddress) != address(0x0), "E25");
         feeDestinationAddress = _feeDestinationAddress;
         emit TradeFeesUpdated(
             tradeFeeBasisPoints,
@@ -545,24 +549,15 @@ contract MinterAmm is
     /// @notice Claims any remaining collateral from all expired series whose wToken is held by the AMM, and removes
     /// the expired series from the AMM's collection of series
     function claimAllExpiredTokens() public override {
-        for (uint256 i = 0; i < openSeries.length(); i++) {
-            uint64 seriesId = uint64(openSeries.at(i));
-            while (
+        uint64[] memory allSeries = getAllSeries();
+
+        for (uint256 i = 0; i < allSeries.length; i++) {
+            uint64 seriesId = uint64(allSeries[i]);
+            if (
                 seriesController.state(seriesId) ==
                 ISeriesController.SeriesState.EXPIRED
             ) {
                 claimExpiredTokens(seriesId);
-
-                // Handle edge case: If, prior to removing the Series, i was the index of the last Series
-                // in openSeries, then after the removal `i` will point to one beyond the end of the array.
-                // This means we've iterated through all of the Series in `openSeries`, and we should break
-                // out of the while loop. At this point i == openSeries.length(), so the outer for loop
-                // will end as well
-                if (i == openSeries.length()) {
-                    break;
-                } else {
-                    seriesId = uint64(openSeries.at(i));
-                }
             }
         }
     }

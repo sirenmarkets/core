@@ -89,7 +89,7 @@ contract SeriesDeployer is
         _status = _NOT_ENTERED;
     }
 
-    function __SeriesDeployer_init(IAddressesProvider _addressesProvider)
+    function initialize(IAddressesProvider _addressesProvider)
         external
         initializer
     {

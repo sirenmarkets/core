@@ -103,6 +103,7 @@ contract SeriesController is
         returns (SeriesState)
     {
         // before the expiration
+        // NOTE: We do not need to check explicity here for if the seriesId exists in the allSeries array,if the series does not exist the transaction will revert
         if (block.timestamp < allSeries[_seriesId].expirationDate) {
             return SeriesState.OPEN;
         }
@@ -608,7 +609,7 @@ contract SeriesController is
     /// @param _priceOracle The PriceOracle used for fetching prices for Series
     /// @param _vault The SeriesVault contract that will be used to store all of this SeriesController's tokens
     /// @param _fees The various fees to charge on executing certain SeriesController functions
-    function __SeriesController_init(
+    function initialize(
         address _priceOracle,
         address _vault,
         address _erc1155Controller,
@@ -1180,11 +1181,10 @@ contract SeriesController is
     function setSettlementPrice(uint64 _seriesId) internal {
         Series memory currentSeries = allSeries[_seriesId];
 
-        return
-            IPriceOracle(priceOracle).setSettlementPrice(
-                address(currentSeries.tokens.underlyingToken),
-                address(currentSeries.tokens.priceToken)
-            );
+        IPriceOracle(priceOracle).setSettlementPrice(
+            address(currentSeries.tokens.underlyingToken),
+            address(currentSeries.tokens.priceToken)
+        );
     }
 
     /// @notice This function allows the owner address to update allowed expirations for the auto series creation feature
