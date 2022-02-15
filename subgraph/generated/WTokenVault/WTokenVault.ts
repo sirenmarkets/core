@@ -153,13 +153,13 @@ export class WTokenVault extends ethereum.SmartContract {
     return new WTokenVault("WTokenVault", address);
   }
 
-  getLockedValue(_ammAddress: Address, _expirationId: BigInt): BigInt {
+  getLockedValue(_ammAddress: Address, _expirationDate: BigInt): BigInt {
     let result = super.call(
       "getLockedValue",
       "getLockedValue(address,uint256):(uint256)",
       [
         ethereum.Value.fromAddress(_ammAddress),
-        ethereum.Value.fromUnsignedBigInt(_expirationId)
+        ethereum.Value.fromUnsignedBigInt(_expirationDate)
       ]
     );
 
@@ -168,14 +168,14 @@ export class WTokenVault extends ethereum.SmartContract {
 
   try_getLockedValue(
     _ammAddress: Address,
-    _expirationId: BigInt
+    _expirationDate: BigInt
   ): ethereum.CallResult<BigInt> {
     let result = super.tryCall(
       "getLockedValue",
       "getLockedValue(address,uint256):(uint256)",
       [
         ethereum.Value.fromAddress(_ammAddress),
-        ethereum.Value.fromUnsignedBigInt(_expirationId)
+        ethereum.Value.fromUnsignedBigInt(_expirationDate)
       ]
     );
     if (result.reverted) {
@@ -208,13 +208,16 @@ export class WTokenVault extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(value[0].toAddress());
   }
 
-  getRedeemableCollateral(_ammAddress: Address, _expirationId: BigInt): BigInt {
+  getRedeemableCollateral(
+    _ammAddress: Address,
+    _expirationDate: BigInt
+  ): BigInt {
     let result = super.call(
       "getRedeemableCollateral",
       "getRedeemableCollateral(address,uint256):(uint256)",
       [
         ethereum.Value.fromAddress(_ammAddress),
-        ethereum.Value.fromUnsignedBigInt(_expirationId)
+        ethereum.Value.fromUnsignedBigInt(_expirationDate)
       ]
     );
 
@@ -223,14 +226,14 @@ export class WTokenVault extends ethereum.SmartContract {
 
   try_getRedeemableCollateral(
     _ammAddress: Address,
-    _expirationId: BigInt
+    _expirationDate: BigInt
   ): ethereum.CallResult<BigInt> {
     let result = super.tryCall(
       "getRedeemableCollateral",
       "getRedeemableCollateral(address,uint256):(uint256)",
       [
         ethereum.Value.fromAddress(_ammAddress),
-        ethereum.Value.fromUnsignedBigInt(_expirationId)
+        ethereum.Value.fromUnsignedBigInt(_expirationDate)
       ]
     );
     if (result.reverted) {
@@ -526,7 +529,7 @@ export class GetRedeemableCollateralCall__Inputs {
     return this._call.inputValues[0].value.toAddress();
   }
 
-  get _expirationId(): BigInt {
+  get _expirationDate(): BigInt {
     return this._call.inputValues[1].value.toBigInt();
   }
 }

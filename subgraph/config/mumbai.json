@@ -1,13 +1,14 @@
 {
   "network": "mumbai",
-  "ammFactoryAddress": "0x773A16e5E047635FCDDE524352229dE61a2a4B89",
-  "ammFactoryStartBlock": 20677757,
-  "controllerAddress": "0xC854c563B7406725D8f37858Dc7CA033ceeEbf2B",
-  "controllerStartBlock": 20677757,
-  "vaultAddress": "0x707a010588ad03fcaf638523127d5555a9572bbf",
-  "vaultStartBlock": 20677757,
-  "erc1155ControllerAddress": "0x839760e661356706d0c78de115301085cca49214",
-  "erc1155ControllerStartBlock": 20677757,
-  "priceOracleAddress": "0xa711c6ce7B0Af13AdEc36c902DaAC6d68f480616",
-  "wTokenVaultAddress": "0x0584025cace5a0765ab2c0f951d32ad388670ae8"
+  "ammFactoryAddress": "0x140c7b27ee21a8659da1d4d91442d06c53c6eca5",
+  "ammFactoryStartBlock": 17431847,
+  "controllerAddress": "0x1e89959a55097b3c49dba04738bda09e2539676b",
+  "controllerStartBlock": 17431847,
+  "vaultAddress": "0x50753c702b48959bfdccb1fd637d6aedd71866ad",
+  "vaultStartBlock": 17431847,
+  "erc1155ControllerAddress": "0x2957401b956374a4428c301e16bc3d69716ea15c",
+  "erc1155ControllerStartBlock": 17431847,
+  "priceOracleAddress": "0x03c00a5e68698a27eee0c3b03b62b8cdcc15727c",
+  "priceOracleStartBlock": 17431847,
+  "wTokenVaultAddress": "0x56152b6091f8674a8b2d9681141a6c427aa824be"
 }

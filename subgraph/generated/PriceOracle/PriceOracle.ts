@@ -110,6 +110,20 @@ export class SettlementPriceSet__Params {
   }
 }
 
+export class PriceOracle__getPriceFeedResultValue0Struct extends ethereum.Tuple {
+  get underlyingToken(): Address {
+    return this[0].toAddress();
+  }
+
+  get priceToken(): Address {
+    return this[1].toAddress();
+  }
+
+  get oracle(): Address {
+    return this[2].toAddress();
+  }
+}
+
 export class PriceOracle__getSettlementPriceResult {
   value0: boolean;
   value1: BigInt;
@@ -210,6 +224,56 @@ export class PriceOracle extends ethereum.SmartContract {
     }
     let value = result.value;
     return ethereum.CallResult.fromValue(value[0].toAddress());
+  }
+
+  getPriceFeed(feedId: BigInt): PriceOracle__getPriceFeedResultValue0Struct {
+    let result = super.call(
+      "getPriceFeed",
+      "getPriceFeed(uint256):((address,address,address))",
+      [ethereum.Value.fromUnsignedBigInt(feedId)]
+    );
+
+    return result[0].toTuple() as PriceOracle__getPriceFeedResultValue0Struct;
+  }
+
+  try_getPriceFeed(
+    feedId: BigInt
+  ): ethereum.CallResult<PriceOracle__getPriceFeedResultValue0Struct> {
+    let result = super.tryCall(
+      "getPriceFeed",
+      "getPriceFeed(uint256):((address,address,address))",
+      [ethereum.Value.fromUnsignedBigInt(feedId)]
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(
+      value[0].toTuple() as PriceOracle__getPriceFeedResultValue0Struct
+    );
+  }
+
+  getPriceFeedsCount(): BigInt {
+    let result = super.call(
+      "getPriceFeedsCount",
+      "getPriceFeedsCount():(uint256)",
+      []
+    );
+
+    return result[0].toBigInt();
+  }
+
+  try_getPriceFeedsCount(): ethereum.CallResult<BigInt> {
+    let result = super.tryCall(
+      "getPriceFeedsCount",
+      "getPriceFeedsCount():(uint256)",
+      []
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBigInt());
   }
 
   getSettlementPrice(

@@ -422,20 +422,20 @@ export class TransferOwnershipCall__Outputs {
   }
 }
 
-export class UpdateAddressesProviderImplementationCall extends ethereum.Call {
-  get inputs(): UpdateAddressesProviderImplementationCall__Inputs {
-    return new UpdateAddressesProviderImplementationCall__Inputs(this);
+export class UpdateAddressProviderAddressCall extends ethereum.Call {
+  get inputs(): UpdateAddressProviderAddressCall__Inputs {
+    return new UpdateAddressProviderAddressCall__Inputs(this);
   }
 
-  get outputs(): UpdateAddressesProviderImplementationCall__Outputs {
-    return new UpdateAddressesProviderImplementationCall__Outputs(this);
+  get outputs(): UpdateAddressProviderAddressCall__Outputs {
+    return new UpdateAddressProviderAddressCall__Outputs(this);
   }
 }
 
-export class UpdateAddressesProviderImplementationCall__Inputs {
-  _call: UpdateAddressesProviderImplementationCall;
+export class UpdateAddressProviderAddressCall__Inputs {
+  _call: UpdateAddressProviderAddressCall;
 
-  constructor(call: UpdateAddressesProviderImplementationCall) {
+  constructor(call: UpdateAddressProviderAddressCall) {
     this._call = call;
   }
 
@@ -444,10 +444,10 @@ export class UpdateAddressesProviderImplementationCall__Inputs {
   }
 }
 
-export class UpdateAddressesProviderImplementationCall__Outputs {
-  _call: UpdateAddressesProviderImplementationCall;
+export class UpdateAddressProviderAddressCall__Outputs {
+  _call: UpdateAddressProviderAddressCall;
 
-  constructor(call: UpdateAddressesProviderImplementationCall) {
+  constructor(call: UpdateAddressProviderAddressCall) {
     this._call = call;
   }
 }

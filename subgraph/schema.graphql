@@ -63,7 +63,6 @@ type Amm @entity {
   createdTransaction: Bytes!
   series: [SeriesAmm]! @derivedFrom(field: "amm")
   controller: SeriesController!
-  priceOracle: Bytes
   underlyingToken: ERC20Token!
   priceToken: ERC20Token!
   collateralToken: ERC20Token!
