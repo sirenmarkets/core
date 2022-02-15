@@ -103,6 +103,7 @@ contract SeriesController is
         returns (SeriesState)
     {
         // before the expiration
+        // NOTE: We do not need to check explicity here for if the seriesId exists in the allSeries array,if the series does not exist the transaction will revert
         if (block.timestamp < allSeries[_seriesId].expirationDate) {
             return SeriesState.OPEN;
         }
