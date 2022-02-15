@@ -331,6 +331,8 @@ contract MinterAmm is
     ) public onlyOwner {
         tradeFeeBasisPoints = _tradeFeeBasisPoints;
         maxOptionFeeBasisPoints = _maxOptionFeeBasisPoints;
+
+        require(address(_feeDestinationAddress) != address(0x0), "E25");
         feeDestinationAddress = _feeDestinationAddress;
         emit TradeFeesUpdated(
             tradeFeeBasisPoints,
