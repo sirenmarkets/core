@@ -495,23 +495,6 @@ export class Amm extends Entity {
     this.set("controller", Value.fromString(value));
   }
 
-  get priceOracle(): Bytes | null {
-    let value = this.get("priceOracle");
-    if (value === null || value.kind == ValueKind.NULL) {
-      return null;
-    } else {
-      return value.toBytes();
-    }
-  }
-
-  set priceOracle(value: Bytes | null) {
-    if (value === null) {
-      this.unset("priceOracle");
-    } else {
-      this.set("priceOracle", Value.fromBytes(value as Bytes));
-    }
-  }
-
   get underlyingToken(): string {
     let value = this.get("underlyingToken");
     return value.toString();
