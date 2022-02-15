@@ -135,7 +135,7 @@ const config: HardhatUserConfig = {
       gasPrice: "auto",
     },
     mumbai: {
-      url: " https://matic-mumbai.chainstacklabs.com",
+      url: "https://matic-mumbai.chainstacklabs.com",
       chainId: 80001,
       accounts: [env.DEPLOY_PRIVATE_KEY],
       gasPrice: "auto",

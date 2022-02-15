@@ -99,7 +99,7 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
     /**
      * The owner can update the AMM implementation address that will be used for future AMMs
      */
-    function updateAddressesProviderImplementation(
+    function updateAddressProviderAddress(
         IAddressesProvider newAddressesProviderImplementation
     ) external onlyOwner {
         require(

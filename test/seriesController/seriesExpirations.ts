@@ -39,7 +39,7 @@ contract("Series Expirations", (accounts) => {
     // Verify setting an expiration works from owner acct
     await deployedSeriesController.updateAllowedExpirations([date1])
 
-    // Verify adding the same one doesn't work since it is not greater than the last
+    // Verify adding an expiration in the past will not work
     await expectRevert(
       deployedSeriesController.updateAllowedExpirations([dateInPast]),
       "!Future",
