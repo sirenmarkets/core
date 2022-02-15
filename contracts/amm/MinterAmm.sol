@@ -308,6 +308,8 @@ contract MinterAmm is
         ];
         seriesVolatility.volatility = uint256(newIV);
         seriesVolatility.updatedAt = block.timestamp;
+
+        return uint256(newIV);
     }
 
     function getBaselineVolatility() public view override returns (uint256) {
