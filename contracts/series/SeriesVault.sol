@@ -52,10 +52,7 @@ contract SeriesVault is
     ///////////////////// MUTATING FUNCTIONS /////////////////////
 
     /// @notice Perform inherited contracts' initializations
-    function __SeriesVault_init(address _seriesController)
-        external
-        initializer
-    {
+    function initialize(address _seriesController) external initializer {
         __ERC1155Holder_init();
         __Ownable_init_unchained();
 

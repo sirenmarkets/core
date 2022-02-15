@@ -373,7 +373,7 @@ export async function setupSingletonTestContracts(
     proxyAddressesProvider.address,
   )
 
-  deployedAddressesProvider.__AddressessProvider_init()
+  deployedAddressesProvider.initialize()
 
   const proxyContract = await Proxy.new(seriesControllerLogic.address)
   const deployedSeriesController = await SeriesController.at(
@@ -408,7 +408,7 @@ export async function setupSingletonTestContracts(
   )
 
   // initialize the vault and erc1155 controller
-  await deployedVault.__SeriesVault_init(deployedSeriesController.address)
+  await deployedVault.initialize(deployedSeriesController.address)
   await deployedERC1155Controller.__ERC1155Controller_init(
     erc1155URI,
     deployedSeriesController.address,
@@ -456,18 +456,17 @@ export async function setupSingletonTestContracts(
     deployedAmmDataProvider.address,
   )
 
-  const controllerInitResp =
-    await deployedSeriesController.__SeriesController_init(
-      deployedPriceOracle.address,
-      deployedVault.address,
-      deployedERC1155Controller.address,
-      {
-        feeReceiver: feeReceiver,
-        exerciseFeeBasisPoints: exerciseFee,
-        closeFeeBasisPoints: closeFee,
-        claimFeeBasisPoints: claimFee,
-      },
-    )
+  const controllerInitResp = await deployedSeriesController.initialize(
+    deployedPriceOracle.address,
+    deployedVault.address,
+    deployedERC1155Controller.address,
+    {
+      feeReceiver: feeReceiver,
+      exerciseFeeBasisPoints: exerciseFee,
+      closeFeeBasisPoints: closeFee,
+      claimFeeBasisPoints: claimFee,
+    },
+  )
 
   // Add the expiration as valid to the series controller
   await deployedSeriesController.updateAllowedExpirations([expiration])
@@ -477,9 +476,7 @@ export async function setupSingletonTestContracts(
   const deployedSeriesDeployer = await SeriesDeployer.at(
     proxySeriesDeployer.address,
   )
-  await deployedSeriesDeployer.__SeriesDeployer_init(
-    deployedAddressesProvider.address,
-  )
+  await deployedSeriesDeployer.initialize(deployedAddressesProvider.address)
 
   // Add the series deployer contract to the allowed creators list
   await deployedSeriesController.grantRole(

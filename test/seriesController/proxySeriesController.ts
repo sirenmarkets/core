@@ -95,7 +95,7 @@ contract("Proxy Series Verification", (accounts) => {
 
     // cannot initialize twice
     await expectRevert(
-      deployedSeriesController.__SeriesController_init(
+      deployedSeriesController.initialize(
         deployedPriceOracle.address,
         deployedVault.address,
         deployedERC1155Controller.address,
