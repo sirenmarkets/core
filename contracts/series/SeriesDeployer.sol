@@ -290,7 +290,7 @@ contract SeriesDeployer is
 
         // Send any unused collateral back to buyer
         if (IERC20(ammTokens.collateralToken).balanceOf(address(this)) > 0) {
-            IERC20(ammTokens.collateralToken).transfer(
+            IERC20(ammTokens.collateralToken).safeTransferFrom(
                 msg.sender,
                 IERC20(ammTokens.collateralToken).balanceOf(address(this))
             );
