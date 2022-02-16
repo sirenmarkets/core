@@ -1,7 +1,6 @@
 import * as hre from "hardhat"
 const { request, gql } = require("graphql-request")
 
-const ADDRESSES_PROVIDER = process.env.ADDRESSES_PROVIDER
 const DAY_DURATION = 24 * 60 * 60
 const WINDOW_SIZE = 90
 const WEEK_DURATION = 7 * DAY_DURATION
@@ -9,6 +8,8 @@ const WEEK_DURATION = 7 * DAY_DURATION
 export async function deployOracles(
   gnosisAddress: string,
   dateOffset: number,
+  priceOracleProxy: string,
+  volOracleProxyAddress: string,
 ): Promise<any> {
   gnosisAddress = gnosisAddress.toLowerCase()
 
@@ -26,72 +27,17 @@ export async function deployOracles(
     "VolatilityOracle",
   )
 
-  // each of these singleton contracts is upgradeable, and so we must deploy
-  // them via a Proxy after we've deployed the logic contract
-  const Proxy = await hre.ethers.getContractFactory("Proxy")
-
-  const priceOracleLogic = await PriceOracle.deploy()
-  await priceOracleLogic.deployed()
-  const oracleProxy = await Proxy.deploy(priceOracleLogic.address)
-  await oracleProxy.deployed()
+  let priceOracle = PriceOracle.attach(priceOracleProxy)
   console.log(
-    "Logic PriceOracle deployed to:       ",
-    priceOracleLogic.address.toLowerCase(),
-  )
-  const priceOracle = PriceOracle.attach(oracleProxy.address)
-  console.log(
-    "PriceOracle deployed to:             ",
+    "PriceOracle set to:             ",
     priceOracle.address.toLowerCase(),
   )
-  console.log(DAY_DURATION, WINDOW_SIZE)
-  const volatilityOracleLogic = await VolatilityOracle.deploy()
-  await volatilityOracleLogic.deployed()
-  const volOracleProxy = await Proxy.deploy(volatilityOracleLogic.address)
-  await volOracleProxy.deployed()
-  console.log(
-    "Logic VolatilityOracle deployed to:       ",
-    volatilityOracleLogic.address.toLowerCase(),
-  )
 
-  const volatilityOracle = VolatilityOracle.attach(volOracleProxy.address)
+  const volatilityOracle = VolatilityOracle.attach(volOracleProxyAddress)
   console.log(
-    "VolatilityOracle deployed to:             ",
+    "VolatilityOracle set to:             ",
     volatilityOracle.address.toLowerCase(),
   )
-
-  await (await priceOracle.initialize(dateOffset)).wait()
-  console.log("initialized PriceOracle")
-
-  await await volatilityOracle.initialize(
-    DAY_DURATION,
-    ADDRESSES_PROVIDER,
-    WINDOW_SIZE,
-  )
-  console.log("Volatility Oracle Initialized")
-
-  console.log("initialized all contracts")
-
-  // only verify contracts if we're not on the local environment
-  if (
-    hre.network.name === "rinkeby" ||
-    hre.network.name === "mainnet" ||
-    hre.network.name == "mumbai"
-  ) {
-    try {
-      // now verify all the contracts
-      await verifyContract(priceOracleLogic.address, "PriceOracle")
-      await verifyContract(priceOracle.address, "PriceOracle Proxy", [
-        priceOracleLogic.address,
-      ])
-
-      await verifyContract(volatilityOracleLogic.address, "VolatilityOracle")
-      await verifyContract(volatilityOracle.address, "volatilityOracle Proxy", [
-        volatilityOracleLogic.address,
-      ])
-    } catch (err) {
-      console.log(err)
-    }
-  }
 
   console.log("Set up all Oracles")
 
