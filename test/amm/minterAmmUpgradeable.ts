@@ -58,7 +58,6 @@ contract("AMM Upgradeability", (accounts) => {
   it("should fail to deploy AMM when an AMM with that token triplet has already been deployed", async () => {
     await expectRevert(
       deployedAmmFactory.createAmm(
-        deployedPriceOracle.address,
         underlyingToken.address,
         priceToken.address,
         collateralToken.address,

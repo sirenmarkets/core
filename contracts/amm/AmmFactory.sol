@@ -144,22 +144,16 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
     }
 
     /// @notice Deploy and initializes an AMM
-    /// @param _sirenPriceOracle the PriceOracle contract to use for fetching series and settlement prices
     /// @param _underlyingToken The token whose price movements determine the AMM's Series' moneyness
     /// @param _priceToken The token whose units are used for all prices
     /// @param _collateralToken The token used for this AMM's Series' collateral
     /// @param _tradeFeeBasisPoints The fees to charge on option token trades
     function createAmm(
-        address _sirenPriceOracle,
         IERC20 _underlyingToken,
         IERC20 _priceToken,
         IERC20 _collateralToken,
         uint16 _tradeFeeBasisPoints
     ) external onlyOwner {
-        require(
-            address(_sirenPriceOracle) != address(0x0),
-            "Invalid _sirenPriceOracle"
-        );
         require(
             address(_underlyingToken) != address(0x0),
             "Invalid _underlyingToken"

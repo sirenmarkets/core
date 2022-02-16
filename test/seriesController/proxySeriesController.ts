@@ -13,6 +13,7 @@ import {
   ERC1155ControllerInstance,
   SeriesVaultInstance,
   SimpleTokenInstance,
+  AddressesProviderInstance,
 } from "../../typechain"
 
 const SeriesController: SeriesControllerContract =
@@ -33,6 +34,8 @@ let exerciseFee: number
 let closeFee: number
 let claimFee: number
 let seriesId: string
+
+let deployedAddressesProvider: AddressesProviderInstance
 
 import {
   getSeriesName,
@@ -79,6 +82,7 @@ contract("Proxy Series Verification", (accounts) => {
       exerciseFee,
       closeFee,
       claimFee,
+      deployedAddressesProvider,
     } = await setupAllTestContracts())
   })
 
@@ -96,7 +100,7 @@ contract("Proxy Series Verification", (accounts) => {
     // cannot initialize twice
     await expectRevert(
       deployedSeriesController.initialize(
-        deployedPriceOracle.address,
+        deployedAddressesProvider.address,
         deployedVault.address,
         deployedERC1155Controller.address,
         {
