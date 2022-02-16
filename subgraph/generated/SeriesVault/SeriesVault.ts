@@ -224,31 +224,6 @@ export class SeriesVault extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(value[0].toBytes());
   }
 
-  setERC1155ApprovalForController(erc1155Contract: Address): boolean {
-    let result = super.call(
-      "setERC1155ApprovalForController",
-      "setERC1155ApprovalForController(address):(bool)",
-      [ethereum.Value.fromAddress(erc1155Contract)]
-    );
-
-    return result[0].toBoolean();
-  }
-
-  try_setERC1155ApprovalForController(
-    erc1155Contract: Address
-  ): ethereum.CallResult<boolean> {
-    let result = super.tryCall(
-      "setERC1155ApprovalForController",
-      "setERC1155ApprovalForController(address):(bool)",
-      [ethereum.Value.fromAddress(erc1155Contract)]
-    );
-    if (result.reverted) {
-      return new ethereum.CallResult();
-    }
-    let value = result.value;
-    return ethereum.CallResult.fromValue(value[0].toBoolean());
-  }
-
   supportsInterface(interfaceId: Bytes): boolean {
     let result = super.call(
       "supportsInterface",
@@ -273,20 +248,20 @@ export class SeriesVault extends ethereum.SmartContract {
   }
 }
 
-export class __SeriesVault_initCall extends ethereum.Call {
-  get inputs(): __SeriesVault_initCall__Inputs {
-    return new __SeriesVault_initCall__Inputs(this);
+export class InitializeCall extends ethereum.Call {
+  get inputs(): InitializeCall__Inputs {
+    return new InitializeCall__Inputs(this);
   }
 
-  get outputs(): __SeriesVault_initCall__Outputs {
-    return new __SeriesVault_initCall__Outputs(this);
+  get outputs(): InitializeCall__Outputs {
+    return new InitializeCall__Outputs(this);
   }
 }
 
-export class __SeriesVault_initCall__Inputs {
-  _call: __SeriesVault_initCall;
+export class InitializeCall__Inputs {
+  _call: InitializeCall;
 
-  constructor(call: __SeriesVault_initCall) {
+  constructor(call: InitializeCall) {
     this._call = call;
   }
 
@@ -295,10 +270,10 @@ export class __SeriesVault_initCall__Inputs {
   }
 }
 
-export class __SeriesVault_initCall__Outputs {
-  _call: __SeriesVault_initCall;
+export class InitializeCall__Outputs {
+  _call: InitializeCall;
 
-  constructor(call: __SeriesVault_initCall) {
+  constructor(call: InitializeCall) {
     this._call = call;
   }
 }
@@ -456,10 +431,6 @@ export class SetERC1155ApprovalForControllerCall__Outputs {
 
   constructor(call: SetERC1155ApprovalForControllerCall) {
     this._call = call;
-  }
-
-  get value0(): boolean {
-    return this._call.outputValues[0].value.toBoolean();
   }
 }
 

@@ -1207,10 +1207,7 @@ contract SeriesController is
 
         for (uint256 i = 0; i < timestamps.length; i++) {
             // Verify the next timestamp added is newer than the last one (empty should return 0)
-            require(
-                (allowedExpirationsList[nextExpirationID - 1] < timestamps[i]),
-                "!Order"
-            );
+            require((block.timestamp < timestamps[i]), "!Future");
 
             // Ensure the date is aligned
             require(

@@ -85,7 +85,11 @@ contract MinterAmm is
     using EnumerableSet for EnumerableSet.UintSet;
 
     /// Emitted when the amm is created
-    event AMMInitialized(ISimpleToken lpToken, address controller);
+    event AMMInitialized(
+        ISimpleToken lpToken,
+        address sirenPriceOracle,
+        address controller
+    );
 
     /// Emitted when an LP deposits collateral
     event LpTokensMinted(
@@ -233,7 +237,7 @@ contract MinterAmm is
 
         __Ownable_init();
 
-        emit AMMInitialized(lpToken, address(_seriesController));
+        emit AMMInitialized(lpToken, address(0x0), address(_seriesController));
     }
 
     function updateAddressesProvider(address _addressesProvider)

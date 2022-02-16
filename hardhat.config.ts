@@ -6,6 +6,7 @@ import "hardhat-log-remover"
 import "uniswap-v3-deploy-plugin"
 import "hardhat-contract-sizer"
 import "@nomiclabs/hardhat-etherscan"
+import "@openzeppelin/hardhat-upgrades"
 import "hardhat-storage-layout"
 
 import { HardhatUserConfig } from "hardhat/types"
@@ -134,7 +135,7 @@ const config: HardhatUserConfig = {
       gasPrice: "auto",
     },
     mumbai: {
-      url: "https://rpc-mumbai.maticvigil.com",
+      url: "https://matic-mumbai.chainstacklabs.com",
       chainId: 80001,
       accounts: [env.DEPLOY_PRIVATE_KEY],
       gasPrice: "auto",

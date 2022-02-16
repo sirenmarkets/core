@@ -110,7 +110,6 @@ export async function setupMockPriceOracle(
     await MockPriceOracle.new(8)
 
   await deployedPriceOracle.initialize(ONE_DAY_DURATION)
-
   await deployedPriceOracle.addTokenPair(
     underlyingAddress,
     priceAddress,
@@ -124,11 +123,17 @@ export async function setUpMockVolatilityOracle(
   priceAddress: string,
   period,
   windowInDays,
-  mockPriceOracleAddress: string,
+  addressesProviderAddress: string,
   volatility: number,
 ): Promise<MockVolatilityOracleInstance> {
   const deployedMockVolatilityOracle: MockVolatilityOracleInstance =
-    await MockVolatilityOracle.new(period, mockPriceOracleAddress, windowInDays)
+    await MockVolatilityOracle.new()
+
+  deployedMockVolatilityOracle.initialize(
+    period,
+    addressesProviderAddress,
+    windowInDays,
+  )
 
   await deployedMockVolatilityOracle.addTokenPair(
     underlyingAddress,
@@ -437,13 +442,11 @@ export async function setupSingletonTestContracts(
   let expiration: number = getNextFriday8amUTCTimestamp(
     (await now()) + ONE_WEEK_DURATION,
   )
-
   const deployedPriceOracle = await setupPriceOracle(
     underlyingToken.address,
     priceToken.address,
     deployedMockPriceOracle.address,
   )
-
   await deployedAddressesProvider.setPriceOracle(deployedPriceOracle.address)
 
   const deployedAmmDataProvider = await AmmDataProvider.new(
@@ -489,7 +492,7 @@ export async function setupSingletonTestContracts(
     priceToken.address,
     PERIOD,
     WINDOW_IN_DAYS,
-    deployedPriceOracle.address,
+    deployedAddressesProvider.address,
     annualizedVolatility,
   )
 

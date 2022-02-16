@@ -25,6 +25,9 @@ contract("Series Expirations", (accounts) => {
 
     const date1 = getNextFriday8amUTCTimestamp(expiration + 1000)
 
+    //31540000 is one calendar year and I want to check if we revert by giving an expiration in the past
+    const dateInPast = getNextFriday8amUTCTimestamp(expiration - 31540000)
+
     // Verify ownership check
     await expectRevert(
       deployedSeriesController.updateAllowedExpirations([date1], {
@@ -36,10 +39,10 @@ contract("Series Expirations", (accounts) => {
     // Verify setting an expiration works from owner acct
     await deployedSeriesController.updateAllowedExpirations([date1])
 
-    // Verify adding the same one doesn't work since it is not greater than the last
+    // Verify adding an expiration in the past will not work
     await expectRevert(
-      deployedSeriesController.updateAllowedExpirations([date1]),
-      "!Order",
+      deployedSeriesController.updateAllowedExpirations([dateInPast]),
+      "!Future",
     )
 
     // Verify adding a later non-aligned (not 8 AM) gets rejected

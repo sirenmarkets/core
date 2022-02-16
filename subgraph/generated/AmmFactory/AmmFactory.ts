@@ -109,6 +109,29 @@ export class AmmFactory extends ethereum.SmartContract {
     return new AmmFactory("AmmFactory", address);
   }
 
+  addressesProvider(): Address {
+    let result = super.call(
+      "addressesProvider",
+      "addressesProvider():(address)",
+      []
+    );
+
+    return result[0].toAddress();
+  }
+
+  try_addressesProvider(): ethereum.CallResult<Address> {
+    let result = super.tryCall(
+      "addressesProvider",
+      "addressesProvider():(address)",
+      []
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toAddress());
+  }
+
   ammImplementation(): Address {
     let result = super.call(
       "ammImplementation",
@@ -276,24 +299,20 @@ export class CreateAmmCall__Inputs {
     return this._call.inputValues[0].value.toAddress();
   }
 
-  get _ammDataProvider(): Address {
+  get _underlyingToken(): Address {
     return this._call.inputValues[1].value.toAddress();
   }
 
-  get _underlyingToken(): Address {
+  get _priceToken(): Address {
     return this._call.inputValues[2].value.toAddress();
   }
 
-  get _priceToken(): Address {
+  get _collateralToken(): Address {
     return this._call.inputValues[3].value.toAddress();
   }
 
-  get _collateralToken(): Address {
-    return this._call.inputValues[4].value.toAddress();
-  }
-
   get _tradeFeeBasisPoints(): i32 {
-    return this._call.inputValues[5].value.toI32();
+    return this._call.inputValues[4].value.toI32();
   }
 }
 
@@ -332,6 +351,10 @@ export class InitializeCall__Inputs {
 
   get _seriesController(): Address {
     return this._call.inputValues[2].value.toAddress();
+  }
+
+  get _addressesProvider(): Address {
+    return this._call.inputValues[3].value.toAddress();
   }
 }
 
@@ -395,6 +418,36 @@ export class TransferOwnershipCall__Outputs {
   _call: TransferOwnershipCall;
 
   constructor(call: TransferOwnershipCall) {
+    this._call = call;
+  }
+}
+
+export class UpdateAddressProviderAddressCall extends ethereum.Call {
+  get inputs(): UpdateAddressProviderAddressCall__Inputs {
+    return new UpdateAddressProviderAddressCall__Inputs(this);
+  }
+
+  get outputs(): UpdateAddressProviderAddressCall__Outputs {
+    return new UpdateAddressProviderAddressCall__Outputs(this);
+  }
+}
+
+export class UpdateAddressProviderAddressCall__Inputs {
+  _call: UpdateAddressProviderAddressCall;
+
+  constructor(call: UpdateAddressProviderAddressCall) {
+    this._call = call;
+  }
+
+  get newAddressesProviderImplementation(): Address {
+    return this._call.inputValues[0].value.toAddress();
+  }
+}
+
+export class UpdateAddressProviderAddressCall__Outputs {
+  _call: UpdateAddressProviderAddressCall;
+
+  constructor(call: UpdateAddressProviderAddressCall) {
     this._call = call;
   }
 }

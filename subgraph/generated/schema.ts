@@ -495,15 +495,6 @@ export class Amm extends Entity {
     this.set("controller", Value.fromString(value));
   }
 
-  get priceOracle(): Bytes {
-    let value = this.get("priceOracle");
-    return value.toBytes();
-  }
-
-  set priceOracle(value: Bytes) {
-    this.set("priceOracle", Value.fromBytes(value));
-  }
-
   get underlyingToken(): string {
     let value = this.get("underlyingToken");
     return value.toString();
@@ -692,13 +683,21 @@ export class SeriesAmm extends Entity {
     this.set("series", Value.fromString(value));
   }
 
-  get amm(): string {
+  get amm(): string | null {
     let value = this.get("amm");
-    return value.toString();
+    if (value === null || value.kind == ValueKind.NULL) {
+      return null;
+    } else {
+      return value.toString();
+    }
   }
 
-  set amm(value: string) {
-    this.set("amm", Value.fromString(value));
+  set amm(value: string | null) {
+    if (value === null) {
+      this.unset("amm");
+    } else {
+      this.set("amm", Value.fromString(value as string));
+    }
   }
 }
 
@@ -1223,6 +1222,15 @@ export class Account extends Entity {
 
   set ammTokenEvents(value: Array<string>) {
     this.set("ammTokenEvents", Value.fromStringArray(value));
+  }
+
+  get lockedExpirationPools(): Array<string> {
+    let value = this.get("lockedExpirationPools");
+    return value.toStringArray();
+  }
+
+  set lockedExpirationPools(value: Array<string>) {
+    this.set("lockedExpirationPools", Value.fromStringArray(value));
   }
 }
 
@@ -3738,5 +3746,84 @@ export class ERC1155Controller extends Entity {
 
   set controller(value: Bytes) {
     this.set("controller", Value.fromBytes(value));
+  }
+}
+
+export class LockedExpirationPool extends Entity {
+  constructor(id: string) {
+    super();
+    this.set("id", Value.fromString(id));
+  }
+
+  save(): void {
+    let id = this.get("id");
+    assert(
+      id !== null,
+      "Cannot save LockedExpirationPool entity without an ID"
+    );
+    assert(
+      id.kind == ValueKind.STRING,
+      "Cannot save LockedExpirationPool entity with non-string ID. " +
+        'Considering using .toHex() to convert the "id" to a string.'
+    );
+    store.set("LockedExpirationPool", id.toString(), this);
+  }
+
+  static load(id: string): LockedExpirationPool | null {
+    return store.get("LockedExpirationPool", id) as LockedExpirationPool | null;
+  }
+
+  get id(): string {
+    let value = this.get("id");
+    return value.toString();
+  }
+
+  set id(value: string) {
+    this.set("id", Value.fromString(value));
+  }
+
+  get amm(): string {
+    let value = this.get("amm");
+    return value.toString();
+  }
+
+  set amm(value: string) {
+    this.set("amm", Value.fromString(value));
+  }
+
+  get lockedWTokens(): BigInt {
+    let value = this.get("lockedWTokens");
+    return value.toBigInt();
+  }
+
+  set lockedWTokens(value: BigInt) {
+    this.set("lockedWTokens", Value.fromBigInt(value));
+  }
+
+  get expirationDate(): BigInt {
+    let value = this.get("expirationDate");
+    return value.toBigInt();
+  }
+
+  set expirationDate(value: BigInt) {
+    this.set("expirationDate", Value.fromBigInt(value));
+  }
+
+  get availableCollateral(): BigInt {
+    let value = this.get("availableCollateral");
+    return value.toBigInt();
+  }
+
+  set availableCollateral(value: BigInt) {
+    this.set("availableCollateral", Value.fromBigInt(value));
+  }
+
+  get accounts(): Array<string> {
+    let value = this.get("accounts");
+    return value.toStringArray();
+  }
+
+  set accounts(value: Array<string>) {
+    this.set("accounts", Value.fromStringArray(value));
   }
 }

@@ -4,22 +4,25 @@ pragma solidity 0.8.0;
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {DSMath} from "../libraries/DSMath.sol";
 import {Welford} from "../libraries/Welford.sol";
+import "../proxy/Proxiable.sol";
+import "../proxy/Proxy.sol";
 import {Math} from "../libraries/Math.sol";
 import {PRBMathSD59x18} from "../libraries/PRBMathSD59x18.sol";
 import "./IPriceOracle.sol";
+import "../configuration/IAddressesProvider.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-contract VolatilityOracle is DSMath, OwnableUpgradeable {
+contract VolatilityOracle is DSMath, OwnableUpgradeable, Proxiable {
     using SafeMath for uint256;
 
-    IPriceOracle public priceOracleAddress;
+    IAddressesProvider public addressesProvider;
 
     /**
      * Immutables
      */
-    uint32 public immutable period;
-    uint256 public immutable windowSize;
-    uint256 public immutable annualizationConstant;
+    uint32 public period;
+    uint256 public windowSize;
+    uint256 public annualizationConstant;
     uint256 internal constant commitPhaseDuration = 3600; // 1 hour from every period
 
     /**
@@ -77,19 +80,19 @@ contract VolatilityOracle is DSMath, OwnableUpgradeable {
     /**
      * @notice Creates an volatility oracle for a pool
      * @param _period is how often the oracle needs to be updated
-     * @param _priceOracle the price oracle address
+     * @param _addressesProvider the addressesProvider address
      * @param _windowInDays is how many days the window should be
      */
-    constructor(
+    function initialize(
         uint32 _period,
-        IPriceOracle _priceOracle,
+        IAddressesProvider _addressesProvider,
         uint256 _windowInDays
-    ) {
+    ) external initializer {
         require(_period > 0, "!_period");
         require(_windowInDays > 0, "!_windowInDays");
 
         period = _period;
-        priceOracleAddress = _priceOracle;
+        addressesProvider = _addressesProvider;
         windowSize = _windowInDays.mul(uint256(1 days).div(_period));
 
         // 31536000 seconds in a year
@@ -99,6 +102,18 @@ contract VolatilityOracle is DSMath, OwnableUpgradeable {
         annualizationConstant = Math.sqrt(uint256(31536000).div(_period));
 
         __Ownable_init();
+    }
+
+    /// @notice update the logic contract for this proxy contract
+    /// @param _newImplementation the address of the new MinterAmm implementation
+    /// @dev only the admin address may call this function
+    function updateImplementation(address _newImplementation)
+        external
+        onlyOwner
+    {
+        require(_newImplementation != address(0x0), "E1");
+
+        _updateCodeAddress(_newImplementation);
     }
 
     /**
@@ -129,10 +144,8 @@ contract VolatilityOracle is DSMath, OwnableUpgradeable {
         (uint32 commitTimestamp, uint32 gapFromPeriod) = secondsFromPeriod();
         require(gapFromPeriod < commitPhaseDuration, "Not commit phase");
 
-        uint256 price = IPriceOracle(priceOracleAddress).getCurrentPrice(
-            underlyingToken,
-            priceToken
-        );
+        uint256 price = IPriceOracle(addressesProvider.getPriceOracle())
+            .getCurrentPrice(underlyingToken, priceToken);
         uint256 _lastPrice = lastPrices[underlyingToken][priceToken];
         uint256 periodReturn = _lastPrice > 0 ? wdiv(price, _lastPrice) : 0;
 

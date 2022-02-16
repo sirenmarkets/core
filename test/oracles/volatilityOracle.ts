@@ -33,8 +33,8 @@ const VOL_TOLERANCE = 2e6
  * Testing MinterAmm volatility oracle updates
  */
 contract("Volatility Oracle", (accounts) => {
-  let priceToken: SimpleTokenInstance
-  let underlyingToken: SimpleTokenInstance
+  let priceToken
+  let underlyingToken
   let deployedMockPriceOracle
   let nextFriday8amUTC: number
   let deployedPriceOracle
@@ -46,35 +46,32 @@ contract("Volatility Oracle", (accounts) => {
 
   before(async () => {
     // Create a token for the underlying asset
-    underlyingToken = await SimpleToken.new()
-    await underlyingToken.initialize("Wrapped BTC", "WBTC", wbtcDecimals)
-
-    // Create a token for the price asset, this is the asset the underlying is priced in
-    priceToken = await SimpleToken.new()
-    await priceToken.initialize("USD Coin", "USDC", 6)
+    // underlyingToken = await SimpleToken.new()
+    // await underlyingToken.initialize("Wrapped BTC", "WBTC", wbtcDecimals)
+    // // Create a token for the price asset, this is the asset the underlying is priced in
+    // priceToken = await SimpleToken.new()
+    // await priceToken.initialize("USD Coin", "USDC", 6)
   })
+  let deployedAddressesProvider
 
   beforeEach(async () => {
+    ;({
+      deployedAddressesProvider,
+      deployedPriceOracle,
+      deployedMockPriceOracle,
+      underlyingToken,
+      priceToken,
+    } = await setupAllTestContracts({}))
     // create the price oracle fresh for each test
-
-    deployedPriceOracle = await MockPriceOracle.new(wbtcDecimals)
-    const humanCollateralPrice2 = new BN(2000 * 10 ** 6) // 22k
-
-    await deployedPriceOracle.setLatestAnswer(humanCollateralPrice2)
-
-    deployedMockPriceOracle = await setupMockPriceOracle(
-      underlyingToken.address,
-      priceToken.address,
-      deployedPriceOracle.address,
-    )
 
     nextFriday8amUTC = getNextFriday8amUTCTimestamp(await now())
 
     const volatility = await ethers.getContractFactory("VolatilityOracle", {})
 
-    deployedVolatilityOracle = await volatility.deploy(
+    deployedVolatilityOracle = await volatility.deploy()
+    deployedVolatilityOracle.initialize(
       PERIOD,
-      deployedMockPriceOracle.address,
+      deployedAddressesProvider.address,
       WINDOW_IN_DAYS,
     )
   })
@@ -131,10 +128,10 @@ contract("Volatility Oracle", (accounts) => {
         underlyingToken.address,
         priceToken.address,
       )
-
+      await time.increase(topOfPeriod1)
       for (let i = 0; i < values.length; i++) {
         let value = parseUnits(values[i].toString())
-        deployedPriceOracle.setLatestAnswer(value.toString())
+        await deployedMockPriceOracle.setLatestAnswer(value.toString())
 
         let topOfPeriod2 = (await getTopOfPeriod()) + PERIOD
         await time.increaseTo(topOfPeriod2)
@@ -143,6 +140,7 @@ contract("Volatility Oracle", (accounts) => {
           underlyingToken.address,
           priceToken.address,
         )
+
         let stdev = await deployedVolatilityOracle.vol(
           underlyingToken.address,
           priceToken.address,
@@ -398,7 +396,6 @@ contract("Volatility Oracle", (accounts) => {
   const getTopOfPeriod = async () => {
     const latestTimestamp = (await provider.getBlock("latest")).timestamp
     let topOfPeriod: number
-
     const rem = latestTimestamp % PERIOD
     if (rem < Math.floor(PERIOD / 2)) {
       topOfPeriod = latestTimestamp - rem + PERIOD
@@ -411,7 +408,7 @@ contract("Volatility Oracle", (accounts) => {
   async function calculateVolOnChain(vals) {
     for (let i = 0; i < vals.length; i++) {
       let value = parseUnits(vals[i].toString())
-      deployedPriceOracle.setLatestAnswer(value.toString())
+      deployedMockPriceOracle.setLatestAnswer(value.toString())
       const topOfPeriod = (await getTopOfPeriod()) + PERIOD
       await time.increaseTo(topOfPeriod)
 
@@ -420,6 +417,7 @@ contract("Volatility Oracle", (accounts) => {
         priceToken.address,
       )
     }
+
     return await deployedVolatilityOracle.annualizedVol(
       underlyingToken.address,
       priceToken.address,

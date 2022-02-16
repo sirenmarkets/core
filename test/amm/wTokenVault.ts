@@ -305,6 +305,10 @@ contract("wToken Vault", (accounts) => {
       ret = await deployedAmm.bTokenSell(seriesId, 1e8, 0, {
         from: aliceAccount,
       })
+
+      let expirationDate = await deployedSeriesController.expirationDate(
+        seriesId,
+      )
       parseLogs(ret, deployedWTokenVault.contract) // parse WTokenVault events
       let lockedCollateral = Math.floor(
         (1e8 - ret.logs[0].args["collateralPaid"]) / 2,
@@ -323,7 +327,7 @@ contract("wToken Vault", (accounts) => {
       )
       expectEvent(ret, "CollateralLocked", {
         ammAddress: deployedAmm.address,
-        seriesId: seriesId,
+        expirationDate: expirationDate,
         collateralAmount: "48463849",
         wTokenAmount: (0.5e8).toString(),
       })
@@ -346,6 +350,10 @@ contract("wToken Vault", (accounts) => {
       ret = await deployedAmm.bTokenSell(seriesId2, 2e8, 0, {
         from: aliceAccount,
       })
+
+      let expirationDate2 = await deployedSeriesController.expirationDate(
+        seriesId2,
+      )
       parseLogs(ret, deployedWTokenVault.contract) // parse WTokenVault events
 
       lockedCollateral += Math.floor(
@@ -358,7 +366,7 @@ contract("wToken Vault", (accounts) => {
       )
       expectEvent(ret, "CollateralLocked", {
         ammAddress: deployedAmm.address,
-        seriesId: seriesId2,
+        expirationDate: expirationDate2,
         collateralAmount: "97347553",
         wTokenAmount: (1e8).toString(),
       })
@@ -521,6 +529,9 @@ contract("wToken Vault", (accounts) => {
       ret = await deployedAmm.bTokenSell(seriesId, 0.2e8, 0.01e7, {
         from: aliceAccount,
       })
+      let expirationDate = await deployedSeriesController.expirationDate(
+        seriesId,
+      )
       parseLogs(ret, deployedWTokenVault.contract) // parse WTokenVault events
 
       expectEvent(ret, "BTokensSold", {
@@ -530,7 +541,7 @@ contract("wToken Vault", (accounts) => {
       })
       expectEvent(ret, "CollateralLocked", {
         ammAddress: deployedAmm.address,
-        seriesId: seriesId,
+        expirationDate: expirationDate,
         collateralAmount: "13096968",
         wTokenAmount: "13348657", // matches the total locked amount for series1
       })
@@ -541,6 +552,10 @@ contract("wToken Vault", (accounts) => {
       })
       parseLogs(ret, deployedWTokenVault.contract) // parse WTokenVault events
 
+      let expirationDate2 = await deployedSeriesController.expirationDate(
+        seriesId2,
+      )
+
       expectEvent(ret, "BTokensSold", {
         seller: aliceAccount,
         bTokensSold: (1.0e8).toString(),
@@ -548,7 +563,7 @@ contract("wToken Vault", (accounts) => {
       })
       expectEvent(ret, "CollateralLocked", {
         ammAddress: deployedAmm.address,
-        seriesId: seriesId2,
+        expirationDate: expirationDate2,
         collateralAmount: "25670218",
         wTokenAmount: "26697315", // matches the total locked amount for series2
       })
@@ -656,7 +671,7 @@ contract("wToken Vault", (accounts) => {
       })
       expectEvent(ret, "CollateralLocked", {
         ammAddress: deployedAmm.address,
-        seriesId: seriesId2,
+        expirationDate: expirationDate2,
         collateralAmount: "27063955",
         wTokenAmount: "30000000", //
       })
@@ -694,7 +709,7 @@ contract("wToken Vault", (accounts) => {
       })
       expectEvent(ret, "CollateralLocked", {
         ammAddress: deployedAmm.address,
-        seriesId: seriesId2,
+        expirationDate: expirationDate2,
         collateralAmount: "12604238",
         wTokenAmount: "13978042", //
       })
@@ -1077,6 +1092,10 @@ contract("wToken Vault", (accounts) => {
       ret = await deployedAmm.bTokenSell(seriesId, 1e8, 0, {
         from: aliceAccount,
       })
+
+      let expirationDate = await deployedSeriesController.expirationDate(
+        seriesId,
+      )
       parseLogs(ret, deployedWTokenVault.contract) // parse WTokenVault events
 
       let lockedCollateral = Math.floor(
@@ -1089,7 +1108,7 @@ contract("wToken Vault", (accounts) => {
       )
       expectEvent(ret, "CollateralLocked", {
         ammAddress: deployedAmm.address,
-        seriesId: seriesId,
+        expirationDate: expirationDate,
         collateralAmount: "6748259280", // (15_000 - 1503481439 / 1e6) / 2
         wTokenAmount: (0.5e8).toString(),
       })
@@ -1112,6 +1131,10 @@ contract("wToken Vault", (accounts) => {
       ret = await deployedAmm.bTokenSell(seriesId2, 2e8, 0, {
         from: aliceAccount,
       })
+
+      let expirationDate2 = await deployedSeriesController.expirationDate(
+        seriesId2,
+      )
       parseLogs(ret, deployedWTokenVault.contract) // parse WTokenVault events
 
       lockedCollateral += Math.floor(
@@ -1131,7 +1154,7 @@ contract("wToken Vault", (accounts) => {
       )
       expectEvent(ret, "CollateralLocked", {
         ammAddress: deployedAmm.address,
-        seriesId: seriesId2,
+        expirationDate: expirationDate2,
         collateralAmount: "13531788999", // ~(15_000  - 0.13 * 14_000)
         wTokenAmount: (1e8).toString(),
       })
