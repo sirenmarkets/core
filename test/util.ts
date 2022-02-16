@@ -519,7 +519,7 @@ export async function setupSingletonTestContracts(
   const ammFactoryProxy = await Proxy.new(ammFactoryLogic.address)
   const deployedAmmFactory = await AmmFactory.at(ammFactoryProxy.address)
 
-  await deployedAmmFactory.initialize(
+  await deployedAmmFactory.__AmmFactory_init(
     ammLogic.address,
     erc20Logic.address,
     deployedSeriesController.address,
