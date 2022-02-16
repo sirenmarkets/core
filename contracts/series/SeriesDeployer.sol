@@ -12,6 +12,7 @@ import "../amm/IAmmFactory.sol";
 import "../proxy/Proxiable.sol";
 import "./ISeriesController.sol";
 import "./SeriesLibrary.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract SeriesDeployer is
     Proxiable,
@@ -19,6 +20,7 @@ contract SeriesDeployer is
     AccessControlUpgradeable,
     ERC1155HolderUpgradeable
 {
+    using SafeERC20 for IERC20;
     /// @dev For a token, store the range for a strike price for the auto series creation feature
     struct TokenStrikeRange {
         uint256 minPercent;
@@ -292,6 +294,7 @@ contract SeriesDeployer is
         if (IERC20(ammTokens.collateralToken).balanceOf(address(this)) > 0) {
             IERC20(ammTokens.collateralToken).safeTransferFrom(
                 msg.sender,
+                address(this),
                 IERC20(ammTokens.collateralToken).balanceOf(address(this))
             );
         }

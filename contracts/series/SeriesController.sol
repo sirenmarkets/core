@@ -470,7 +470,7 @@ contract SeriesController is
         Series memory currentSeries = allSeries[_seriesId];
 
         return
-            IPriceOracle(priceOracle).getSettlementPrice(
+            IPriceOracle(addressesProvider.getPriceOracle()).getSettlementPrice(
                 address(currentSeries.tokens.underlyingToken),
                 address(currentSeries.tokens.priceToken),
                 currentSeries.expirationDate
@@ -483,7 +483,7 @@ contract SeriesController is
         Series memory currentSeries = allSeries[_seriesId];
 
         return
-            IPriceOracle(priceOracle).getCurrentPrice(
+            IPriceOracle(addressesProvider.getPriceOracle()).getCurrentPrice(
                 address(currentSeries.tokens.underlyingToken),
                 address(currentSeries.tokens.priceToken)
             );
@@ -606,11 +606,11 @@ contract SeriesController is
     ///////////////////// MUTATING FUNCTIONS /////////////////////
 
     /// @notice Initialize the SeriesController, setting its URI and priceOracle
-    /// @param _priceOracle The PriceOracle used for fetching prices for Series
+    /// @param _addressesProvider The PriceOracle used for fetching prices for Series
     /// @param _vault The SeriesVault contract that will be used to store all of this SeriesController's tokens
     /// @param _fees The various fees to charge on executing certain SeriesController functions
     function initialize(
-        address _priceOracle,
+        address _addressesProvider,
         address _vault,
         address _erc1155Controller,
         ISeriesController.Fees calldata _fees
@@ -621,7 +621,10 @@ contract SeriesController is
         _setupRole(PAUSER_ROLE, msg.sender);
         _setupRole(SERIES_DEPLOYER_ROLE, msg.sender);
 
-        require(_priceOracle != address(0x0), "Invalid _priceOracle");
+        require(
+            _addressesProvider != address(0x0),
+            "Invalid _addressesProvider"
+        );
         require(_vault != address(0x0), "Invalid _vault");
         require(
             _erc1155Controller != address(0x0),
@@ -637,7 +640,7 @@ contract SeriesController is
         );
 
         // set the state variables
-        priceOracle = _priceOracle;
+        addressesProvider = IAddressesProvider(_addressesProvider);
         vault = _vault;
         erc1155Controller = _erc1155Controller;
         fees = _fees;
@@ -647,7 +650,7 @@ contract SeriesController is
         );
 
         emit SeriesControllerInitialized(
-            _priceOracle,
+            addressesProvider.getPriceOracle(),
             _vault,
             _erc1155Controller,
             _fees
@@ -1167,7 +1170,7 @@ contract SeriesController is
     }
 
     /// @notice Update the addressProvider used for other contract lookups
-    function setAddressesProvider(address _addressesProvider)
+    function updateAddressesProvider(address _addressesProvider)
         external
         onlyOwner
     {
@@ -1181,7 +1184,7 @@ contract SeriesController is
     function setSettlementPrice(uint64 _seriesId) internal {
         Series memory currentSeries = allSeries[_seriesId];
 
-        IPriceOracle(priceOracle).setSettlementPrice(
+        IPriceOracle(addressesProvider.getPriceOracle()).setSettlementPrice(
             address(currentSeries.tokens.underlyingToken),
             address(currentSeries.tokens.priceToken)
         );
@@ -1212,9 +1215,8 @@ contract SeriesController is
             // Ensure the date is aligned
             require(
                 timestamps[i] ==
-                    IPriceOracle(priceOracle).get8amWeeklyOrDailyAligned(
-                        timestamps[i]
-                    ),
+                    IPriceOracle(addressesProvider.getPriceOracle())
+                        .get8amWeeklyOrDailyAligned(timestamps[i]),
                 "Nonaligned"
             );
 
