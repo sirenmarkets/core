@@ -99,7 +99,7 @@ contract("Proxy Series Verification", (accounts) => {
 
     // cannot initialize twice
     await expectRevert(
-      deployedSeriesController.initialize(
+      deployedSeriesController.__SeriesController_init(
         deployedAddressesProvider.address,
         deployedVault.address,
         deployedERC1155Controller.address,

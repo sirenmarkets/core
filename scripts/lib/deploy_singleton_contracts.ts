@@ -250,13 +250,13 @@ export async function deploySingletonContracts(
   )
 
   // now that we've deployed, let's initialize them in the correct order
-  await erc1155Controller.initialize(
+  await erc1155Controller.__ERC1155Controller_init(
     "https://erc1155.sirenmarkets.com/v2/{id}.json",
     seriesController.address,
   )
   console.log("initialized ERC1155Controller")
 
-  await (await seriesVault.initialize(seriesController.address)).wait()
+  await (await seriesVault.__SeriesVault_init(seriesController.address)).wait()
   console.log("initialized SeriesVault")
 
   // wait a bit for the node provider's chain state to update so the following does not fail
@@ -275,6 +275,7 @@ export async function deploySingletonContracts(
   //     },
   //   )
   // ).wait()
+
   console.log("initialized SeriesController")
 
   await (await priceOracle.initialize(dateOffset)).wait()

@@ -42,8 +42,10 @@ contract AmmFactory is OwnableUpgradeable, Proxiable {
     /// @notice Emitted when the owner updates the token implementation address
     event TokenImplementationUpdated(address newAddress);
 
-    /// @notice Setup the state variables for an AmmFactory
-    function initialize(
+    /**
+     * Initialization function that only allows itself to be called once
+     */
+    function __AmmFactory_init(
         address _ammImplementation,
         address _tokenImplementation,
         ISeriesController _seriesController,
