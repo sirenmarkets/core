@@ -609,7 +609,7 @@ contract SeriesController is
     /// @param _addressesProvider The PriceOracle used for fetching prices for Series
     /// @param _vault The SeriesVault contract that will be used to store all of this SeriesController's tokens
     /// @param _fees The various fees to charge on executing certain SeriesController functions
-    function initialize(
+    function __SeriesController_init(
         address _addressesProvider,
         address _vault,
         address _erc1155Controller,

@@ -32,7 +32,7 @@ contract AddressesProvider is
     ///////////////////// MUTATING FUNCTIONS /////////////////////
 
     /// @notice Perform inherited contracts' initializations
-    function initialize() external initializer {
+    function __AddressessProvider_init() external initializer {
         __Ownable_init_unchained();
     }
 

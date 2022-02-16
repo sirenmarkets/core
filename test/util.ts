@@ -378,7 +378,7 @@ export async function setupSingletonTestContracts(
     proxyAddressesProvider.address,
   )
 
-  deployedAddressesProvider.initialize()
+  deployedAddressesProvider.__AddressessProvider_init()
 
   const proxyContract = await Proxy.new(seriesControllerLogic.address)
   const deployedSeriesController = await SeriesController.at(
@@ -413,7 +413,7 @@ export async function setupSingletonTestContracts(
   )
 
   // initialize the vault and erc1155 controller
-  await deployedVault.initialize(deployedSeriesController.address)
+  await deployedVault.__SeriesVault_init(deployedSeriesController.address)
   await deployedERC1155Controller.__ERC1155Controller_init(
     erc1155URI,
     deployedSeriesController.address,
@@ -459,17 +459,18 @@ export async function setupSingletonTestContracts(
     deployedAmmDataProvider.address,
   )
 
-  const controllerInitResp = await deployedSeriesController.initialize(
-    deployedAddressesProvider.address,
-    deployedVault.address,
-    deployedERC1155Controller.address,
-    {
-      feeReceiver: feeReceiver,
-      exerciseFeeBasisPoints: exerciseFee,
-      closeFeeBasisPoints: closeFee,
-      claimFeeBasisPoints: claimFee,
-    },
-  )
+  const controllerInitResp =
+    await deployedSeriesController.__SeriesController_init(
+      deployedAddressesProvider.address,
+      deployedVault.address,
+      deployedERC1155Controller.address,
+      {
+        feeReceiver: feeReceiver,
+        exerciseFeeBasisPoints: exerciseFee,
+        closeFeeBasisPoints: closeFee,
+        claimFeeBasisPoints: claimFee,
+      },
+    )
 
   // Add the expiration as valid to the series controller
   await deployedSeriesController.updateAllowedExpirations([expiration])
@@ -479,7 +480,9 @@ export async function setupSingletonTestContracts(
   const deployedSeriesDeployer = await SeriesDeployer.at(
     proxySeriesDeployer.address,
   )
-  await deployedSeriesDeployer.initialize(deployedAddressesProvider.address)
+  await deployedSeriesDeployer.__SeriesDeployer_init(
+    deployedAddressesProvider.address,
+  )
 
   // Add the series deployer contract to the allowed creators list
   await deployedSeriesController.grantRole(
@@ -516,7 +519,7 @@ export async function setupSingletonTestContracts(
   const ammFactoryProxy = await Proxy.new(ammFactoryLogic.address)
   const deployedAmmFactory = await AmmFactory.at(ammFactoryProxy.address)
 
-  await deployedAmmFactory.initialize(
+  await deployedAmmFactory.__AmmFactory_init(
     ammLogic.address,
     erc20Logic.address,
     deployedSeriesController.address,

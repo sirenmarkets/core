@@ -139,7 +139,7 @@ contract("AMM Upgradeability", (accounts) => {
       proxyAddressesProvider.address,
     )
 
-    deployedAddressesProvider2.initialize()
+    deployedAddressesProvider2.__AddressessProvider_init()
 
     let ret = await deployedAmm.updateAddressesProvider(
       deployedAddressesProvider2.address,
