@@ -460,7 +460,7 @@ export async function setupSingletonTestContracts(
   )
 
   const controllerInitResp = await deployedSeriesController.initialize(
-    deployedPriceOracle.address,
+    deployedAddressesProvider.address,
     deployedVault.address,
     deployedERC1155Controller.address,
     {
@@ -703,7 +703,6 @@ export async function setupAmm({
   tradeFeeBasisPoints = 0,
 }) {
   const createAmmResp = await deployedAmmFactory.createAmm(
-    deployedPriceOracle.address,
     underlyingToken.address,
     priceToken.address,
     collateralToken.address,
