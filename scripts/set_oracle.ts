@@ -1,11 +1,13 @@
 import { deploySingletonContracts } from "./lib/deploy_singleton_contracts"
-import { deployVolatilityOracle } from "./lib/deploy_volatility_oracle"
+import { deployOracles } from "./lib/set_oracles"
 import { argumentError } from "./lib/helper"
 
 // to pass arguments, use env vars and pass them in the call itself, i.e.
 // `ADMIN_ADDRESS=0xdeadbeef FEE_RECEIVER=0xbeefdead npx hardhat run scripts/deploy_singleton_contracts.ts
 
-const PRICE_ORACLE_ADDRESS = process.env.PRICE_ORACLE_ADDRESS
+const PRICE_ORACLE_PROXY = process.env.PRICE_ORACLE_PROXY
+
+const VOLATILTY_ORACLE_PROXY = process.env.VOLATILTY_ORACLE_PROXY
 
 const ADMIN_ADDRESS = process.env.ADMIN_ADDRESS
 if (ADMIN_ADDRESS == null || ADMIN_ADDRESS == "") {
@@ -21,10 +23,11 @@ if (
 }
 
 async function main() {
-  await deployVolatilityOracle(
-    PRICE_ORACLE_ADDRESS,
+  await deployOracles(
     ADMIN_ADDRESS,
     PRICE_ORACLE_DATE_OFFSET,
+    PRICE_ORACLE_PROXY,
+    VOLATILTY_ORACLE_PROXY,
   )
 }
 
