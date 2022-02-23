@@ -9,26 +9,8 @@ const PRICE_ORACLE_PROXY = process.env.PRICE_ORACLE_PROXY
 
 const VOLATILTY_ORACLE_PROXY = process.env.VOLATILTY_ORACLE_PROXY
 
-const ADMIN_ADDRESS = process.env.ADMIN_ADDRESS
-if (ADMIN_ADDRESS == null || ADMIN_ADDRESS == "") {
-  argumentError("ADMIN_ADDRESS")
-}
-
-const PRICE_ORACLE_DATE_OFFSET = parseInt(process.env.PRICE_ORACLE_DATE_OFFSET)
-if (
-  Number.isNaN(PRICE_ORACLE_DATE_OFFSET) ||
-  PRICE_ORACLE_DATE_OFFSET == null
-) {
-  argumentError("PRICE_ORACLE_DATE_OFFSET")
-}
-
 async function main() {
-  await deployOracles(
-    ADMIN_ADDRESS,
-    PRICE_ORACLE_DATE_OFFSET,
-    PRICE_ORACLE_PROXY,
-    VOLATILTY_ORACLE_PROXY,
-  )
+  await deployOracles(PRICE_ORACLE_PROXY, VOLATILTY_ORACLE_PROXY)
 }
 
 // We recommend this pattern to be able to use async/await everywhere

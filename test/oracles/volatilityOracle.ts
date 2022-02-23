@@ -22,12 +22,6 @@ import { parseUnits } from "ethers/lib/utils"
 
 let deployedVolatilityOracle
 
-const MockPriceOracle: MockPriceOracleContract =
-  artifacts.require("MockPriceOracle")
-
-const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
-
-const wbtcDecimals = 8
 const VOL_TOLERANCE = 2e6
 /**
  * Testing MinterAmm volatility oracle updates
@@ -37,7 +31,6 @@ contract("Volatility Oracle", (accounts) => {
   let underlyingToken
   let deployedMockPriceOracle
   let nextFriday8amUTC: number
-  let deployedPriceOracle
 
   let PERIOD = 86400
 
@@ -57,7 +50,6 @@ contract("Volatility Oracle", (accounts) => {
   beforeEach(async () => {
     ;({
       deployedAddressesProvider,
-      deployedPriceOracle,
       deployedMockPriceOracle,
       underlyingToken,
       priceToken,
@@ -184,7 +176,6 @@ contract("Volatility Oracle", (accounts) => {
         735.5908981625738, 752.8559324490188, 738.6169381520413,
         730.1473402196374, 777.6960653039432, 967.0005967288458,
       ]
-
       await deployedVolatilityOracle.addTokenPair(
         underlyingToken.address,
         priceToken.address,
@@ -194,9 +185,19 @@ contract("Volatility Oracle", (accounts) => {
       let offChainVol1 = parseInt(
         ((await calculateVolOffChain(valueSet1)) * 1e8).toString(),
       )
+      let accumulator = await deployedVolatilityOracle.accumulators(
+        underlyingToken.address,
+        priceToken.address,
+      )
 
-      console.log("Values 1", onChainVol1.toString())
-      console.log("ValuesOffChain 1", offChainVol1)
+      let annualized = await deployedVolatilityOracle.annualizedVol(
+        underlyingToken.address,
+        priceToken.address,
+      )
+      let stdev = await deployedVolatilityOracle.vol(
+        underlyingToken.address,
+        priceToken.address,
+      )
 
       assertBNEqWithTolerance(
         onChainVol1.toString(),

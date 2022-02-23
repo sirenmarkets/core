@@ -21,6 +21,7 @@ import {
   assertBNEqWithTolerance,
   checkBalances,
   setupAllTestContracts,
+  setupSingletonTestContracts,
   setupSeries,
   ONE_WEEK_DURATION,
   blackScholes,
@@ -1062,7 +1063,7 @@ contract("AMM Call Verification", (accounts) => {
     // Check that AMM calculates correct bToken price
     assertBNEq(
       await deployedAmm.getPriceForSeries(anotherSeriesIndex),
-      "65274048842857142", // 0.065 * 1e18
+      "65274048842692143", // 0.065 * 1e18
       "AMM should calculate bToken price correctly",
     )
 
@@ -1211,5 +1212,45 @@ contract("AMM Call Verification", (accounts) => {
       }),
       ERROR_MESSAGES.B_TOKEN_BUY_NOT_LARGE_ENOUGH,
     )
+  })
+
+  it("Verifies Btoken GetCollateralIn and BTokenBuy are the same ", async () => {
+    await time.increaseTo(expiration - ONE_WEEK_DURATION) // use the same time, no matter when this test gets called
+
+    // Approve collateral
+    await underlyingToken.mint(ownerAccount, (100e18).toString())
+    await underlyingToken.approve(deployedAmm.address, (100e18).toString())
+
+    // Provide capital
+    let ret = await deployedAmm.provideCapital((100e18).toString(), 0)
+
+    // Now let's do some trading from another account
+    await underlyingToken.mint(aliceAccount, (100e18).toString())
+    await underlyingToken.approve(deployedAmm.address, (100e18).toString(), {
+      from: aliceAccount,
+    })
+
+    let bTokenGetCollateralInView =
+      await deployedAmmDataProvider.bTokenGetCollateralInView(
+        deployedAmm.address,
+        seriesId,
+        (10e18).toString(),
+      )
+
+    let bTokenBuyAmount = await deployedAmm.contract.methods
+      .bTokenBuy(seriesId, (10e18).toString(), (10e18).toString())
+      .call({
+        from: aliceAccount,
+      })
+
+    console.log(
+      "BtokenGetCollateralInView",
+      bTokenGetCollateralInView.toString(),
+    )
+    console.log("bTokenBuyAmount", bTokenBuyAmount.toString())
+
+    // Buy bTokens
+    // Verify it fails if the amount of collateral maximum is exceeded
+    //assertBNEq(bTokenGetCollateralInView.toString(), bTokenBuyAmount.toString(), "BTokenBuyAmount and bTokenGetCollateralIn should be equal")
   })
 })
