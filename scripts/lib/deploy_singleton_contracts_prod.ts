@@ -6,9 +6,7 @@ const DAY_DURATION = 24 * 60 * 60
 const WINDOW_SIZE = 90
 const WEEK_DURATION = 7 * DAY_DURATION
 
-export async function deploySingletonContracts(
-  feeReceiver: string,
-  gnosisAddress: string,
+export async function deploySingletonContractsProd(
   dateOffset: number,
 ): Promise<any> {
   const V2_CONTRACTS_QUERY = gql`
@@ -39,15 +37,15 @@ export async function deploySingletonContracts(
     oracleSettings,
   } = await request(V2_SUBGRAPH_URL, V2_CONTRACTS_QUERY)
 
-  gnosisAddress = gnosisAddress.toLowerCase()
+  // gnosisAddress = gnosisAddress.toLowerCase()
 
   const [signer] = await hre.ethers.getSigners()
   const deployerAddress = signer.address.toLowerCase()
 
   console.log(`deployer address is: ${deployerAddress}`)
 
-  if (dateOffset !== WEEK_DURATION && dateOffset !== DAY_DURATION) {
-    throw new Error("date offset must be either 1 week or 1 day")
+  if (dateOffset !== WEEK_DURATION) {
+    throw new Error("date offset must be 1 week")
   }
 
   // get all the contracts we'll need
@@ -91,46 +89,12 @@ export async function deploySingletonContracts(
   )
 
   // now deploy all the contracts. Later we will initialize them in the correct order
-  const erc1155ControllerLogic = await ERC1155Controller.deploy()
-  await erc1155ControllerLogic.deployed()
-  const erc1155Proxy = await Proxy.deploy(erc1155ControllerLogic.address)
-  await erc1155Proxy.deployed()
-  console.log(
-    "Logic ERC1155Controller deployed to: ",
-    erc1155ControllerLogic.address.toLowerCase(),
-  )
-  const erc1155Controller = ERC1155Controller.attach(erc1155Proxy.address)
-  console.log(
-    "ERC1155Controller deployed to:       ",
-    erc1155Controller.address.toLowerCase(),
-  )
-
-  const seriesVaultLogic = await SeriesVault.deploy()
-  await seriesVaultLogic.deployed()
-  const vaultProxy = await Proxy.deploy(seriesVaultLogic.address)
-  await vaultProxy.deployed()
-  console.log(
-    "Logic SeriesVault deployed to:       ",
-    seriesVaultLogic.address.toLowerCase(),
-  )
-  const seriesVault = SeriesVault.attach(vaultProxy.address)
-  console.log(
-    "SeriesVault deployed to:             ",
-    seriesVault.address.toLowerCase(),
-  )
 
   const seriesControllerLogic = await SeriesController.deploy()
   await seriesControllerLogic.deployed()
-  const controllerProxy = await Proxy.deploy(seriesControllerLogic.address)
-  await controllerProxy.deployed()
   console.log(
     "Logic SeriesController deployed to:  ",
     seriesControllerLogic.address.toLowerCase(),
-  )
-  const seriesController = SeriesController.attach(controllerProxy.address)
-  console.log(
-    "SeriesController deployed to:        ",
-    seriesController.address.toLowerCase(),
   )
 
   const priceOracleLogic = await PriceOracle.deploy()
@@ -146,7 +110,7 @@ export async function deploySingletonContracts(
     "PriceOracle deployed to:             ",
     priceOracle.address.toLowerCase(),
   )
-  console.log(DAY_DURATION, WINDOW_SIZE)
+  // console.log(DAY_DURATION, WINDOW_SIZE)
   const volatilityOracleLogic = await VolatilityOracle.deploy()
   await volatilityOracleLogic.deployed()
   const volOracleProxy = await Proxy.deploy(volatilityOracleLogic.address)
@@ -161,8 +125,8 @@ export async function deploySingletonContracts(
     volatilityOracle.address.toLowerCase(),
   )
   const ammDataProvider = await AmmDataProvider.deploy(
-    seriesControllers[0].id, //0xc854c563b7406725d8f37858dc7ca033ceeebf2b
-    erc1155Controllers[0].id, //0x985c831f719114eb7e6779608c601bacb3326753
+    seriesControllers[0].id,
+    erc1155Controllers[0].id,
     addressesProvider.address,
   )
   console.log(
@@ -171,13 +135,6 @@ export async function deploySingletonContracts(
   )
 
   // now deploy the logic contracts and proxy contract we'll use for the AmmFactory
-  const SimpleToken = await hre.ethers.getContractFactory("SimpleToken")
-  const simpleTokenLogic = await SimpleToken.deploy()
-  await simpleTokenLogic.deployed()
-  console.log(
-    "Logic SimpleToken deployed to:       ",
-    simpleTokenLogic.address.toLowerCase(),
-  )
   const MinterAmm = await hre.ethers.getContractFactory("MinterAmm")
   const ammLogic = await MinterAmm.deploy()
   await ammLogic.deployed()
@@ -194,13 +151,16 @@ export async function deploySingletonContracts(
     blackScholesLogic.address.toLowerCase(),
   )
 
+  await sleep(2000)
+
   const WTokenVault = await hre.ethers.getContractFactory("WTokenVault")
   const wTokenVaultLogic = await WTokenVault.deploy()
 
   const wTokenVaultProxy = await Proxy.deploy(wTokenVaultLogic.address)
   await wTokenVaultProxy.deployed()
   const wTokenVault = WTokenVault.attach(wTokenVaultProxy.address)
-  await wTokenVault.initialize(addressesProvider.address)
+  await (await wTokenVault.initialize(addressesProvider.address)).wait()
+
   console.log(
     "WTokenVault deployed to:              ",
     wTokenVault.address.toLowerCase(),
@@ -211,29 +171,23 @@ export async function deploySingletonContracts(
     wTokenVaultLogic.address.toLowerCase(),
   )
 
-  const AirSwap = await hre.ethers.getContractFactory("Light")
-  const airSwapLogic = await AirSwap.deploy()
-  await airSwapLogic.deployed()
-  console.log(
-    "Logic Air Swap Logic deployed to:         ",
-    airSwapLogic.address.toLowerCase(),
-  )
+  await sleep(2000)
 
   const AmmFactory = await hre.ethers.getContractFactory("AmmFactory")
-  // scripts/upgrade_box.js
-  const { ethers, upgrades } = require("hardhat")
 
   const ammFactoryLogic = await AmmFactory.deploy()
-  const ammFactoryProxy = await Proxy.deploy(ammFactoryLogic.address)
-  await ammFactoryProxy.deployed()
   console.log(
     "Logic AmmFactory deployed to:        ",
     ammFactoryLogic.address.toLowerCase(),
   )
-  const ammFactory = AmmFactory.attach(ammFactoryProxy.address)
-  console.log(
-    "AmmFactory deployed to:              ",
-    ammFactory.address.toLowerCase(),
+
+  const ammFactory = AmmFactory.attach(
+    "0x0CdAA64b47474e02CDfbD811Ec9fd2D265cd3A0A",
+  )
+
+  const AirSwap = await hre.ethers.getContractFactory("Light")
+  const airSwapLogic = AirSwap.attach(
+    "0x1a62fAe49a659d29cac381C0C8Cd18C531103048",
   )
 
   const SirenExchangeFactory = await hre.ethers.getContractFactory(
@@ -250,70 +204,49 @@ export async function deploySingletonContracts(
     sirenExchange.address.toLowerCase(),
   )
 
-  // now that we've deployed, let's initialize them in the correct order
-  await erc1155Controller.__ERC1155Controller_init(
-    "https://erc1155.sirenmarkets.com/v2/{id}.json",
-    seriesController.address,
+  // seriesDeployer
+  const SeriesDeployerFactory = await hre.ethers.getContractFactory(
+    "SeriesDeployer",
   )
-  console.log("initialized ERC1155Controller")
 
-  await (await seriesVault.__SeriesVault_init(seriesController.address)).wait()
-  console.log("initialized SeriesVault")
+  const seriesDeployer = await SeriesDeployerFactory.deploy()
 
-  // wait a bit for the node provider's chain state to update so the following does not fail
-  await sleep(10 * 1000)
-  console.log(seriesControllers[0])
-  // await (
-  //   await seriesController.__SeriesController_init(
-  //     seriesControllers[0].priceOracle, // 0x6b241301c6b4b825ceb9110b041144575cd3d9e2
-  //     seriesVaults[0].id, // 0x388d3ee7e82aad534d31e82c2ac369ba6ba02839
-  //     erc1155Controllers[0].id, // 0x985c831f719114eb7e6779608c601bacb3326753
-  //     {
-  //       feeReceiver: feeReceiver,
-  //       exerciseFeeBasisPoints: 0,
-  //       closeFeeBasisPoints: 0,
-  //       claimFeeBasisPoints: 0,
-  //     },
-  //   )
-  // ).wait()
+  await seriesDeployer.deployed()
+  console.log(
+    "SeriesDeployer deployed to:       ",
+    seriesDeployer.address.toLowerCase(),
+  )
 
-  console.log("initialized SeriesController")
+  await (
+    await seriesDeployer.__SeriesDeployer_init(addressesProvider.address)
+  ).wait()
+  console.log("initialized SeriesDeployer")
 
   await (await priceOracle.initialize(dateOffset)).wait()
   console.log("initialized PriceOracle")
 
-  // await (
-  //   await ammFactory.initialize(
-  //     ammLogic.address,
-  //     simpleTokenLogic.address,
-  //     seriesControllers[0].id,
-  //     addressesProvider.address
-  //   )
-  // ).wait()
-  console.log("initialized AmmFactory")
   await (await addressesProvider.__AddressessProvider_init()).wait()
 
-  await await volatilityOracle.initialize(
-    DAY_DURATION,
-    addressesProvider.address,
-    WINDOW_SIZE,
-  )
+  await (
+    await volatilityOracle.initialize(
+      DAY_DURATION,
+      addressesProvider.address,
+      WINDOW_SIZE,
+    )
+  ).wait()
   console.log("Volatility Oracle Initialized")
 
   console.log("initialized all contracts")
 
   console.log("Set All Contracts on Addresses Provider Contract")
 
-  console.log(seriesControllers[0].id)
   await (
     await addressesProvider.setAmmDataProvider(ammDataProvider.address)
   ).wait()
   await (
     await addressesProvider.setVolatilityOracle(volatilityOracle.address)
   ).wait()
-  await (
-    await addressesProvider.setPriceOracle(seriesControllers[0].priceOracle)
-  ).wait()
+  await (await addressesProvider.setPriceOracle(priceOracle.address)).wait()
   await (
     await addressesProvider.setSeriesController(seriesControllers[0].id)
   ).wait()
@@ -354,58 +287,41 @@ export async function deploySingletonContracts(
   //   )
   // }
 
-  // only verify contracts if we're not on the local environment
-  if (
-    hre.network.name === "rinkeby" ||
-    hre.network.name === "mainnet" ||
-    hre.network.name == "mumbai"
-  ) {
-    // now verify all the contracts
-    await verifyContract(addressesProviderLogic.address, "AddressesProvider")
-    await verifyContract(addressesProvider.address, "AddressesProvider Proxy", [
-      addressesProviderLogic.address,
-    ])
+  // now verify all the contracts
+  await verifyContract(addressesProviderLogic.address, "AddressesProvider")
+  await verifyContract(addressesProvider.address, "AddressesProvider Proxy", [
+    addressesProviderLogic.address,
+  ])
 
-    await verifyContract(ammLogic.address, "MinterAmm")
+  await verifyContract(wTokenVaultLogic.address, "WTokenVault")
+  await verifyContract(wTokenVault.address, "WTokenVault Proxy", [
+    wTokenVaultLogic.address,
+  ])
 
-    await verifyContract(erc1155ControllerLogic.address, "ERC1155Controller")
-    await verifyContract(erc1155Controller.address, "ERC1155Controller Proxy", [
-      erc1155ControllerLogic.address,
-    ])
+  await verifyContract(sirenExchange.address, "SirenExchange")
 
-    await verifyContract(seriesVaultLogic.address, "SeriesVault")
-    await verifyContract(seriesVault.address, "SeriesVault Proxy", [
-      seriesVaultLogic.address,
-    ])
+  await verifyContract(ammDataProvider.address, "AmmDataProvider")
 
-    await verifyContract(seriesControllerLogic.address, "SeriesController")
-    await verifyContract(seriesController.address, "SeriesController Proxy", [
-      seriesControllerLogic.address,
-    ])
+  await verifyContract(ammLogic.address, "MinterAmm")
 
-    await verifyContract(priceOracleLogic.address, "PriceOracle")
-    await verifyContract(priceOracle.address, "PriceOracle Proxy", [
-      priceOracleLogic.address,
-    ])
+  await verifyContract(seriesControllerLogic.address, "SeriesController")
 
-    await verifyContract(volatilityOracleLogic.address, "VolatilityOracle")
-    await verifyContract(volatilityOracle.address, "volatilityOracle Proxy", [
-      volatilityOracleLogic.address,
-    ])
+  await verifyContract(priceOracleLogic.address, "PriceOracle")
+  await verifyContract(priceOracle.address, "PriceOracle Proxy", [
+    priceOracleLogic.address,
+  ])
 
-    await verifyContract(ammFactoryLogic.address, "AmmFactory")
-    await verifyContract(ammFactory.address, "AmmFactory Proxy", [
-      ammFactoryLogic.address,
-    ])
+  await verifyContract(volatilityOracleLogic.address, "VolatilityOracle")
+  await verifyContract(volatilityOracle.address, "VolatilityOracle Proxy", [
+    volatilityOracleLogic.address,
+  ])
 
-    await verifyContract(simpleTokenLogic.address, "SimpleToken")
-  }
+  await verifyContract(ammFactoryLogic.address, "AmmFactory")
+
+  await verifyContract(seriesDeployer.address, "SeriesDeployer")
 
   return {
     addressesProvider,
-    erc1155Controller,
-    seriesVault,
-    seriesController,
     priceOracle,
     ammFactory,
     ammDataProvider,

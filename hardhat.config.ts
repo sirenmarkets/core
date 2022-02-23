@@ -144,6 +144,12 @@ const config: HardhatUserConfig = {
       url: "https://rpc-mainnet.maticvigil.com",
       chainId: 137,
       accounts: [env.DEPLOY_PRIVATE_KEY],
+      gasPrice: 70e9,
+    },
+    local: {
+      url: "http://127.0.0.1:8545",
+      chainId: 1337,
+      accounts: [env.DEPLOY_PRIVATE_KEY],
       gasPrice: "auto",
     },
   },

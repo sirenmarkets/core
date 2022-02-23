@@ -6,21 +6,13 @@ const WINDOW_SIZE = 90
 const WEEK_DURATION = 7 * DAY_DURATION
 
 export async function deployOracles(
-  gnosisAddress: string,
-  dateOffset: number,
   priceOracleProxy: string,
   volOracleProxyAddress: string,
 ): Promise<any> {
-  gnosisAddress = gnosisAddress.toLowerCase()
-
   const [signer] = await hre.ethers.getSigners()
   const deployerAddress = signer.address.toLowerCase()
 
   console.log(`deployer address is: ${deployerAddress}`)
-
-  if (dateOffset !== WEEK_DURATION && dateOffset !== DAY_DURATION) {
-    throw new Error("date offset must be either 1 week or 1 day")
-  }
 
   const PriceOracle = await hre.ethers.getContractFactory("PriceOracle")
   const VolatilityOracle = await hre.ethers.getContractFactory(
@@ -95,15 +87,6 @@ export async function deployOracles(
       mean: 201134,
       dsq: 2944661373737654,
       name: "Kyber",
-    },
-    {
-      underlyingToken: "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619",
-      chainLink: "0xf9680d99d6c9589e2a93a78a04a279e509205945",
-      currentObservationIndex: 89,
-      lastTimeStamp: 1644912300,
-      mean: -331510,
-      dsq: 1682545113740837,
-      name: "WETH",
     },
     {
       underlyingToken: "0xb33eaad8d922b1083446dc23f610c2567fb5180f",
