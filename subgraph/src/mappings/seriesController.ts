@@ -4,6 +4,7 @@ import {
   SeriesCreated,
   SeriesControllerInitialized,
   OptionMinted,
+  AllowedExpirationUpdated,
 } from "../../generated/SeriesController/SeriesController"
 import {
   SeriesController as SeriesControllerEntity,
@@ -11,6 +12,7 @@ import {
   ERC1155Token,
   OptionMint,
   SeriesAmm,
+  Expiration,
 } from "../../generated/schema"
 import { getId } from "./helpers/transaction"
 import { ZERO } from "./helpers/number"
@@ -55,6 +57,7 @@ export function handleSeriesCreated(event: SeriesCreated): void {
   series.isPutOption = event.params.isPutOption
   series.strikePrice = event.params.strikePrice
   series.expirationDate = event.params.expirationDate
+  series.expiration = event.params.expirationDate.toString()
   series.exerciseFeeBasisPoints = controller.exerciseFeeBasisPoints(seriesId)
   series.closeFeeBasisPoints = controller.closeFeeBasisPoints(seriesId)
   series.claimFeeBasisPoints = controller.claimFeeBasisPoints(seriesId)
@@ -137,4 +140,17 @@ export function handleOptionMinted(event: OptionMinted): void {
   optionMint.timestamp = event.block.timestamp
 
   optionMint.save()
+}
+
+export function handleAllowedExpirationUpdated(event: AllowedExpirationUpdated): void {
+  findOrCreateExpiration(event.params.newAllowedExpiration)
+}
+
+function findOrCreateExpiration(expirationDate: BigInt): Expiration {
+  let expiration = Expiration.load(expirationDate.toString())
+  if (expiration === null) {
+    expiration = new Expiration(expirationDate.toString())
+    expiration.save()
+  }
+  return expiration as Expiration
 }

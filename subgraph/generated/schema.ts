@@ -218,6 +218,46 @@ export class ERC20VaultTransfer extends Entity {
   }
 }
 
+export class Expiration extends Entity {
+  constructor(id: string) {
+    super();
+    this.set("id", Value.fromString(id));
+  }
+
+  save(): void {
+    let id = this.get("id");
+    assert(id !== null, "Cannot save Expiration entity without an ID");
+    assert(
+      id.kind == ValueKind.STRING,
+      "Cannot save Expiration entity with non-string ID. " +
+        'Considering using .toHex() to convert the "id" to a string.'
+    );
+    store.set("Expiration", id.toString(), this);
+  }
+
+  static load(id: string): Expiration | null {
+    return store.get("Expiration", id) as Expiration | null;
+  }
+
+  get id(): string {
+    let value = this.get("id");
+    return value.toString();
+  }
+
+  set id(value: string) {
+    this.set("id", Value.fromString(value));
+  }
+
+  get series(): Array<string> {
+    let value = this.get("series");
+    return value.toStringArray();
+  }
+
+  set series(value: Array<string>) {
+    this.set("series", Value.fromStringArray(value));
+  }
+}
+
 export class SeriesEntity extends Entity {
   constructor(id: string) {
     super();
@@ -399,6 +439,15 @@ export class SeriesEntity extends Entity {
 
   set bToken(value: string) {
     this.set("bToken", Value.fromString(value));
+  }
+
+  get expiration(): string {
+    let value = this.get("expiration");
+    return value.toString();
+  }
+
+  set expiration(value: string) {
+    this.set("expiration", Value.fromString(value));
   }
 
   get restrictedMinters(): Array<string> {

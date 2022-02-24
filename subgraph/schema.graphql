@@ -25,6 +25,12 @@ type ERC20VaultTransfer @entity {
   createdTransaction: Bytes!
 }
 
+## Expirations
+type Expiration @entity {
+  id: ID!
+  series: [SeriesEntity!]! @derivedFrom(field: "expiration")
+}
+
 ## Series
 
 # Note, we use the awkward name of "SeriesEntity" instead of the preferred
@@ -50,6 +56,7 @@ type SeriesEntity @entity {
   priceOracle: Bytes!
   wToken: ERC1155Token!
   bToken: ERC1155Token!
+  expiration: Expiration!
   restrictedMinters: [SeriesAmm!]! @derivedFrom(field: "series")
   events: [OptionEvent!]! @derivedFrom(field: "series")
 }

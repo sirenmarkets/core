@@ -278,66 +278,20 @@ export class AmmFactory extends ethereum.SmartContract {
   }
 }
 
-export class CreateAmmCall extends ethereum.Call {
-  get inputs(): CreateAmmCall__Inputs {
-    return new CreateAmmCall__Inputs(this);
+export class __AmmFactory_initCall extends ethereum.Call {
+  get inputs(): __AmmFactory_initCall__Inputs {
+    return new __AmmFactory_initCall__Inputs(this);
   }
 
-  get outputs(): CreateAmmCall__Outputs {
-    return new CreateAmmCall__Outputs(this);
-  }
-}
-
-export class CreateAmmCall__Inputs {
-  _call: CreateAmmCall;
-
-  constructor(call: CreateAmmCall) {
-    this._call = call;
-  }
-
-  get _sirenPriceOracle(): Address {
-    return this._call.inputValues[0].value.toAddress();
-  }
-
-  get _underlyingToken(): Address {
-    return this._call.inputValues[1].value.toAddress();
-  }
-
-  get _priceToken(): Address {
-    return this._call.inputValues[2].value.toAddress();
-  }
-
-  get _collateralToken(): Address {
-    return this._call.inputValues[3].value.toAddress();
-  }
-
-  get _tradeFeeBasisPoints(): i32 {
-    return this._call.inputValues[4].value.toI32();
+  get outputs(): __AmmFactory_initCall__Outputs {
+    return new __AmmFactory_initCall__Outputs(this);
   }
 }
 
-export class CreateAmmCall__Outputs {
-  _call: CreateAmmCall;
+export class __AmmFactory_initCall__Inputs {
+  _call: __AmmFactory_initCall;
 
-  constructor(call: CreateAmmCall) {
-    this._call = call;
-  }
-}
-
-export class InitializeCall extends ethereum.Call {
-  get inputs(): InitializeCall__Inputs {
-    return new InitializeCall__Inputs(this);
-  }
-
-  get outputs(): InitializeCall__Outputs {
-    return new InitializeCall__Outputs(this);
-  }
-}
-
-export class InitializeCall__Inputs {
-  _call: InitializeCall;
-
-  constructor(call: InitializeCall) {
+  constructor(call: __AmmFactory_initCall) {
     this._call = call;
   }
 
@@ -358,10 +312,52 @@ export class InitializeCall__Inputs {
   }
 }
 
-export class InitializeCall__Outputs {
-  _call: InitializeCall;
+export class __AmmFactory_initCall__Outputs {
+  _call: __AmmFactory_initCall;
 
-  constructor(call: InitializeCall) {
+  constructor(call: __AmmFactory_initCall) {
+    this._call = call;
+  }
+}
+
+export class CreateAmmCall extends ethereum.Call {
+  get inputs(): CreateAmmCall__Inputs {
+    return new CreateAmmCall__Inputs(this);
+  }
+
+  get outputs(): CreateAmmCall__Outputs {
+    return new CreateAmmCall__Outputs(this);
+  }
+}
+
+export class CreateAmmCall__Inputs {
+  _call: CreateAmmCall;
+
+  constructor(call: CreateAmmCall) {
+    this._call = call;
+  }
+
+  get _underlyingToken(): Address {
+    return this._call.inputValues[0].value.toAddress();
+  }
+
+  get _priceToken(): Address {
+    return this._call.inputValues[1].value.toAddress();
+  }
+
+  get _collateralToken(): Address {
+    return this._call.inputValues[2].value.toAddress();
+  }
+
+  get _tradeFeeBasisPoints(): i32 {
+    return this._call.inputValues[3].value.toI32();
+  }
+}
+
+export class CreateAmmCall__Outputs {
+  _call: CreateAmmCall;
+
+  constructor(call: CreateAmmCall) {
     this._call = call;
   }
 }

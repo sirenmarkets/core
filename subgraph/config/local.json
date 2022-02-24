@@ -9,5 +9,6 @@
   "erc1155ControllerAddress": "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512",
   "erc1155ControllerStartBlock": 0,
   "priceOracleAddress": "0xa513e6e4b8f2a923d98304ec87f64353c4d5c853",
-  "priceOracleStartBlock": 0
+  "priceOracleStartBlock": 0,
+  "wTokenVaultAddress": "0x00000000000000000000000000000000deadbeef"
 }

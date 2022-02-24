@@ -248,20 +248,20 @@ export class SeriesVault extends ethereum.SmartContract {
   }
 }
 
-export class InitializeCall extends ethereum.Call {
-  get inputs(): InitializeCall__Inputs {
-    return new InitializeCall__Inputs(this);
+export class __SeriesVault_initCall extends ethereum.Call {
+  get inputs(): __SeriesVault_initCall__Inputs {
+    return new __SeriesVault_initCall__Inputs(this);
   }
 
-  get outputs(): InitializeCall__Outputs {
-    return new InitializeCall__Outputs(this);
+  get outputs(): __SeriesVault_initCall__Outputs {
+    return new __SeriesVault_initCall__Outputs(this);
   }
 }
 
-export class InitializeCall__Inputs {
-  _call: InitializeCall;
+export class __SeriesVault_initCall__Inputs {
+  _call: __SeriesVault_initCall;
 
-  constructor(call: InitializeCall) {
+  constructor(call: __SeriesVault_initCall) {
     this._call = call;
   }
 
@@ -270,10 +270,10 @@ export class InitializeCall__Inputs {
   }
 }
 
-export class InitializeCall__Outputs {
-  _call: InitializeCall;
+export class __SeriesVault_initCall__Outputs {
+  _call: __SeriesVault_initCall;
 
-  constructor(call: InitializeCall) {
+  constructor(call: __SeriesVault_initCall) {
     this._call = call;
   }
 }
