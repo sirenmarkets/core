@@ -8,6 +8,7 @@
   "vaultStartBlock": 17842620,
   "erc1155ControllerAddress": "0x509fe9c9712f9a895a9adbf2f96bad09abf79988",
   "erc1155ControllerStartBlock": 17842620,
-  "priceOracleAddress": "0xcbcae36b425ce1a94d055602b3b514aed976c383",
-  "priceOracleStartBlock": 17842620
+  "priceOracleAddress": "0x2cd7169891e7a206743a4e608f097377177bcd23",
+  "priceOracleStartBlock": 17842620,
+  "wTokenVaultAddress": "0xe58e0345e3ae36a3c42ed335815fe0acaf4f71f6"
 }

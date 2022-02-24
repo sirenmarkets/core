@@ -30,6 +30,8 @@ dataSources:
           handler: handleSeriesControllerInitialized
         - event: OptionMinted(address,uint64,uint256,uint256,uint256)
           handler: handleOptionMinted
+        - event: AllowedExpirationUpdated(uint256)
+          handler: handleAllowedExpirationUpdated
       file: ./src/mappings/seriesController.ts
   - kind: ethereum/contract
     name: SeriesVault
