@@ -1,4 +1,4 @@
-import { deploySingletonContracts } from "./lib/deploy_singleton_contracts"
+import { deployVolatilityOracle } from "./lib/deploy_volatility_oracle"
 import { argumentError } from "./lib/helper"
 
 // to pass arguments, use env vars and pass them in the call itself, i.e.
@@ -22,7 +22,7 @@ if (
 }
 
 async function main() {
-  await deploySingletonContracts()
+  await deployVolatilityOracle()
 }
 
 // We recommend this pattern to be able to use async/await everywhere

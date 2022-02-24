@@ -23,7 +23,7 @@ contract VolatilityOracle is DSMath, OwnableUpgradeable, Proxiable {
     uint32 public period;
     uint256 public windowSize;
     uint256 public annualizationConstant;
-    uint256 internal constant commitPhaseDuration = 3600; // 1 hour from every period
+    uint256 internal constant commitPhaseDuration = 29400; // 8 hours and 10 mins from every period
 
     /**
      * Storage
@@ -159,11 +159,7 @@ contract VolatilityOracle is DSMath, OwnableUpgradeable, Proxiable {
 
         Accumulator storage accum = accumulators[underlyingToken][priceToken];
 
-        require(
-            block.timestamp >=
-                accum.lastTimestamp + period - commitPhaseDuration,
-            "Committed"
-        );
+        require(block.timestamp >= accum.lastTimestamp + period, "Committed");
 
         uint256 currentObservationIndex = accum.currentObservationIndex;
 

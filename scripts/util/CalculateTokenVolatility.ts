@@ -19,16 +19,25 @@ async function getPrices() {
   const MockVolatility = await ethers.getContractFactory("VolatilityOracle", {})
   const MockPriceOracle: MockPriceOracleContract =
     artifacts.require("MockPriceOracle")
-  let tokenList = ["ethereum"]
+  let tokenList = [
+    "etherem",
+    "matic-network",
+    "yearn-finance",
+    "defipulse-index",
+  ]
   for (let j = 0; j < tokenList.length; j++) {
     let token = tokenList[j]
     let url = `https://api.coingecko.com/api/v3/coins/${token}/market_chart/range?vs_currency=usd&from=${
       subtractDates(Date.now(), 91) / 1000
     }&to=${Date.now() / 1000}`
     let priceObj = await getData(url)
-    let prices = priceObj.data.prices
+    console.log(url)
+    console.log(priceObj)
     console.log(token)
+    let prices = priceObj.data.prices
     console.log(prices[0][1])
+    console.log(prices)
+
     let underlyingToken: SimpleTokenInstance
     let priceToken: SimpleTokenInstance
     underlyingToken = await SimpleToken.new()

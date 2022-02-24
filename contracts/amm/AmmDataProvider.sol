@@ -421,9 +421,9 @@ contract AmmDataProvider is IAmmDataProvider {
                 0
             );
         if (series.isPutOption == true) {
-            return ((put * 1e18) / underlyingPrice);
+            return put;
         } else {
-            return ((call * 1e18) / underlyingPrice);
+            return call;
         }
     }
 

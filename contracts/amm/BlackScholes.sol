@@ -309,7 +309,12 @@ contract BlackScholes is IBlackScholes {
             d1,
             d2
         );
-        return (call.preciseDecimalToDecimal(), put.preciseDecimalToDecimal());
+        return (
+            call
+                .divideDecimalRoundPrecise(spotPrecise)
+                .preciseDecimalToDecimal(),
+            put.divideDecimalRoundPrecise(spotPrecise).preciseDecimalToDecimal()
+        );
     }
 
     /*.000246212471428571

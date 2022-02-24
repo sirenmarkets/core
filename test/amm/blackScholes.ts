@@ -1,5 +1,6 @@
 import { BigNumber, Signer } from "ethers"
 import { ethers } from "hardhat"
+import { exp } from "mathjs"
 import {
   BlackScholesContract,
   BlackScholesInstance,
@@ -88,18 +89,7 @@ describe("BlackScholes - values", () => {
                 putPrice(tAnnualised, vol, spot, strike, rate) / spot
 
               let callResult = BigNumber.from(result[0].toString())
-                .mul((1e18).toString())
-                .div(spotBN)
               let putResult = BigNumber.from(result[1].toString())
-                .mul((1e18).toString())
-                .div(spotBN)
-
-              // console.log('time', time)
-              // console.log('spot', spot)
-              // console.log('strike', strike)
-              // console.log('callResult', callResult.toString())
-              // console.log('expectedCall', toBN(expectedCall.toString()).toString())
-              // console.log('')
 
               const tolerance = 0.0001e18
 
@@ -131,13 +121,10 @@ describe("BlackScholes - values", () => {
         strike.toString(),
         rate.toString(),
       )
-
-      expect(result[0].toString()).to.eq(
-        toBN("0.142811097320000000").toString(),
-      )
-      expect(result[1].toString()).to.eq(
-        toBN("0.142811097320000000").toString(),
-      )
+      let call = BigNumber.from(result[0].toString())
+      let put = BigNumber.from(result[1].toString())
+      expect(call.toString()).to.eq("71405548660000")
+      expect(put.toString()).to.eq("71405548660000")
     })
   })
   //Add dynamic tests for price ranges
@@ -167,6 +154,8 @@ describe("BlackScholes - values", () => {
         1100,
         0.03,
       )
+      expectedPrices[0] = expectedPrices[0] / 1000
+      expectedPrices[1] = expectedPrices[1] / 1000
       assertBNEqWithTolerance(
         call,
         toBN(expectedPrices[0].toString()),
@@ -190,8 +179,8 @@ describe("BlackScholes - values", () => {
       const call = prices[0]
       const put = prices[1]
 
-      assertBNEqWithTolerance(call, toBN("675.3066775"), 0.5 * 1e18)
-      assertBNEqWithTolerance(put, toBN("502.7372001"), 0.5 * 1e18)
+      assertBNEqWithTolerance(call, toBN("675.3066775").div(9052), 0.5 * 1e18)
+      assertBNEqWithTolerance(put, toBN("502.7372001").div(9052), 0.5 * 1e18)
     })
     it("Inverting spot and strike with no risk free rate swaps the prices", async () => {
       const pricesA = await deployedBlackScholes.optionPrices(

@@ -1615,6 +1615,66 @@ export class SeriesController extends ethereum.SmartContract {
   }
 }
 
+export class __SeriesController_initCall extends ethereum.Call {
+  get inputs(): __SeriesController_initCall__Inputs {
+    return new __SeriesController_initCall__Inputs(this);
+  }
+
+  get outputs(): __SeriesController_initCall__Outputs {
+    return new __SeriesController_initCall__Outputs(this);
+  }
+}
+
+export class __SeriesController_initCall__Inputs {
+  _call: __SeriesController_initCall;
+
+  constructor(call: __SeriesController_initCall) {
+    this._call = call;
+  }
+
+  get _addressesProvider(): Address {
+    return this._call.inputValues[0].value.toAddress();
+  }
+
+  get _vault(): Address {
+    return this._call.inputValues[1].value.toAddress();
+  }
+
+  get _erc1155Controller(): Address {
+    return this._call.inputValues[2].value.toAddress();
+  }
+
+  get _fees(): __SeriesController_initCall_feesStruct {
+    return this._call.inputValues[3].value.toTuple() as __SeriesController_initCall_feesStruct;
+  }
+}
+
+export class __SeriesController_initCall__Outputs {
+  _call: __SeriesController_initCall;
+
+  constructor(call: __SeriesController_initCall) {
+    this._call = call;
+  }
+}
+
+export class __SeriesController_initCall_feesStruct extends ethereum.Tuple {
+  get feeReceiver(): Address {
+    return this[0].toAddress();
+  }
+
+  get exerciseFeeBasisPoints(): i32 {
+    return this[1].toI32();
+  }
+
+  get closeFeeBasisPoints(): i32 {
+    return this[2].toI32();
+  }
+
+  get claimFeeBasisPoints(): i32 {
+    return this[3].toI32();
+  }
+}
+
 export class ClaimCollateralCall extends ethereum.Call {
   get inputs(): ClaimCollateralCall__Inputs {
     return new ClaimCollateralCall__Inputs(this);
@@ -1827,66 +1887,6 @@ export class GrantRoleCall__Outputs {
   }
 }
 
-export class InitializeCall extends ethereum.Call {
-  get inputs(): InitializeCall__Inputs {
-    return new InitializeCall__Inputs(this);
-  }
-
-  get outputs(): InitializeCall__Outputs {
-    return new InitializeCall__Outputs(this);
-  }
-}
-
-export class InitializeCall__Inputs {
-  _call: InitializeCall;
-
-  constructor(call: InitializeCall) {
-    this._call = call;
-  }
-
-  get _priceOracle(): Address {
-    return this._call.inputValues[0].value.toAddress();
-  }
-
-  get _vault(): Address {
-    return this._call.inputValues[1].value.toAddress();
-  }
-
-  get _erc1155Controller(): Address {
-    return this._call.inputValues[2].value.toAddress();
-  }
-
-  get _fees(): InitializeCall_feesStruct {
-    return this._call.inputValues[3].value.toTuple() as InitializeCall_feesStruct;
-  }
-}
-
-export class InitializeCall__Outputs {
-  _call: InitializeCall;
-
-  constructor(call: InitializeCall) {
-    this._call = call;
-  }
-}
-
-export class InitializeCall_feesStruct extends ethereum.Tuple {
-  get feeReceiver(): Address {
-    return this[0].toAddress();
-  }
-
-  get exerciseFeeBasisPoints(): i32 {
-    return this[1].toI32();
-  }
-
-  get closeFeeBasisPoints(): i32 {
-    return this[2].toI32();
-  }
-
-  get claimFeeBasisPoints(): i32 {
-    return this[3].toI32();
-  }
-}
-
 export class MintOptionsCall extends ethereum.Call {
   get inputs(): MintOptionsCall__Inputs {
     return new MintOptionsCall__Inputs(this);
@@ -2015,36 +2015,6 @@ export class RevokeRoleCall__Outputs {
   }
 }
 
-export class SetAddressesProviderCall extends ethereum.Call {
-  get inputs(): SetAddressesProviderCall__Inputs {
-    return new SetAddressesProviderCall__Inputs(this);
-  }
-
-  get outputs(): SetAddressesProviderCall__Outputs {
-    return new SetAddressesProviderCall__Outputs(this);
-  }
-}
-
-export class SetAddressesProviderCall__Inputs {
-  _call: SetAddressesProviderCall;
-
-  constructor(call: SetAddressesProviderCall) {
-    this._call = call;
-  }
-
-  get _addressesProvider(): Address {
-    return this._call.inputValues[0].value.toAddress();
-  }
-}
-
-export class SetAddressesProviderCall__Outputs {
-  _call: SetAddressesProviderCall;
-
-  constructor(call: SetAddressesProviderCall) {
-    this._call = call;
-  }
-}
-
 export class TransferOwnershipCall extends ethereum.Call {
   get inputs(): TransferOwnershipCall__Inputs {
     return new TransferOwnershipCall__Inputs(this);
@@ -2097,6 +2067,36 @@ export class UnpauseCall__Outputs {
   _call: UnpauseCall;
 
   constructor(call: UnpauseCall) {
+    this._call = call;
+  }
+}
+
+export class UpdateAddressesProviderCall extends ethereum.Call {
+  get inputs(): UpdateAddressesProviderCall__Inputs {
+    return new UpdateAddressesProviderCall__Inputs(this);
+  }
+
+  get outputs(): UpdateAddressesProviderCall__Outputs {
+    return new UpdateAddressesProviderCall__Outputs(this);
+  }
+}
+
+export class UpdateAddressesProviderCall__Inputs {
+  _call: UpdateAddressesProviderCall;
+
+  constructor(call: UpdateAddressesProviderCall) {
+    this._call = call;
+  }
+
+  get _addressesProvider(): Address {
+    return this._call.inputValues[0].value.toAddress();
+  }
+}
+
+export class UpdateAddressesProviderCall__Outputs {
+  _call: UpdateAddressesProviderCall;
+
+  constructor(call: UpdateAddressesProviderCall) {
     this._call = call;
   }
 }
