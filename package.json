@@ -23,7 +23,6 @@
     "deploy-rinkeby": "NETWORK=rinkeby npm run deploy-local",
     "deploy-mumbai": "NETWORK=mumbai npm run deploy-local",
     "get-vol-data": "npx hardhat run scripts/util/CalculateTokenVolatility.ts",
-    "set-oracles-matic": "NETWORK=matic npm run set-oracles",
     "clean:dependencies": "rm -rf ./node_modules && rm -rf ./*/**/node_modules",
     "clean:dist": "rm -rf ./dist/** && rm -rf ./src/ethers/**",
     "clean": "npx hardhat clean && npm run clean:dist && npm run clean:dependencies",
