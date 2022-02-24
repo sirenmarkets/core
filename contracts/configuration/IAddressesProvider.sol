@@ -13,8 +13,15 @@ interface IAddressesProvider {
     event AmmDataProviderUpdated(address indexed newAddress);
     event SeriesControllerUpdated(address indexed newAddress);
     event LendingRateOracleUpdated(address indexed newAddress);
+    event DirectBuyManagerUpdated(address indexed newAddress);
     event ProxyCreated(bytes32 id, address indexed newAddress);
     event AddressSet(bytes32 id, address indexed newAddress, bool hasProxy);
+    event VolatilityOracleUpdated(address indexed newAddress);
+    event BlackScholesUpdated(address indexed newAddress);
+    event AirswapLightUpdated(address indexed newAddress);
+    event AmmFactoryUpdated(address indexed newAddress);
+    event WTokenVaultUpdated(address indexed newAddress);
+    event AmmConfigUpdated(address indexed newAddress);
 
     function setAddress(bytes32 id, address newAddress) external;
 
@@ -26,9 +33,33 @@ interface IAddressesProvider {
 
     function getAmmDataProvider() external view returns (address);
 
-    function setAmmDataProvider(address priceOracle) external;
+    function setAmmDataProvider(address ammDataProvider) external;
 
     function getSeriesController() external view returns (address);
 
-    function setSeriesController(address priceOracle) external;
+    function setSeriesController(address seriesController) external;
+
+    function getVolatilityOracle() external view returns (address);
+
+    function setVolatilityOracle(address volatilityOracle) external;
+
+    function getBlackScholes() external view returns (address);
+
+    function setBlackScholes(address blackScholes) external;
+
+    function getAirswapLight() external view returns (address);
+
+    function setAirswapLight(address airswapLight) external;
+
+    function getAmmFactory() external view returns (address);
+
+    function setAmmFactory(address ammFactory) external;
+
+    function getDirectBuyManager() external view returns (address);
+
+    function setDirectBuyManager(address directBuyManager) external;
+
+    function getWTokenVault() external view returns (address);
+
+    function setWTokenVault(address wTokenVault) external;
 }

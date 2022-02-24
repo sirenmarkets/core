@@ -446,7 +446,7 @@ contract("Cash Settlement", (accounts) => {
     assert.notEqual(exerciseCalc[0].toNumber(), newExerciseCalc[0].toNumber())
   })
 
-  it("should not be able to claimCollateral if series not expired", async () => {
+  it("should not be able to claimCollateral if !Expired", async () => {
     // Amount we will be minting equals 100 BTC - 100 * 100,000,000
     const MINT_AMOUNT = new BN(100).mul(new BN(10).pow(new BN(wBTCDecimals)))
 
@@ -471,7 +471,7 @@ contract("Cash Settlement", (accounts) => {
     )
     await expectRevert(
       deployedSeriesController.claimCollateral(seriesId, MINT_AMOUNT),
-      "Option contract must be in EXPIRED State to claim collateral",
+      "!Expired",
     )
 
     // Move the block time into the future so the contract is expired

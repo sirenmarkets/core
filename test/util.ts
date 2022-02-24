@@ -7,21 +7,34 @@ import {
   SeriesVaultContract,
   ERC1155ControllerContract,
   AmmDataProviderContract,
+  BlackScholesContract,
   MockPriceOracleContract,
   ProxyContract,
   AmmFactoryContract,
   MinterAmmContract,
   ERC1155ControllerInstance,
   SirenExchangeContract,
-  AddressesProviderInstance,
   AddressesProviderContract,
+  AddressesProviderInstance,
+  VolatilityOracleContract,
+  VolatilityOracleInstance,
+  MockVolatilityOracleInstance,
+  MockVolatilityOracleContract,
+  LightContract,
+  MockPriceOracleInstance,
+  SeriesDeployerContract,
+  WTokenVaultContract,
+  WTokenVaultInstance,
 } from "../typechain"
-import { artifacts, assert, ethers } from "hardhat"
+import { artifacts, assert, ethers, network } from "hardhat"
 import { time, expectEvent, BN } from "@openzeppelin/test-helpers"
+import * as BS from "black-scholes"
 
 import UniswapV2Factory from "@uniswap/v2-core/build/UniswapV2Factory.json"
 import UniswapV2Router from "@uniswap/v2-periphery/build/UniswapV2Router02.json"
 import IUniswapV2Pair from "@uniswap/v2-core/build/IUniswapV2Pair.json"
+import { BlackScholesInstance } from "../typechain/BlackScholes"
+import { create } from "mathjs"
 
 // these are the deterministic accounts given to use by the Hardhat network. They are
 // deterministic because Hardhat always uses the account mnemonic:
@@ -30,6 +43,10 @@ const aliceAccount = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
 const bobAccount = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
 
 const PriceOracle: PriceOracleContract = artifacts.require("PriceOracle")
+
+const MockVolatilityOracle: MockVolatilityOracleContract = artifacts.require(
+  "MockVolatilityOracle",
+)
 
 const SeriesController: SeriesControllerContract =
   artifacts.require("SeriesController")
@@ -47,12 +64,25 @@ const MinterAmm: MinterAmmContract = artifacts.require("MinterAmm")
 const AmmDataProvider: AmmDataProviderContract =
   artifacts.require("AmmDataProvider")
 
+const BlackScholes: BlackScholesContract = artifacts.require("BlackScholes")
+
 const AddressesProvider: AddressesProviderContract =
   artifacts.require("AddressesProvider")
 
+const Light: LightContract = artifacts.require("Light")
+
+const SeriesDeployer: SeriesDeployerContract =
+  artifacts.require("SeriesDeployer")
+
+const WTokenVault: WTokenVaultContract = artifacts.require("WTokenVault")
+
 const FEE_RECEIVER_ADDRESS = "0x000000000000000000000000000000000000dEaD"
-const ONE_DAY_DURATION = 24 * 60 * 60
+export const ONE_DAY_DURATION = 24 * 60 * 60
 export const ONE_WEEK_DURATION = 7 * ONE_DAY_DURATION
+export const ONE_YEAR_DURATION = 365 * ONE_DAY_DURATION
+
+let PERIOD = 86400
+const WINDOW_IN_DAYS = 90 // 3 month vol data
 
 export async function setupPriceOracle(
   underlyingAddress: string,
@@ -69,6 +99,54 @@ export async function setupPriceOracle(
     mockOracleAddress,
   )
   return deployedPriceOracle
+}
+
+export async function setupMockPriceOracle(
+  underlyingAddress: string,
+  priceAddress: string,
+  mockOracleAddress: string,
+): Promise<MockPriceOracleInstance> {
+  const deployedPriceOracle: MockPriceOracleInstance =
+    await MockPriceOracle.new(8)
+
+  await deployedPriceOracle.initialize(ONE_DAY_DURATION)
+  await deployedPriceOracle.addTokenPair(
+    underlyingAddress,
+    priceAddress,
+    mockOracleAddress,
+  )
+  return deployedPriceOracle
+}
+
+export async function setUpMockVolatilityOracle(
+  underlyingAddress: string,
+  priceAddress: string,
+  period,
+  windowInDays,
+  addressesProviderAddress: string,
+  volatility: number,
+): Promise<MockVolatilityOracleInstance> {
+  const deployedMockVolatilityOracle: MockVolatilityOracleInstance =
+    await MockVolatilityOracle.new()
+
+  deployedMockVolatilityOracle.initialize(
+    period,
+    addressesProviderAddress,
+    windowInDays,
+  )
+
+  await deployedMockVolatilityOracle.addTokenPair(
+    underlyingAddress,
+    priceAddress,
+  )
+
+  await deployedMockVolatilityOracle.setAnnualizedVol(
+    underlyingAddress,
+    priceAddress,
+    volatility,
+  )
+
+  return deployedMockVolatilityOracle
 }
 
 export async function checkBalances(
@@ -245,6 +323,7 @@ export async function setupSingletonTestContracts(
     underlyingToken = null,
     collateralToken = null,
     priceToken = null,
+    annualizedVolatility = 1 * 1e8, // 100%
   }: {
     erc1155URI?: string
     oraclePrice?: number
@@ -255,6 +334,7 @@ export async function setupSingletonTestContracts(
     underlyingToken?: SimpleTokenInstance
     collateralToken?: SimpleTokenInstance
     priceToken?: SimpleTokenInstance
+    annualizedVolatility?: number
   } = {
     erc1155URI: "https://erc1155.sirenmarkets.com/v2/{id}.json",
     oraclePrice: 12_000 * 1e8, // 12k,
@@ -265,6 +345,7 @@ export async function setupSingletonTestContracts(
     underlyingToken: null,
     collateralToken: null,
     priceToken: null,
+    annualizedVolatility: 1 * 1e8, // 100%
   },
 ) {
   // These logic contracts are what the proxy contracts will point to
@@ -274,6 +355,9 @@ export async function setupSingletonTestContracts(
   const ammFactoryLogic = await AmmFactory.deployed()
   const ammLogic = await MinterAmm.deployed()
   const erc20Logic = await SimpleToken.deployed()
+  const addressesProviderLogic = await AddressesProvider.deployed()
+  const seriesDeployerLogic = await SeriesDeployer.deployed()
+  const wTokenVaultLogic = await WTokenVault.deployed()
 
   if (!underlyingToken) {
     underlyingToken = await SimpleToken.new()
@@ -289,13 +373,34 @@ export async function setupSingletonTestContracts(
     await priceToken.initialize("USD Coin", "USDC", 6)
   }
 
+  const proxyAddressesProvider = await Proxy.new(addressesProviderLogic.address)
+  const deployedAddressesProvider = await AddressesProvider.at(
+    proxyAddressesProvider.address,
+  )
+
+  deployedAddressesProvider.__AddressessProvider_init()
+
   const proxyContract = await Proxy.new(seriesControllerLogic.address)
   const deployedSeriesController = await SeriesController.at(
     proxyContract.address,
   )
 
-  const deployedAddressesProvider: AddressesProviderInstance =
-    await AddressesProvider.new()
+  await deployedAddressesProvider.setSeriesController(
+    deployedSeriesController.address,
+  )
+
+  const deployedBlackScholes: BlackScholesInstance = await BlackScholes.new()
+
+  await deployedAddressesProvider.setBlackScholes(deployedBlackScholes.address)
+
+  const deployedLightAirswap = await Light.new()
+  await deployedAddressesProvider.setAirswapLight(deployedLightAirswap.address)
+
+  // WTokenVault
+  const proxyWTokenVault = await Proxy.new(wTokenVaultLogic.address)
+  const deployedWTokenVault = await WTokenVault.at(proxyWTokenVault.address)
+  deployedWTokenVault.initialize(deployedAddressesProvider.address)
+  await deployedAddressesProvider.setWTokenVault(deployedWTokenVault.address)
 
   // Create a new proxy contract pointing at the series vault logic for testing
   const vaultProxy = await Proxy.new(seriesVaultLogic.address)
@@ -337,22 +442,26 @@ export async function setupSingletonTestContracts(
   let expiration: number = getNextFriday8amUTCTimestamp(
     (await now()) + ONE_WEEK_DURATION,
   )
-
   const deployedPriceOracle = await setupPriceOracle(
     underlyingToken.address,
     priceToken.address,
     deployedMockPriceOracle.address,
   )
+  await deployedAddressesProvider.setPriceOracle(deployedPriceOracle.address)
 
   const deployedAmmDataProvider = await AmmDataProvider.new(
     deployedSeriesController.address,
     deployedERC1155Controller.address,
-    deployedPriceOracle.address,
+    deployedAddressesProvider.address,
+  )
+
+  await deployedAddressesProvider.setAmmDataProvider(
+    deployedAmmDataProvider.address,
   )
 
   const controllerInitResp =
     await deployedSeriesController.__SeriesController_init(
-      deployedPriceOracle.address,
+      deployedAddressesProvider.address,
       deployedVault.address,
       deployedERC1155Controller.address,
       {
@@ -362,6 +471,37 @@ export async function setupSingletonTestContracts(
         claimFeeBasisPoints: claimFee,
       },
     )
+
+  // Add the expiration as valid to the series controller
+  await deployedSeriesController.updateAllowedExpirations([expiration])
+
+  // Create the series deployer contract
+  const proxySeriesDeployer = await Proxy.new(seriesDeployerLogic.address)
+  const deployedSeriesDeployer = await SeriesDeployer.at(
+    proxySeriesDeployer.address,
+  )
+  await deployedSeriesDeployer.__SeriesDeployer_init(
+    deployedAddressesProvider.address,
+  )
+
+  // Add the series deployer contract to the allowed creators list
+  await deployedSeriesController.grantRole(
+    await deployedSeriesController.SERIES_DEPLOYER_ROLE(),
+    deployedSeriesDeployer.address,
+  )
+
+  const deployedMockVolatilityOracle = await setUpMockVolatilityOracle(
+    underlyingToken.address,
+    priceToken.address,
+    PERIOD,
+    WINDOW_IN_DAYS,
+    deployedAddressesProvider.address,
+    annualizedVolatility,
+  )
+
+  deployedAddressesProvider.setVolatilityOracle(
+    deployedMockVolatilityOracle.address,
+  )
 
   expectEvent(controllerInitResp, "SeriesControllerInitialized", {
     priceOracle: deployedPriceOracle.address,
@@ -379,11 +519,14 @@ export async function setupSingletonTestContracts(
   const ammFactoryProxy = await Proxy.new(ammFactoryLogic.address)
   const deployedAmmFactory = await AmmFactory.at(ammFactoryProxy.address)
 
-  await deployedAmmFactory.initialize(
+  await deployedAmmFactory.__AmmFactory_init(
     ammLogic.address,
     erc20Logic.address,
     deployedSeriesController.address,
+    deployedAddressesProvider.address,
   )
+
+  await deployedAddressesProvider.setAmmFactory(deployedAmmFactory.address)
 
   return {
     underlyingToken,
@@ -396,7 +539,12 @@ export async function setupSingletonTestContracts(
     deployedMockPriceOracle,
     deployedAmmFactory,
     deployedAmmDataProvider,
+    deployedBlackScholes,
     deployedAddressesProvider,
+    deployedMockVolatilityOracle,
+    deployedLightAirswap,
+    deployedSeriesDeployer,
+    deployedWTokenVault,
     oraclePrice,
     expiration,
     exerciseFee,
@@ -408,7 +556,7 @@ export async function setupSingletonTestContracts(
 
 export async function setUpUniswap(
   collateralToken: SimpleTokenInstance,
-  deployedERC1155Controller: ERC1155ControllerInstance,
+  deployedAddressesProvider: AddressesProviderInstance,
 ) {
   const SimpleTokenFactory = await ethers.getContractFactory("SimpleToken")
 
@@ -534,7 +682,7 @@ export async function setUpUniswap(
   ]
 
   const deployedSirenExchange = await SirenExchange.new(
-    deployedERC1155Controller.address,
+    deployedAddressesProvider.address,
   )
   const uniswapV2RouterAddress = uniswapV2Router.address
 
@@ -550,14 +698,14 @@ export async function setupAmm({
   deployedAmmFactory,
   deployedPriceOracle,
   deployedAmmDataProvider,
+  deployedBlackScholes,
+  deployedAddressesProvider,
   underlyingToken,
   priceToken,
   collateralToken,
   tradeFeeBasisPoints = 0,
 }) {
   const createAmmResp = await deployedAmmFactory.createAmm(
-    deployedPriceOracle.address,
-    deployedAmmDataProvider.address,
     underlyingToken.address,
     priceToken.address,
     collateralToken.address,
@@ -571,8 +719,14 @@ export async function setupAmm({
 
   const deployedAmm = await MinterAmm.at(ammAddress)
 
+  // Set default volatility config
+  await deployedAmm.setAmmConfig((0.2e18).toString(), false, 0)
+
+  const lpToken = await SimpleToken.at(await deployedAmm.lpToken())
+
   return {
     deployedAmm,
+    lpToken,
   }
 }
 
@@ -587,6 +741,15 @@ export async function setupSeries({
   isPutOption = false,
   strikePrice = (10_000e8).toString(),
 }) {
+  // Verify the expiration is added
+  let expirationId: number
+  expirationId = await deployedSeriesController.allowedExpirationsMap(
+    expiration,
+  )
+  if (expirationId == 0) {
+    await deployedSeriesController.updateAllowedExpirations([expiration])
+  }
+
   const createSeriesResp = await deployedSeriesController.createSeries(
     {
       underlyingToken: underlyingToken.address,
@@ -604,7 +767,6 @@ export async function setupSeries({
   )
   // @ts-ignore
   const seriesId = seriesEvent.args.seriesId
-
   return {
     seriesId,
     strikePrice,
@@ -639,6 +801,7 @@ export async function setupAllTestContracts(
     isPutOption?: boolean
     strikePrice?: string
     skipCreateSeries?: boolean
+    annualizedVolatility?: number
   } = {
     oraclePrice: 12_000 * 1e8, // 12k,
     feeReceiver: FEE_RECEIVER_ADDRESS,
@@ -650,6 +813,7 @@ export async function setupAllTestContracts(
     isPutOption: false,
     strikePrice: (10_000e8).toString(),
     skipCreateSeries: false,
+    annualizedVolatility: 1 * 1e8, // 100%
   },
 ) {
   let {
@@ -661,9 +825,14 @@ export async function setupAllTestContracts(
     deployedSeriesController,
     deployedPriceOracle,
     deployedMockPriceOracle,
+    deployedMockVolatilityOracle,
     deployedAmmFactory,
     deployedAmmDataProvider,
+    deployedBlackScholes,
     deployedAddressesProvider,
+    deployedLightAirswap,
+    deployedSeriesDeployer,
+    deployedWTokenVault,
     expiration,
     erc1155URI,
   } = await setupSingletonTestContracts({
@@ -681,10 +850,12 @@ export async function setupAllTestContracts(
     collateralToken = priceToken
   }
 
-  const { deployedAmm } = await setupAmm({
+  const { deployedAmm, lpToken } = await setupAmm({
     deployedAmmFactory,
     deployedPriceOracle,
     deployedAmmDataProvider,
+    deployedBlackScholes,
+    deployedAddressesProvider,
     underlyingToken,
     priceToken,
     collateralToken,
@@ -721,10 +892,16 @@ export async function setupAllTestContracts(
     deployedSeriesController,
     deployedPriceOracle,
     deployedMockPriceOracle,
+    deployedMockVolatilityOracle,
     deployedAmmFactory,
     deployedAmmDataProvider,
+    deployedBlackScholes,
     deployedAddressesProvider,
+    deployedLightAirswap,
+    deployedSeriesDeployer,
+    deployedWTokenVault,
     deployedAmm,
+    lpToken,
     oraclePrice,
     expiration,
     seriesId,
@@ -736,4 +913,65 @@ export async function setupAllTestContracts(
     erc1155URI,
     restrictedMinters,
   }
+}
+
+export function blackScholes(
+  underlying: number,
+  strike: number,
+  expirationSeconds: number,
+  volatility: number,
+  callPut: string,
+) {
+  return (
+    BS.blackScholes(
+      underlying / 1e8,
+      strike / 1e8,
+      expirationSeconds / ONE_YEAR_DURATION,
+      volatility / 1e8,
+      0,
+      callPut,
+    ) /
+    (underlying / 1e8)
+  )
+}
+
+export async function setNextBlockTimestamp(timestamp: number) {
+  await network.provider.send("evm_setNextBlockTimestamp", [timestamp])
+}
+
+export async function mineBlock(timestamp: number) {
+  await network.provider.send("evm_mine", [timestamp])
+}
+
+export function getRandomSubarray(arr: Array<any>, size: number) {
+  var shuffled = arr.slice(0),
+    i = arr.length,
+    temp,
+    index
+  while (i--) {
+    index = Math.floor((i + 1) * Math.random())
+    temp = shuffled[index]
+    shuffled[index] = shuffled[i]
+    shuffled[i] = temp
+  }
+  return shuffled.slice(0, size)
+}
+
+export function parseLogs(txReturn, contract) {
+  const decoded = txReturn.receipt.rawLogs.map((rawLog) => {
+    const result = contract._decodeEventABI.call(
+      {
+        name: "ALLEVENTS",
+        jsonInterface: contract.options.jsonInterface,
+      },
+      rawLog,
+    )
+
+    result.args = result.returnValues
+
+    return result
+  })
+
+  txReturn.receipt.logs = txReturn.receipt.logs.concat(decoded)
+  txReturn.logs = txReturn.receipt.logs
 }

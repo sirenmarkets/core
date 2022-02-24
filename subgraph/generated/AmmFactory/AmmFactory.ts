@@ -109,6 +109,29 @@ export class AmmFactory extends ethereum.SmartContract {
     return new AmmFactory("AmmFactory", address);
   }
 
+  addressesProvider(): Address {
+    let result = super.call(
+      "addressesProvider",
+      "addressesProvider():(address)",
+      []
+    );
+
+    return result[0].toAddress();
+  }
+
+  try_addressesProvider(): ethereum.CallResult<Address> {
+    let result = super.tryCall(
+      "addressesProvider",
+      "addressesProvider():(address)",
+      []
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toAddress());
+  }
+
   ammImplementation(): Address {
     let result = super.call(
       "ammImplementation",
@@ -255,6 +278,48 @@ export class AmmFactory extends ethereum.SmartContract {
   }
 }
 
+export class __AmmFactory_initCall extends ethereum.Call {
+  get inputs(): __AmmFactory_initCall__Inputs {
+    return new __AmmFactory_initCall__Inputs(this);
+  }
+
+  get outputs(): __AmmFactory_initCall__Outputs {
+    return new __AmmFactory_initCall__Outputs(this);
+  }
+}
+
+export class __AmmFactory_initCall__Inputs {
+  _call: __AmmFactory_initCall;
+
+  constructor(call: __AmmFactory_initCall) {
+    this._call = call;
+  }
+
+  get _ammImplementation(): Address {
+    return this._call.inputValues[0].value.toAddress();
+  }
+
+  get _tokenImplementation(): Address {
+    return this._call.inputValues[1].value.toAddress();
+  }
+
+  get _seriesController(): Address {
+    return this._call.inputValues[2].value.toAddress();
+  }
+
+  get _addressesProvider(): Address {
+    return this._call.inputValues[3].value.toAddress();
+  }
+}
+
+export class __AmmFactory_initCall__Outputs {
+  _call: __AmmFactory_initCall;
+
+  constructor(call: __AmmFactory_initCall) {
+    this._call = call;
+  }
+}
+
 export class CreateAmmCall extends ethereum.Call {
   get inputs(): CreateAmmCall__Inputs {
     return new CreateAmmCall__Inputs(this);
@@ -272,28 +337,20 @@ export class CreateAmmCall__Inputs {
     this._call = call;
   }
 
-  get _sirenPriceOracle(): Address {
+  get _underlyingToken(): Address {
     return this._call.inputValues[0].value.toAddress();
   }
 
-  get _ammDataProvider(): Address {
+  get _priceToken(): Address {
     return this._call.inputValues[1].value.toAddress();
   }
 
-  get _underlyingToken(): Address {
+  get _collateralToken(): Address {
     return this._call.inputValues[2].value.toAddress();
   }
 
-  get _priceToken(): Address {
-    return this._call.inputValues[3].value.toAddress();
-  }
-
-  get _collateralToken(): Address {
-    return this._call.inputValues[4].value.toAddress();
-  }
-
   get _tradeFeeBasisPoints(): i32 {
-    return this._call.inputValues[5].value.toI32();
+    return this._call.inputValues[3].value.toI32();
   }
 }
 
@@ -301,44 +358,6 @@ export class CreateAmmCall__Outputs {
   _call: CreateAmmCall;
 
   constructor(call: CreateAmmCall) {
-    this._call = call;
-  }
-}
-
-export class InitializeCall extends ethereum.Call {
-  get inputs(): InitializeCall__Inputs {
-    return new InitializeCall__Inputs(this);
-  }
-
-  get outputs(): InitializeCall__Outputs {
-    return new InitializeCall__Outputs(this);
-  }
-}
-
-export class InitializeCall__Inputs {
-  _call: InitializeCall;
-
-  constructor(call: InitializeCall) {
-    this._call = call;
-  }
-
-  get _ammImplementation(): Address {
-    return this._call.inputValues[0].value.toAddress();
-  }
-
-  get _tokenImplementation(): Address {
-    return this._call.inputValues[1].value.toAddress();
-  }
-
-  get _seriesController(): Address {
-    return this._call.inputValues[2].value.toAddress();
-  }
-}
-
-export class InitializeCall__Outputs {
-  _call: InitializeCall;
-
-  constructor(call: InitializeCall) {
     this._call = call;
   }
 }
@@ -395,6 +414,36 @@ export class TransferOwnershipCall__Outputs {
   _call: TransferOwnershipCall;
 
   constructor(call: TransferOwnershipCall) {
+    this._call = call;
+  }
+}
+
+export class UpdateAddressProviderAddressCall extends ethereum.Call {
+  get inputs(): UpdateAddressProviderAddressCall__Inputs {
+    return new UpdateAddressProviderAddressCall__Inputs(this);
+  }
+
+  get outputs(): UpdateAddressProviderAddressCall__Outputs {
+    return new UpdateAddressProviderAddressCall__Outputs(this);
+  }
+}
+
+export class UpdateAddressProviderAddressCall__Inputs {
+  _call: UpdateAddressProviderAddressCall;
+
+  constructor(call: UpdateAddressProviderAddressCall) {
+    this._call = call;
+  }
+
+  get newAddressesProviderImplementation(): Address {
+    return this._call.inputValues[0].value.toAddress();
+  }
+}
+
+export class UpdateAddressProviderAddressCall__Outputs {
+  _call: UpdateAddressProviderAddressCall;
+
+  constructor(call: UpdateAddressProviderAddressCall) {
     this._call = call;
   }
 }

@@ -18,6 +18,8 @@ export function getOrCreateAccount(accountAddress: Bytes): Account {
   }
 
   let newAccount = new Account(accountId)
+  
+  newAccount.lockedExpirationPools = []
   newAccount.address = accountAddress
 
   return newAccount

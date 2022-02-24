@@ -6,6 +6,8 @@ import "hardhat-log-remover"
 import "uniswap-v3-deploy-plugin"
 import "hardhat-contract-sizer"
 import "@nomiclabs/hardhat-etherscan"
+import "@openzeppelin/hardhat-upgrades"
+import "hardhat-storage-layout"
 
 import { HardhatUserConfig } from "hardhat/types"
 
@@ -38,6 +40,25 @@ const config: HardhatUserConfig = {
             enabled: true,
             runs: 1,
           },
+          outputSelection: {
+            "*": {
+              "*": ["storageLayout"],
+            },
+          },
+        },
+      },
+      {
+        version: "0.7.3",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1,
+          },
+          outputSelection: {
+            "*": {
+              "*": ["storageLayout"],
+            },
+          },
         },
       },
       {
@@ -46,6 +67,11 @@ const config: HardhatUserConfig = {
           optimizer: {
             enabled: true,
             runs: 1,
+          },
+          outputSelection: {
+            "*": {
+              "*": ["storageLayout"],
+            },
           },
         },
       },
@@ -56,6 +82,11 @@ const config: HardhatUserConfig = {
             enabled: true,
             runs: 1,
           },
+          outputSelection: {
+            "*": {
+              "*": ["storageLayout"],
+            },
+          },
         },
       },
       {
@@ -64,6 +95,11 @@ const config: HardhatUserConfig = {
           optimizer: {
             enabled: true,
             runs: 1,
+          },
+          outputSelection: {
+            "*": {
+              "*": ["storageLayout"],
+            },
           },
         },
       },
@@ -74,6 +110,11 @@ const config: HardhatUserConfig = {
             enabled: true,
             runs: 1,
           },
+          outputSelection: {
+            "*": {
+              "*": ["storageLayout"],
+            },
+          },
         },
       },
     ],
@@ -81,7 +122,11 @@ const config: HardhatUserConfig = {
   defaultNetwork: "hardhat",
   networks: {
     hardhat: {
-      allowUnlimitedContractSize: false,
+      allowUnlimitedContractSize: true,
+      mining: {
+        auto: true,
+        interval: 0,
+      },
     },
     rinkeby: {
       url: `https://rinkeby.infura.io/v3/${env.INFURA_API_KEY}`,
@@ -90,7 +135,7 @@ const config: HardhatUserConfig = {
       gasPrice: "auto",
     },
     mumbai: {
-      url: "https://rpc-mumbai.maticvigil.com",
+      url: "https://matic-mumbai.chainstacklabs.com",
       chainId: 80001,
       accounts: [env.DEPLOY_PRIVATE_KEY],
       gasPrice: "auto",

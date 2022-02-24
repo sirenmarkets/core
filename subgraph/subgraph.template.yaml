@@ -109,7 +109,7 @@ dataSources:
     source:
       address: "{{priceOracleAddress}}"
       abi: PriceOracle
-      startBlock: {{priceOracleStartBlock}}
+      startBlock: {{ammFactoryStartBlock}}
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.4
@@ -125,6 +125,32 @@ dataSources:
         - event: OracleSet(address,address,address,uint256)
           handler: handleOracleSet
       file: ./src/mappings/priceOracle.ts
+  - kind: ethereum/contract
+    name: WTokenVault
+    network: {{network}}
+    source:
+      address: "{{wTokenVaultAddress}}"
+      abi: WTokenVault
+      startBlock: {{ammFactoryStartBlock}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.4
+      language: wasm/assemblyscript
+      entities:
+        - Amm
+      abis:
+        - name: WTokenVault
+          file: ../artifacts/contracts/amm/WTokenVault.sol/WTokenVault.json
+        - name: MinterAmm
+          file: ../artifacts/contracts/amm/MinterAmm.sol/MinterAmm.json
+      eventHandlers:
+        - event: WTokensLocked(address,address,uint256,uint256,uint256)
+          handler: handleWTokensLocked
+        - event: LpSharesRedeemed(address,address,uint256,uint256,uint256)
+          handler: handleLpSharesRedeemed
+        - event: CollateralLocked(address,uint256,uint256,uint256)
+          handler: handleCollateralLocked
+      file: ./src/mappings/wtokenVault.ts
 templates:
   - kind: ethereum/contract
     name: SimpleToken
@@ -163,6 +189,8 @@ templates:
           file: ../artifacts/contracts/amm/MinterAmm.sol/MinterAmm.json
         - name: SimpleToken
           file: ../artifacts/contracts/token/SimpleToken.sol/SimpleToken.json
+        - name: AmmDataProvider
+          file: ../artifacts/contracts/amm/AmmDataProvider.sol/AmmDataProvider.json
       eventHandlers:
         - event: AMMInitialized(address,address,address)
           handler: handleAMMInitialized
@@ -176,6 +204,4 @@ templates:
           handler: handleBTokensSold
         - event: WTokensSold(address,uint64,uint256,uint256)
           handler: handleWTokensSold
-        - event: NewSirenPriceOracle(address)
-          handler: handleNewSirenPriceOracle
       file: ./src/mappings/amm.ts

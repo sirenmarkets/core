@@ -1,29 +1,56 @@
 /* global artifacts contract it assert */
 import { time, expectEvent, expectRevert, BN } from "@openzeppelin/test-helpers"
-import { artifacts, contract } from "hardhat"
+import { artifacts, contract, ethers } from "hardhat"
+import { erf } from "mathjs"
+import { BigNumber } from "@ethersproject/bignumber"
+const { provider } = ethers
 import {
   SimpleTokenInstance,
   MinterAmmInstance,
   SeriesControllerInstance,
   ERC1155ControllerInstance,
   SimpleTokenContract,
+  MockPriceOracleContract,
+  AddressesProviderInstance,
+  AmmDataProviderInstance,
 } from "../../typechain"
-
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
 
-import { setupAllTestContracts, assertBNEq, ONE_WEEK_DURATION } from "../util"
+import {
+  now,
+  setupAllTestContracts,
+  assertBNEq,
+  ONE_WEEK_DURATION,
+  getNextFriday8amUTCTimestamp,
+  blackScholes,
+  assertBNEqWithTolerance,
+} from "../util"
 
 let deployedSeriesController: SeriesControllerInstance
 let deployedERC1155Controller: ERC1155ControllerInstance
 let deployedAmm: MinterAmmInstance
+let deployedAddressesProvider: AddressesProviderInstance
+let deployedAmmDataProvider: AmmDataProviderInstance
 
 let collateralToken: SimpleTokenInstance
 
 let expiration: number
 let seriesId: string
 
+let nextFriday8amUTC: number
+
+const MockPriceOracle: MockPriceOracleContract =
+  artifacts.require("MockPriceOracle")
+
+const wbtcDecimals = 8
+
+let deployedMockVolatilityOracle
+
 const STRIKE_PRICE = 15000 * 1e8 // 15000 USD
-const BTC_ORACLE_PRICE = 14_000 * 10 ** 8 // BTC oracle answer has 8 decimals places, same as BTC
+const UNDERLYING_PRICE = 14000 * 1e8 // BTC oracle answer has 8 decimals places, same as BTC
+const ANNUALIZED_VOLATILITY = 1 * 1e8 // 100%
+const VOLATILITY_BUMP = 0.2 * 1e8 // 20%
+const PRICE_TOLERANCE = 1e13
 
 const ERROR_MESSAGES = {
   MIN_TRADE_SIZE: "Buy/Sell amount below min size",
@@ -34,6 +61,12 @@ contract("AMM Put Verification", (accounts) => {
   const aliceAccount = accounts[1]
   const bobAccount = accounts[2]
 
+  let underlyingToken: SimpleTokenInstance
+  let priceToken: SimpleTokenInstance
+  let PERIOD = 86400
+  const WINDOW_IN_DAYS = 90 // 3 month vol data
+  const COMMIT_PHASE_DURATION = 3600 // 30 mins
+
   beforeEach(async () => {
     ;({
       collateralToken,
@@ -42,9 +75,13 @@ contract("AMM Put Verification", (accounts) => {
       deployedSeriesController,
       deployedERC1155Controller,
       expiration,
+      deployedAddressesProvider,
+      deployedMockVolatilityOracle,
+      deployedAmmDataProvider,
     } = await setupAllTestContracts({
       strikePrice: STRIKE_PRICE.toString(),
-      oraclePrice: BTC_ORACLE_PRICE,
+      oraclePrice: UNDERLYING_PRICE,
+      annualizedVolatility: ANNUALIZED_VOLATILITY,
       isPutOption: true,
     }))
   })
@@ -82,7 +119,10 @@ contract("AMM Put Verification", (accounts) => {
 
     // Total assets value in the AMM should be 10k.
     assertBNEq(
-      await deployedAmm.getTotalPoolValue(true),
+      await deployedAmmDataProvider.getTotalPoolValueView(
+        deployedAmm.address,
+        true,
+      ),
       10000,
       "Total assets value in the AMM should be 10k",
     )
@@ -184,7 +224,10 @@ contract("AMM Put Verification", (accounts) => {
 
     // Total assets value in the AMM should be 10k.
     assertBNEq(
-      await deployedAmm.getTotalPoolValue(true),
+      await deployedAmmDataProvider.getTotalPoolValueView(
+        deployedAmm.address,
+        true,
+      ),
       10000,
       "Total assets value in the AMM should be 10k",
     )
@@ -221,7 +264,7 @@ contract("AMM Put Verification", (accounts) => {
     )
 
     // Now let's withdraw all of the owner's lpTokens (owner should have 10000 lp tokens)
-    ret = await deployedAmm.withdrawCapital(10000, true, 10000)
+    ret = await deployedAmm.withdrawCapital(10000, false, 10000)
 
     // Check the math
     expectEvent(ret, "LpTokensBurned", {
@@ -263,11 +306,11 @@ contract("AMM Put Verification", (accounts) => {
         capitalAmount,
       )
 
-    console.log(`capitalCollateral: ${capitalCollateral}`)
-
     // Approve collateral
     await collateralToken.mint(ownerAccount, capitalCollateral)
     await collateralToken.approve(deployedAmm.address, capitalCollateral)
+
+    // console.log("COLLATERLA DEIMCA:L:", (await collateralToken.decimals()).toString());
 
     // Provide capital
     let ret = await deployedAmm.provideCapital(capitalCollateral, 0)
@@ -280,7 +323,12 @@ contract("AMM Put Verification", (accounts) => {
 
     // Total assets value in the AMM should be .
     assertBNEq(
-      (await deployedAmm.getTotalPoolValue(true)).toString(),
+      (
+        await deployedAmmDataProvider.getTotalPoolValueView(
+          deployedAmm.address,
+          true,
+        )
+      ).toString(),
       (10_000 * STRIKE_PRICE) / (1e8 * 100), // see getCollateralPerOptionToken for this calculation
       "AMM total pool value incorrect",
     )
@@ -302,22 +350,58 @@ contract("AMM Put Verification", (accounts) => {
       from: aliceAccount,
     })
 
+    let optionPrice = blackScholes(
+      UNDERLYING_PRICE,
+      STRIKE_PRICE,
+      ONE_WEEK_DURATION,
+      ANNUALIZED_VOLATILITY + VOLATILITY_BUMP,
+      "put",
+    )
+
     // Check that AMM calculates correct bToken price
-    assertBNEq(
+    assertBNEqWithTolerance(
       (await deployedAmm.getPriceForSeries(seriesId)).toString(),
-      "99966666666666666", // 0.066 (instrinsic) + 0.033 (extrinsic)
+      optionPrice * 1e18, // 0.1101e18
+      PRICE_TOLERANCE,
       "incorrect bToken price calculated by AMM",
+    )
+    // Check that collateralIn and Our calculation is correct
+    assertBNEqWithTolerance(
+      (
+        await deployedAmmDataProvider.bTokenGetCollateralInView(
+          deployedAmm.address,
+          seriesId,
+          1000,
+        )
+      ).toString(),
+      (((optionPrice * 1000 * UNDERLYING_PRICE) / 1e8) * 1e6) / 1e8,
+      2000,
+      "incorrect bTokenGetCollateralIn calculated by AMM",
+    )
+    assertBNEqWithTolerance(
+      (
+        await deployedAmmDataProvider.bTokenGetCollateralOutView(
+          deployedAmm.address,
+          seriesId,
+          1000,
+        )
+      ).toString(),
+      (((optionPrice * 1000 * UNDERLYING_PRICE) / 1e8) * 1e6) / 1e8,
+      2000,
+      "incorrect bTokenGetCollateralOut calculated by AMM",
     )
 
     // Buy bTokens
     const bTokenBuyAmount = 3_000
-    let premium = await deployedAmm.bTokenGetCollateralIn(
+    let premium = await deployedAmmDataProvider.bTokenGetCollateralInView(
+      deployedAmm.address,
       seriesId,
       bTokenBuyAmount,
     )
     ret = await deployedAmm.bTokenBuy(seriesId, bTokenBuyAmount, premium, {
       from: aliceAccount,
     })
+
     assertBNEq(
       await deployedERC1155Controller.balanceOf(aliceAccount, bTokenIndex),
       bTokenBuyAmount,
@@ -325,10 +409,10 @@ contract("AMM Put Verification", (accounts) => {
     )
     assertBNEq(
       (await collateralToken.balanceOf(aliceAccount)).toString(),
-      91217, // started with capitalCollateral, then paid 58783 USDC for 3000 tokens at (0.099 * 150) + slippage
+      89702, // started with capitalCollateral, then paid 60298 USDC for 3000 tokens at (0.11 * 150) + slippage
       "Trader should pay correct collateral amount",
     )
-    const bTokenPaymentAmount = aliceCollateral.toNumber() - 91217
+    const bTokenPaymentAmount = aliceCollateral.toNumber() - 89702
 
     // 3000 * 150
     const bTokenBuyCollateral =
@@ -362,8 +446,13 @@ contract("AMM Put Verification", (accounts) => {
       "No residual bTokens should be in the AMM",
     )
     assertBNEq(
-      (await deployedAmm.getTotalPoolValue(true)).toString(),
-      1513783, // ammCollateralAmount + bTokenBuyCollateral * (1 - 0.099) (btw, 1513783 > 1500000 - LPs are making money!!!)
+      (
+        await deployedAmmDataProvider.getTotalPoolValueView(
+          deployedAmm.address,
+          true,
+        )
+      ).toString(),
+      1514055, // ammCollateralAmount + bTokenBuyCollateral * (1 / 14 * 15 - 0.11) (btw, 1514055 > 1500000 - LPs are making money!!!)
       "Total assets value in the AMM should be correct",
     )
 
@@ -389,20 +478,20 @@ contract("AMM Put Verification", (accounts) => {
     expectEvent(ret, "LpTokensMinted", {
       minter: bobAccount,
       collateralAdded: bobCollateral,
-      lpTokensMinted: "148634",
+      lpTokensMinted: "148607",
     })
 
     assertBNEq(
       await lpToken.balanceOf(bobAccount),
-      148634,
+      148607,
       "lp tokens should have been minted",
     )
 
     // Now let's withdraw all Bobs tokens to make sure Bob doesn't make money by simply
     // depositing and withdrawing collateral
-    const bobCollateralWithdrawn = 149818
+    const bobCollateralWithdrawn = 149_821
     ret = await deployedAmm.withdrawCapital(
-      148634,
+      148607,
       true,
       bobCollateralWithdrawn,
       {
@@ -414,7 +503,7 @@ contract("AMM Put Verification", (accounts) => {
     expectEvent(ret, "LpTokensBurned", {
       redeemer: bobAccount,
       collateralRemoved: bobCollateralWithdrawn.toString(),
-      lpTokensBurned: "148634",
+      lpTokensBurned: "148607",
     })
     assertBNEq(
       await collateralToken.balanceOf(bobAccount),
@@ -441,8 +530,8 @@ contract("AMM Put Verification", (accounts) => {
     })
     assertBNEq(
       await deployedERC1155Controller.balanceOf(ownerAccount, wTokenIndex),
-      bTokenBuyAmount,
-      "Residual wTokens should be sent during full withdrawal",
+      0,
+      "No residual wTokens should be sent during full withdrawal",
     )
 
     // Make sure no tokens is left in the AMM
@@ -456,8 +545,8 @@ contract("AMM Put Verification", (accounts) => {
         deployedAmm.address,
         wTokenIndex,
       ),
-      0,
-      "No wToken should be left in the AMM",
+      bTokenBuyAmount,
+      "Locked wToken should be left in the AMM",
     )
     assertBNEq(
       await deployedERC1155Controller.balanceOf(
@@ -466,23 +555,6 @@ contract("AMM Put Verification", (accounts) => {
       ),
       0,
       "No bToken should be left in the AMM",
-    )
-  })
-
-  it("Enforces minimum trade size", async () => {
-    // Verify it fails if min trade size is not met
-    const minTradeSize = 1000
-    await expectRevert(
-      deployedAmm.bTokenBuy(seriesId, minTradeSize - 1, 1, {
-        from: aliceAccount,
-      }),
-      ERROR_MESSAGES.MIN_TRADE_SIZE,
-    )
-    await expectRevert(
-      deployedAmm.bTokenSell(seriesId, minTradeSize - 1, 1, {
-        from: aliceAccount,
-      }),
-      ERROR_MESSAGES.MIN_TRADE_SIZE,
     )
   })
 
@@ -495,13 +567,18 @@ contract("AMM Put Verification", (accounts) => {
     )
 
     assertBNEq(
-      await deployedAmm.getTotalPoolValue(true),
+      await deployedAmmDataProvider.getTotalPoolValueView(
+        deployedAmm.address,
+        true,
+      ),
       0,
       "Initial pool value should be 0",
     )
 
     const unredeemedCollateral =
-      await deployedAmm.getCollateralValueOfAllExpiredOptionTokens()
+      await deployedAmmDataProvider.getCollateralValueOfAllExpiredOptionTokensView(
+        deployedAmm.address,
+      )
     assertBNEq(
       unredeemedCollateral,
       0,
@@ -509,15 +586,34 @@ contract("AMM Put Verification", (accounts) => {
     )
 
     assertBNEq(
-      await deployedAmm.getOptionTokensSaleValue(0),
+      await deployedAmmDataProvider.getOptionTokensSaleValueView(
+        deployedAmm.address,
+        0,
+      ),
       0,
       "Initial token sale value should be 0",
     )
 
     assertBNEq(
-      await deployedAmm.getOptionTokensSaleValue(100),
+      await deployedAmmDataProvider.getOptionTokensSaleValueView(
+        deployedAmm.address,
+        100,
+      ),
       0,
       "Initial token sale value should be 0",
     )
   })
+  const getTopOfPeriod = async () => {
+    const latestTimestamp = (await provider.getBlock("latest")).timestamp
+    let topOfPeriod: number
+
+    const rem = latestTimestamp % PERIOD
+    if (rem < Math.floor(PERIOD / 2)) {
+      topOfPeriod = latestTimestamp - rem + PERIOD
+    } else {
+      topOfPeriod = latestTimestamp + rem + PERIOD
+    }
+    console.log(topOfPeriod)
+    return topOfPeriod
+  }
 })

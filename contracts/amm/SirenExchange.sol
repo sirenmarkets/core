@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity >=0.5.0 <=0.8.0;
-import "../amm/ISirenTradeAMM.sol";
+import "../amm/IMinterAmm.sol";
+import "../amm/IAmmDataProvider.sol";
 import "../series/SeriesLibrary.sol";
+import "../series/ISeriesController.sol";
+import "../configuration/IAddressesProvider.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
@@ -22,12 +25,12 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 ///
 /// We take the router address in as a variable so we can choose which router has a better reserve at the time of the exchange.
 contract SirenExchange is ERC1155Holder, ReentrancyGuard {
-    IERC1155 public immutable erc1155Controller;
+    IAddressesProvider public immutable addressesProvider;
 
     uint256 private _status;
 
-    constructor(IERC1155 _erc1155Controller) {
-        erc1155Controller = _erc1155Controller;
+    constructor(IAddressesProvider _addressesProvider) {
+        addressesProvider = _addressesProvider;
     }
 
     event BTokenBuy(
@@ -40,15 +43,6 @@ contract SirenExchange is ERC1155Holder, ReentrancyGuard {
     );
 
     event BTokenSell(
-        uint256[] amounts,
-        address[] path,
-        address indexed sirenAmmAddress,
-        uint256 optionTokenAmount,
-        uint64 indexed seriesId,
-        address trader
-    );
-
-    event WTokenSell(
         uint256[] amounts,
         address[] path,
         address indexed sirenAmmAddress,
@@ -85,13 +79,13 @@ contract SirenExchange is ERC1155Holder, ReentrancyGuard {
     ) external nonReentrant returns (uint256[] memory amounts) {
         require(
             path[path.length - 1] ==
-                ISirenTradeAMM(sirenAmmAddress).collateralToken(),
+                address(IMinterAmm(sirenAmmAddress).collateralToken()),
             "SirenExchange: Path does not route to collateral Token"
         );
 
         // Calculate the amount of underlying collateral we need to provide to get the desired bTokens
-        uint256 collateralPremium = ISirenTradeAMM(sirenAmmAddress)
-            .bTokenGetCollateralIn(seriesId, bTokenAmount);
+        uint256 collateralPremium = getAmmDataProvider()
+            .bTokenGetCollateralInView(sirenAmmAddress, seriesId, bTokenAmount);
 
         // Calculate the amount of token we need to provide to the router so we can get the needed collateral
         uint256[] memory amountsIn = IUniswapV2Router02(_router).getAmountsIn(
@@ -129,14 +123,14 @@ contract SirenExchange is ERC1155Holder, ReentrancyGuard {
         );
 
         // Call MinterAmm bTokenBuy contract
-        ISirenTradeAMM(sirenAmmAddress).bTokenBuy(
+        IMinterAmm(sirenAmmAddress).bTokenBuy(
             seriesId,
             bTokenAmount,
             collateralPremium
         );
 
         // Transfer the btokens to the correct address ( caller of this contract)
-        erc1155Controller.safeTransferFrom(
+        getErc1155Controller().safeTransferFrom(
             address(this),
             msg.sender,
             SeriesLibrary.bTokenIndex(seriesId),
@@ -175,13 +169,18 @@ contract SirenExchange is ERC1155Holder, ReentrancyGuard {
         address _router
     ) external nonReentrant returns (uint256[] memory amounts) {
         require(
-            path[0] == ISirenTradeAMM(sirenAmmAddress).collateralToken(),
+            path[0] == address(IMinterAmm(sirenAmmAddress).collateralToken()),
             "SirenExchange: Path does not begin at collateral Token"
         );
+
         // Calculate the amount of user tokens we will receive from our provided bTokens on the amm
         // The naming is reversed because its from the routers perspective
-        uint256 bTokenSellCollateral = ISirenTradeAMM(sirenAmmAddress)
-            .bTokenGetCollateralOut(seriesId, bTokenAmount);
+        uint256 bTokenSellCollateral = getAmmDataProvider()
+            .bTokenGetCollateralOutView(
+                sirenAmmAddress,
+                seriesId,
+                bTokenAmount
+            );
 
         // Calculate the amount of token we will receive for the collateral we are providing from the amm
         uint256[] memory amountsOut = IUniswapV2Router02(_router).getAmountsOut(
@@ -194,8 +193,11 @@ contract SirenExchange is ERC1155Holder, ReentrancyGuard {
             "SirenExchange: Minimum token amount out not met"
         );
 
+        // TODO: use the variable instead of getting address every time (changed due to stack-too-deep)
+        // IERC1155 erc1155Controller = getErc1155Controller();
+
         // Transfer bToken from the user to the exchange contract
-        erc1155Controller.safeTransferFrom(
+        getErc1155Controller().safeTransferFrom(
             msg.sender,
             address(this),
             SeriesLibrary.bTokenIndex(seriesId),
@@ -203,10 +205,10 @@ contract SirenExchange is ERC1155Holder, ReentrancyGuard {
             dataReturn()
         );
 
-        erc1155Controller.setApprovalForAll(sirenAmmAddress, true);
+        getErc1155Controller().setApprovalForAll(sirenAmmAddress, true);
 
         // Sell the bTokens back to the Amm
-        ISirenTradeAMM(sirenAmmAddress).bTokenSell(
+        IMinterAmm(sirenAmmAddress).bTokenSell(
             seriesId,
             bTokenAmount,
             bTokenSellCollateral
@@ -232,90 +234,20 @@ contract SirenExchange is ERC1155Holder, ReentrancyGuard {
             msg.sender
         );
 
-        erc1155Controller.setApprovalForAll(sirenAmmAddress, false);
+        getErc1155Controller().setApprovalForAll(sirenAmmAddress, false);
 
         return amounts;
     }
 
-    /// @notice Sell the wToken of a given series to the AMM in exchange for user tokens
-    /// @param seriesId The ID of the Series to buy wToken on
-    /// @param wTokenAmount The amount of wToken to sell
-    /// @param path The path of the collateral token of the series to the user tokens the caller wishes to receive
-    /// @param tokenAmountOutMinimum The lowest amount of user tokens the caller is willing to receive as payment
-    /// @param sirenAmmAddress address of the amm that we wish to call
-    /// @param deadline deadline the transaction must be completed by
-    /// @param _router address of the router we wish to use ( QuickSwap or SushiSwap )
-    /// We supply a wToken and then select which user tokens we wish to receive as our payment
-    function wTokenSell(
-        uint64 seriesId,
-        uint256 wTokenAmount,
-        address[] calldata path,
-        uint256 tokenAmountOutMinimum,
-        address sirenAmmAddress,
-        uint256 deadline,
-        address _router
-    ) external nonReentrant returns (uint256[] memory amounts) {
-        require(
-            path[0] == ISirenTradeAMM(sirenAmmAddress).collateralToken(),
-            "SirenExchange: Path does not begin at collateral Token"
-        );
-        // Calculate the amount of collateral we will receive from our provided wTokens on the amm
-        // The naming is reversed because its from the routers perspective
-        uint256 wTokenSaleCollateral = ISirenTradeAMM(sirenAmmAddress)
-            .wTokenGetCollateralOut(seriesId, wTokenAmount);
+    function getErc1155Controller() internal view returns (IERC1155) {
+        return
+            IERC1155(
+                ISeriesController(addressesProvider.getSeriesController())
+                    .erc1155Controller()
+            );
+    }
 
-        // Calculate the amount of token we will receive for the collateral we are providing from the amm
-        uint256[] memory amountsOut = IUniswapV2Router02(_router).getAmountsOut(
-            wTokenSaleCollateral,
-            path
-        );
-
-        // Check to make sure our amountsOut is larger or equal to our min requested
-        require(
-            amountsOut[amountsOut.length - 1] >= tokenAmountOutMinimum,
-            "SirenExchange: Minimum token amount out not met"
-        );
-
-        // Transfer wTokens from the user to the exchange
-        erc1155Controller.safeTransferFrom(
-            msg.sender,
-            address(this),
-            SeriesLibrary.wTokenIndex(seriesId),
-            wTokenAmount,
-            dataReturn()
-        );
-
-        erc1155Controller.setApprovalForAll(sirenAmmAddress, true);
-
-        // Sell the wTokens back to the Amm
-        ISirenTradeAMM(sirenAmmAddress).wTokenSell(
-            seriesId,
-            wTokenAmount,
-            wTokenSaleCollateral
-        );
-
-        TransferHelper.safeApprove(path[0], _router, amountsOut[0]);
-
-        // Executes the swap returning the desired user tokens directly back to the sender
-        amounts = IUniswapV2Router02(_router).swapExactTokensForTokens(
-            wTokenSaleCollateral,
-            amountsOut[amountsOut.length - 1],
-            path,
-            msg.sender,
-            deadline
-        );
-
-        emit WTokenSell(
-            amounts,
-            path,
-            sirenAmmAddress,
-            wTokenAmount,
-            seriesId,
-            msg.sender
-        );
-
-        erc1155Controller.setApprovalForAll(sirenAmmAddress, false);
-
-        return amounts;
+    function getAmmDataProvider() internal view returns (IAmmDataProvider) {
+        return IAmmDataProvider(addressesProvider.getAmmDataProvider());
     }
 }

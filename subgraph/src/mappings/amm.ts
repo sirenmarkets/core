@@ -6,8 +6,9 @@ import {
   BTokensSold,
   WTokensSold,
   MinterAmm as AmmContract,
-  NewSirenPriceOracle,
 } from "../../generated/templates/Amm/MinterAmm"
+import {AmmDataProvider } from "../../generated/templates/AmmDataProvider/AmmDataProvider"
+
 import { SimpleToken as SimpleTokenContract } from "../../generated/templates/Amm/SimpleToken"
 import {
   Amm,
@@ -21,7 +22,7 @@ import {
 } from "../../generated/schema"
 import { findOrCreateToken } from "./simpleToken"
 import { getId } from "./helpers/transaction"
-import { ethereum } from "@graphprotocol/graph-ts"
+import { ethereum, BigInt} from "@graphprotocol/graph-ts"
 
 export function handleAMMInitialized(event: AMMInitialized): void {
   // create AMM
@@ -34,7 +35,7 @@ export function handleAMMInitialized(event: AMMInitialized): void {
   amm.controller = SeriesController.load(
     event.params.controller.toHexString(),
   ).id
-  amm.priceOracle = event.params.sirenPriceOracle
+
   amm.tradeFeeBasisPoints = contract.tradeFeeBasisPoints()
 
   // Handle tokens
@@ -57,16 +58,8 @@ export function handleAMMInitialized(event: AMMInitialized): void {
   amm.save()
 }
 
-export function handleNewSirenPriceOracle(event: NewSirenPriceOracle): void {
-  let amm = Amm.load(event.address.toHexString())
-  amm.priceOracle = event.params.newSirenPriceOracle
-
-  amm.save()
-}
-
 export function handleLpTokensMinted(event: LpTokensMinted): void {
   let poolValueSnapShot = takePoolValueSnapshot(event)
-  let ammContract = AmmContract.bind(event.address)
 
   let lpTokenMinted = new LpTokenMinted(getId(event))
   lpTokenMinted.account = event.params.minter.toHexString()
@@ -84,7 +77,6 @@ export function handleLpTokensMinted(event: LpTokensMinted): void {
 
 export function handleLpTokensBurned(event: LpTokensBurned): void {
   let poolValueSnapShot = takePoolValueSnapshot(event)
-  let ammContract = AmmContract.bind(event.address)
 
   let lpTokenBurned = new LpTokenBurned(getId(event))
   lpTokenBurned.account = event.params.redeemer.toHexString()
@@ -102,8 +94,6 @@ export function handleLpTokensBurned(event: LpTokensBurned): void {
 }
 export function handleBTokensBought(event: BTokensBought): void {
   let poolValueSnapShot = takePoolValueSnapshot(event)
-
-  let ammContract = AmmContract.bind(event.address)
 
   let bTokenBought = new BTokenBought(getId(event))
   bTokenBought.account = event.params.buyer.toHexString()
@@ -123,8 +113,6 @@ export function handleBTokensBought(event: BTokensBought): void {
 export function handleBTokensSold(event: BTokensSold): void {
   let poolValueSnapShot = takePoolValueSnapshot(event)
 
-  let ammContract = AmmContract.bind(event.address)
-
   let bTokenSold = new BTokenSold(getId(event))
   bTokenSold.account = event.params.seller.toHexString()
   bTokenSold.collateralAmount = event.params.collateralPaid
@@ -143,8 +131,6 @@ export function handleBTokensSold(event: BTokensSold): void {
 export function handleWTokensSold(event: WTokensSold): void {
   let poolValueSnapShot = takePoolValueSnapshot(event)
 
-  let ammContract = AmmContract.bind(event.address)
-
   let wTokenSold = new WTokenSold(getId(event))
   wTokenSold.account = event.params.seller.toHexString()
   wTokenSold.collateralAmount = event.params.collateralPaid
@@ -161,13 +147,24 @@ export function handleWTokensSold(event: WTokensSold): void {
 }
 
 function takePoolValueSnapshot(event: ethereum.Event): PoolValueSnapshot {
+
   let poolValueSnapshot = new PoolValueSnapshot(getId(event))
 
   let ammContract = AmmContract.bind(event.address)
+  let ammDataProviderAddress = ammContract.try_getAmmDataProvider()
+  let totalPoolValue = new BigInt(0);
+  if(ammDataProviderAddress.reverted == false){
+    let ammDataProviderContract = AmmDataProvider.bind(ammDataProviderAddress.value)
+    totalPoolValue = ammDataProviderContract.getTotalPoolValueView(event.address, true)
+  }
+  else {
+    totalPoolValue = new BigInt(0)
+  }
+
   let lpTokenContract = SimpleTokenContract.bind(ammContract.lpToken())
 
   poolValueSnapshot.amm = event.address.toHexString()
-  poolValueSnapshot.poolValue = ammContract.getTotalPoolValue(true)
+  poolValueSnapshot.poolValue = totalPoolValue
   poolValueSnapshot.lpTokenSupply = lpTokenContract.totalSupply()
   poolValueSnapshot.createdTransaction = event.transaction.hash
   poolValueSnapshot.createdBlock = event.block.number

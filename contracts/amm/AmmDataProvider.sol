@@ -5,28 +5,37 @@ pragma solidity 0.8.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "./IAmmDataProvider.sol";
-import "../token/ISimpleToken.sol";
+import "./IMinterAmm.sol";
+import "../token/IERC20Lib.sol";
 import "../series/ISeriesController.sol";
 import "../series/IPriceOracle.sol";
 import "../series/SeriesLibrary.sol";
 import "../libraries/Math.sol";
+import "./IBlackScholes.sol";
+import "../configuration/IAddressesProvider.sol";
+import "./IWTokenVault.sol";
 
 contract AmmDataProvider is IAmmDataProvider {
     ISeriesController public seriesController;
     IERC1155 public erc1155Controller;
-    IPriceOracle public priceOracle;
+    IAddressesProvider public addressesProvider;
 
     event AmmDataProviderCreated(
         ISeriesController seriesController,
         IERC1155 erc1155Controller,
-        IPriceOracle priceOracle
+        IAddressesProvider addressesProvider
     );
 
     constructor(
         ISeriesController _seriesController,
         IERC1155 _erc1155Controller,
-        IPriceOracle _priceOracle
+        IAddressesProvider _addressProvider
     ) {
+        require(
+            address(_addressProvider) != address(0x0),
+            "AmmDataProvider: _addressProvider cannot be the 0x0 address"
+        );
+
         require(
             address(_seriesController) != address(0x0),
             "AmmDataProvider: _seriesController cannot be the 0x0 address"
@@ -35,19 +44,15 @@ contract AmmDataProvider is IAmmDataProvider {
             address(_erc1155Controller) != address(0x0),
             "AmmDataProvider: _erc1155Controller cannot be the 0x0 address"
         );
-        require(
-            address(_priceOracle) != address(0x0),
-            "AmmDataProvider: _priceOracle cannot be the 0x0 address"
-        );
 
         seriesController = _seriesController;
         erc1155Controller = _erc1155Controller;
-        priceOracle = _priceOracle;
+        addressesProvider = _addressProvider;
 
         emit AmmDataProviderCreated(
             _seriesController,
             _erc1155Controller,
-            _priceOracle
+            _addressProvider
         );
     }
 
@@ -60,17 +65,11 @@ contract AmmDataProvider is IAmmDataProvider {
         uint256 collateralTokenBalance,
         uint256 bTokenPrice
     ) public view override returns (uint256, uint256) {
-        uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-        uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
-
         // Get residual balances
-        uint256 bTokenBalance = erc1155Controller.balanceOf(
-            ammAddress,
-            bTokenIndex
-        );
+        uint256 bTokenBalance = 0; // no bTokens are allowed in the pool
         uint256 wTokenBalance = erc1155Controller.balanceOf(
             ammAddress,
-            wTokenIndex
+            SeriesLibrary.wTokenIndex(seriesId)
         );
 
         ISeriesController.Series memory series = seriesController.series(
@@ -78,22 +77,27 @@ contract AmmDataProvider is IAmmDataProvider {
         );
 
         // For put convert token balances into collateral locked in them
+        uint256 lockedUnderlyingValue = 1e18;
         if (series.isPutOption) {
-            bTokenBalance = seriesController.getCollateralPerOptionToken(
-                seriesId,
-                bTokenBalance
-            );
             wTokenBalance = seriesController.getCollateralPerOptionToken(
                 seriesId,
                 wTokenBalance
             );
+            // TODO: this logic causes the underlying price to be fetched twice from the oracle. Can be optimized.
+            lockedUnderlyingValue =
+                (lockedUnderlyingValue * series.strikePrice) /
+                IPriceOracle(addressesProvider.getPriceOracle())
+                    .getCurrentPrice(
+                        seriesController.underlyingToken(seriesId),
+                        seriesController.priceToken(seriesId)
+                    );
         }
 
         // Max amount of tokens we can get by adding current balance plus what can be minted from collateral
         uint256 bTokenBalanceMax = bTokenBalance + collateralTokenBalance;
         uint256 wTokenBalanceMax = wTokenBalance + collateralTokenBalance;
 
-        uint256 wTokenPrice = uint256(1e18) - bTokenPrice;
+        uint256 wTokenPrice = lockedUnderlyingValue - bTokenPrice;
 
         // Balance on higher reserve side is the sum of what can be minted (collateralTokenBalance)
         // plus existing balance of the token
@@ -135,55 +139,6 @@ contract AmmDataProvider is IAmmDataProvider {
         return (bTokenVirtualBalance, wTokenVirtualBalance);
     }
 
-    /// @dev Calculate price of bToken based on Black-Scholes approximation by Brennan-Subrahmanyam from their paper
-    /// "A Simple Formula to Compute the Implied Standard Deviation" (1988).
-    /// Formula: 0.4 * ImplVol * sqrt(timeUntilExpiry) * priceRatio
-    ///
-    /// Please note that the 0.4 is assumed to already be factored into the `volatility` argument. We do this to save
-    /// gas.
-    ///
-    /// Returns premium in units of percentage of collateral locked in a contract for both calls and puts
-    function calcPrice(
-        uint256 timeUntilExpiry,
-        uint256 strike,
-        uint256 currentPrice,
-        uint256 volatility,
-        bool isPutOption
-    ) public pure override returns (uint256) {
-        uint256 intrinsic = 0;
-        uint256 timeValue = 0;
-
-        if (isPutOption) {
-            if (currentPrice < strike) {
-                // ITM
-                intrinsic = ((strike - currentPrice) * 1e18) / strike;
-            }
-
-            timeValue =
-                (Math.sqrt(timeUntilExpiry) * volatility * strike) /
-                currentPrice;
-        } else {
-            if (currentPrice > strike) {
-                // ITM
-                intrinsic = ((currentPrice - strike) * 1e18) / currentPrice;
-            }
-
-            // use a Black-Scholes approximation to calculate the option price given the
-            // volatility, strike price, and the current series price
-            timeValue =
-                (Math.sqrt(timeUntilExpiry) * volatility * currentPrice) /
-                strike;
-        }
-
-        // Verify that 100% is the max that can be returned.
-        // A super deep In The Money option could return a higher value than 100% using the approximation formula
-        if (intrinsic + timeValue > 1e18) {
-            return 1e18;
-        }
-
-        return intrinsic + timeValue;
-    }
-
     /// @notice Calculate premium (i.e. the option price) to buy bTokenAmount bTokens for the
     /// given Series
     /// @notice The premium depends on the amount of collateral token in the pool, the reserves
@@ -199,7 +154,7 @@ contract AmmDataProvider is IAmmDataProvider {
         uint256 bTokenAmount,
         uint256 collateralTokenBalance,
         uint256 bTokenPrice
-    ) external view override returns (uint256) {
+    ) public view override returns (uint256) {
         // Shortcut for 0 amount
         if (bTokenAmount == 0) return 0;
 
@@ -282,13 +237,13 @@ contract AmmDataProvider is IAmmDataProvider {
     /// Series' bTokens and wToken
     /// @param seriesId The index of the Series
     /// @param wTokenBalance The wToken balance for this Series owned by this AMM
-    /// @param bTokenBalance The bToken balance for this Series owned by this AMM
     /// @return The total amount of collateral receivable by redeeming the Series' option tokens
-    function getRedeemableCollateral(
-        uint64 seriesId,
-        uint256 wTokenBalance,
-        uint256 bTokenBalance
-    ) public view override returns (uint256) {
+    function getRedeemableCollateral(uint64 seriesId, uint256 wTokenBalance)
+        public
+        view
+        override
+        returns (uint256)
+    {
         uint256 unredeemedCollateral = 0;
         if (wTokenBalance > 0) {
             (uint256 unclaimedCollateral, ) = seriesController.getClaimAmount(
@@ -296,11 +251,6 @@ contract AmmDataProvider is IAmmDataProvider {
                 wTokenBalance
             );
             unredeemedCollateral += unclaimedCollateral;
-        }
-        if (bTokenBalance > 0) {
-            (uint256 unexercisedCollateral, ) = seriesController
-                .getExerciseAmount(seriesId, bTokenBalance);
-            unredeemedCollateral += unexercisedCollateral;
         }
 
         return unredeemedCollateral;
@@ -315,6 +265,10 @@ contract AmmDataProvider is IAmmDataProvider {
         uint64[] memory openSeries,
         address ammAddress
     ) public view override returns (uint256) {
+        IWTokenVault wTokenVault = IWTokenVault(
+            addressesProvider.getWTokenVault()
+        );
+
         uint256 unredeemedCollateral = 0;
 
         for (uint256 i = 0; i < openSeries.length; i++) {
@@ -324,25 +278,19 @@ contract AmmDataProvider is IAmmDataProvider {
                 seriesController.state(seriesId) ==
                 ISeriesController.SeriesState.EXPIRED
             ) {
-                uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
                 uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
 
-                // Get the pool's option token balances
-                uint256 bTokenBalance = erc1155Controller.balanceOf(
-                    ammAddress,
-                    bTokenIndex
-                );
+                // Get wToken balance excluding locked tokens
                 uint256 wTokenBalance = erc1155Controller.balanceOf(
                     ammAddress,
                     wTokenIndex
-                );
+                ) - wTokenVault.getWTokenBalance(ammAddress, seriesId);
 
                 // calculate the amount of collateral The AMM would receive by
                 // redeeming this Series' bTokens and wTokens
                 unredeemedCollateral += getRedeemableCollateral(
                     seriesId,
-                    wTokenBalance,
-                    bTokenBalance
+                    wTokenBalance
                 );
             }
         }
@@ -358,9 +306,13 @@ contract AmmDataProvider is IAmmDataProvider {
         address ammAddress,
         uint256 collateralTokenBalance,
         uint256 impliedVolatility
-    ) external view override returns (uint256) {
+    ) public view override returns (uint256) {
         if (lpTokenAmount == 0) return 0;
         if (lpTokenSupply == 0) return 0;
+
+        IWTokenVault wTokenVault = IWTokenVault(
+            addressesProvider.getWTokenVault()
+        );
 
         // Calculate the amount of collateral receivable by redeeming all the expired option tokens
         uint256 expiredOptionTokenCollateral = getCollateralValueOfAllExpiredOptionTokens(
@@ -386,29 +338,17 @@ contract AmmDataProvider is IAmmDataProvider {
                 seriesController.state(seriesId) ==
                 ISeriesController.SeriesState.OPEN
             ) {
-                uint256 bTokenToSell = (erc1155Controller.balanceOf(
-                    ammAddress,
-                    SeriesLibrary.bTokenIndex(seriesId)
-                ) * lpTokenAmount) / lpTokenSupply;
-                uint256 wTokenToSell = (erc1155Controller.balanceOf(
+                // Get wToken balance excluding locked tokens
+                uint256 wTokenToSell = ((erc1155Controller.balanceOf(
                     ammAddress,
                     SeriesLibrary.wTokenIndex(seriesId)
-                ) * lpTokenAmount) / lpTokenSupply;
+                ) - wTokenVault.getWTokenBalance(ammAddress, seriesId)) *
+                    lpTokenAmount) / lpTokenSupply;
 
-                uint256 bTokenPrice = getPriceForExpiredSeries(
+                uint256 bTokenPrice = getPriceForSeries(
                     seriesId,
                     impliedVolatility
                 );
-
-                uint256 collateralAmountB = optionTokenGetCollateralOut(
-                    seriesId,
-                    ammAddress,
-                    bTokenToSell,
-                    collateralLeft,
-                    bTokenPrice,
-                    true
-                );
-                collateralLeft -= collateralAmountB;
 
                 uint256 collateralAmountW = optionTokenGetCollateralOut(
                     seriesId,
@@ -437,7 +377,7 @@ contract AmmDataProvider is IAmmDataProvider {
     /// representing the price as a fraction of 1 collateral token unit
     /// @dev This function assumes that it will only be called on an OPEN Series; if the
     /// Series is EXPIRED, then the expirationDate - block.timestamp will throw an underflow error
-    function getPriceForExpiredSeries(uint64 seriesId, uint256 volatilityFactor)
+    function getPriceForSeries(uint64 seriesId, uint256 annualVolatility)
         public
         view
         override
@@ -446,37 +386,45 @@ contract AmmDataProvider is IAmmDataProvider {
         ISeriesController.Series memory series = seriesController.series(
             seriesId
         );
-        uint256 underlyingPrice = IPriceOracle(priceOracle).getCurrentPrice(
-            seriesController.underlyingToken(seriesId),
-            seriesController.priceToken(seriesId)
-        );
+        uint256 underlyingPrice = IPriceOracle(
+            addressesProvider.getPriceOracle()
+        ).getCurrentPrice(
+                seriesController.underlyingToken(seriesId),
+                seriesController.priceToken(seriesId)
+            );
 
         return
-            getPriceForExpiredSeriesInternal(
+            getPriceForSeriesInternal(
                 series,
                 underlyingPrice,
-                volatilityFactor
+                annualVolatility
             );
     }
 
-    function getPriceForExpiredSeriesInternal(
+    function getPriceForSeriesInternal(
         ISeriesController.Series memory series,
         uint256 underlyingPrice,
-        uint256 volatilityFactor
+        uint256 annualVolatility
     ) private view returns (uint256) {
-        return
-            // Note! This function assumes the underlyingPrice is a valid series
-            // price in units of underlyingToken/priceToken. If the onchain price
-            // oracle's value were to drift from the true series price, then the bToken price
-            // we calculate here would also drift, and will result in undefined
-            // behavior for any functions which call getPriceForExpiredSeriesInternal
-            calcPrice(
+        // Note! This function assumes the underlyingPrice is a valid series
+        // price in units of underlyingToken/priceToken. If the onchain price
+        // oracle's value were to drift from the true series price, then the bToken price
+        // we calculate here would also drift, and will result in undefined
+        // behavior for any functions which call getPriceForSeriesInternal
+        (uint256 call, uint256 put) = IBlackScholes(
+            addressesProvider.getBlackScholes()
+        ).optionPrices(
                 series.expirationDate - block.timestamp,
-                series.strikePrice,
+                annualVolatility,
                 underlyingPrice,
-                volatilityFactor,
-                series.isPutOption
+                series.strikePrice,
+                0
             );
+        if (series.isPutOption == true) {
+            return put;
+        } else {
+            return call;
+        }
     }
 
     /// Get value of all assets in the pool in units of this AMM's collateralToken.
@@ -487,7 +435,7 @@ contract AmmDataProvider is IAmmDataProvider {
         uint256 collateralBalance,
         address ammAddress,
         uint256 impliedVolatility
-    ) external view override returns (uint256) {
+    ) public view override returns (uint256) {
         // Note! This function assumes the underlyingPrice is a valid series
         // price in units of underlyingToken/priceToken. If the onchain price
         // oracle's value were to drift from the true series price, then the bToken price
@@ -498,11 +446,16 @@ contract AmmDataProvider is IAmmDataProvider {
             // we assume the openSeries are all from the same AMM, and thus all its Series
             // use the same underlying and price tokens, so we can arbitrarily choose the first
             // when fetching the necessary token addresses
-            underlyingPrice = IPriceOracle(priceOracle).getCurrentPrice(
-                seriesController.underlyingToken(openSeries[0]),
-                seriesController.priceToken(openSeries[0])
-            );
+            underlyingPrice = IPriceOracle(addressesProvider.getPriceOracle())
+                .getCurrentPrice(
+                    seriesController.underlyingToken(openSeries[0]),
+                    seriesController.priceToken(openSeries[0])
+                );
         }
+
+        IWTokenVault wTokenVault = IWTokenVault(
+            addressesProvider.getWTokenVault()
+        );
 
         // First, determine the value of all residual b/wTokens
         uint256 activeTokensValue = 0;
@@ -513,36 +466,37 @@ contract AmmDataProvider is IAmmDataProvider {
                 seriesId
             );
 
-            uint256 bTokenIndex = SeriesLibrary.bTokenIndex(seriesId);
-            uint256 wTokenIndex = SeriesLibrary.wTokenIndex(seriesId);
-
-            uint256 bTokenBalance = erc1155Controller.balanceOf(
-                ammAddress,
-                bTokenIndex
-            );
+            // Get wToken balance excluding locked tokens
             uint256 wTokenBalance = erc1155Controller.balanceOf(
                 ammAddress,
-                wTokenIndex
-            );
+                SeriesLibrary.wTokenIndex(seriesId)
+            ) - wTokenVault.getWTokenBalance(ammAddress, seriesId);
 
             if (
                 seriesController.state(seriesId) ==
                 ISeriesController.SeriesState.OPEN
             ) {
                 // value all active bTokens and wTokens at current prices
-                uint256 bPrice = getPriceForExpiredSeriesInternal(
+                uint256 bPrice = getPriceForSeriesInternal(
                     series,
                     underlyingPrice,
                     impliedVolatility
                 );
                 // wPrice = 1 - bPrice
-                uint256 wPrice = uint256(1e18) - bPrice;
+                uint256 lockedUnderlyingValue = 1e18;
+                if (series.isPutOption) {
+                    lockedUnderlyingValue =
+                        (lockedUnderlyingValue * series.strikePrice) /
+                        underlyingPrice;
+                }
 
+                // uint256 wPrice = lockedUnderlyingValue - bPrice;
                 uint256 tokensValueCollateral = seriesController
-                    .getCollateralPerOptionToken(
+                    .getCollateralPerUnderlying(
                         seriesId,
-                        (bTokenBalance * bPrice + wTokenBalance * wPrice) / 1e18
-                    );
+                        wTokenBalance * (lockedUnderlyingValue - bPrice),
+                        underlyingPrice
+                    ) / 1e18;
 
                 activeTokensValue += tokensValueCollateral;
             } else if (
@@ -553,13 +507,156 @@ contract AmmDataProvider is IAmmDataProvider {
                 // Get collateral token locked in the series
                 expiredTokensValue += getRedeemableCollateral(
                     seriesId,
-                    wTokenBalance,
-                    bTokenBalance
+                    wTokenBalance
                 );
             }
         }
 
         // Add value of OPEN Series, EXPIRED Series, and collateral token
         return activeTokensValue + expiredTokensValue + collateralBalance;
+    }
+
+    // View functions for front-end //
+
+    /// Get value of all assets in the pool in units of this AMM's collateralToken.
+    /// Can specify whether to include the value of expired unclaimed tokens
+    function getTotalPoolValueView(address ammAddress, bool includeUnclaimed)
+        external
+        view
+        override
+        returns (uint256)
+    {
+        IMinterAmm amm = IMinterAmm(ammAddress);
+
+        return
+            getTotalPoolValue(
+                includeUnclaimed,
+                amm.getAllSeries(),
+                amm.collateralBalance(),
+                ammAddress,
+                amm.getBaselineVolatility()
+            );
+    }
+
+    /// @notice Calculate premium (i.e. the option price) to buy bTokenAmount bTokens for the
+    /// given Series
+    /// @notice The premium depends on the amount of collateral token in the pool, the reserves
+    /// of bToken and wToken in the pool, and the current series price of the underlying
+    /// @param seriesId The ID of the Series to buy bToken on
+    /// @param bTokenAmount The amount of bToken to buy, which uses the same decimals as
+    /// the underlying ERC20 token
+    /// @return The amount of collateral token necessary to buy bTokenAmount worth of bTokens
+    /// NOTE: This returns the collateral + fee amount
+    function bTokenGetCollateralInView(
+        address ammAddress,
+        uint64 seriesId,
+        uint256 bTokenAmount
+    ) external view override returns (uint256) {
+        IMinterAmm amm = IMinterAmm(ammAddress);
+
+        uint256 collateralWithoutFees = bTokenGetCollateralIn(
+            seriesId,
+            ammAddress,
+            bTokenAmount,
+            amm.collateralBalance(),
+            getPriceForSeries(seriesId, amm.getVolatility(seriesId))
+        );
+        uint256 tradeFee = amm.calculateFees(
+            bTokenAmount,
+            collateralWithoutFees
+        );
+        return collateralWithoutFees + tradeFee;
+    }
+
+    /// @notice Calculate the amount of collateral token the user will receive for selling
+    /// bTokenAmount worth of bToken to the pool. This is the option's sell price
+    /// @notice The sell price depends on the amount of collateral token in the pool, the reserves
+    /// of bToken and wToken in the pool, and the current series price of the underlying
+    /// @param seriesId The ID of the Series to sell bToken on
+    /// @param bTokenAmount The amount of bToken to sell, which uses the same decimals as
+    /// the underlying ERC20 token
+    /// @return The amount of collateral token the user will receive upon selling bTokenAmount of
+    /// bTokens to the pool minus any trade fees
+    /// NOTE: This returns the collateral - fee amount
+    function bTokenGetCollateralOutView(
+        address ammAddress,
+        uint64 seriesId,
+        uint256 bTokenAmount
+    ) external view override returns (uint256) {
+        IMinterAmm amm = IMinterAmm(ammAddress);
+
+        uint256 collateralWithoutFees = optionTokenGetCollateralOut(
+            seriesId,
+            ammAddress,
+            bTokenAmount,
+            amm.collateralBalance(),
+            getPriceForSeries(seriesId, amm.getVolatility(seriesId)),
+            true
+        );
+
+        uint256 tradeFee = amm.calculateFees(
+            bTokenAmount,
+            collateralWithoutFees
+        );
+        return collateralWithoutFees - tradeFee;
+    }
+
+    /// @notice Calculate amount of collateral in exchange for selling wTokens
+    function wTokenGetCollateralOutView(
+        address ammAddress,
+        uint64 seriesId,
+        uint256 wTokenAmount
+    ) external view override returns (uint256) {
+        IMinterAmm amm = IMinterAmm(ammAddress);
+
+        return
+            optionTokenGetCollateralOut(
+                seriesId,
+                ammAddress,
+                wTokenAmount,
+                amm.collateralBalance(),
+                getPriceForSeries(seriesId, amm.getVolatility(seriesId)),
+                false
+            );
+    }
+
+    /// @notice Calculate the amount of collateral the AMM would received if all of the
+    /// expired Series' wTokens and bTokens were to be redeemed for their underlying collateral
+    /// value
+    /// @return The amount of collateral token the AMM would receive if it were to exercise/claim
+    /// all expired bTokens/wTokens
+    function getCollateralValueOfAllExpiredOptionTokensView(address ammAddress)
+        external
+        view
+        override
+        returns (uint256)
+    {
+        IMinterAmm amm = IMinterAmm(ammAddress);
+
+        return
+            getCollateralValueOfAllExpiredOptionTokens(
+                amm.getAllSeries(),
+                ammAddress
+            );
+    }
+
+    /// @notice Calculate sale value of pro-rata LP wTokens in units of collateral token
+    function getOptionTokensSaleValueView(
+        address ammAddress,
+        uint256 lpTokenAmount
+    ) external view override returns (uint256) {
+        IMinterAmm amm = IMinterAmm(ammAddress);
+
+        uint256 lpTokenSupply = IERC20Lib(address(amm.lpToken())).totalSupply();
+
+        return
+            getOptionTokensSaleValue(
+                lpTokenAmount,
+                lpTokenSupply,
+                amm.getAllSeries(),
+                ammAddress,
+                amm.collateralBalance(),
+                amm.getBaselineVolatility()
+            );
     }
 }

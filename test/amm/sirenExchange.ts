@@ -8,6 +8,7 @@ import {
   SimpleTokenContract,
   ERC1155ControllerInstance,
   SeriesControllerInstance,
+  AddressesProviderInstance,
 } from "../../typechain"
 
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
@@ -26,6 +27,8 @@ let deployedERC1155Controller: ERC1155ControllerInstance
 let uniswapRouterPath: Array<string>
 
 let deployedSeriesController: SeriesControllerInstance
+
+let deployedAddressesProvider: AddressesProviderInstance
 
 let uniswapV2RouterAddress: string
 
@@ -64,12 +67,13 @@ contract("Siren Exchange Verification", (accounts) => {
       seriesId,
       deployedERC1155Controller,
       deployedSeriesController,
+      deployedAddressesProvider,
     } = await setupAllTestContracts({
       strikePrice: STRIKE_PRICE.toString(),
       oraclePrice: BTC_ORACLE_PRICE,
     })),
       ({ uniswapV2RouterAddress, deployedSirenExchange, uniswapRouterPath } =
-        await setUpUniswap(collateralToken, deployedERC1155Controller))
+        await setUpUniswap(collateralToken, deployedAddressesProvider))
 
     //Below we provide capital for our AMMs so we can do trading on them
     userTokenAddress = uniswapRouterPath[0]
@@ -248,72 +252,6 @@ contract("Siren Exchange Verification", (accounts) => {
           await collateralToken.balanceOf(deployedSirenExchange.address)
         ).toNumber(),
         "SirenExchange should have a balance of 0 collateralToken",
-      )
-    })
-
-    //Successful WTokenSell
-    it("Executes a WTokenSell Exchange: Expect Successful Transaction", async () => {
-      let aliceATokenPreWTokenSell = (
-        await userToken.balanceOf(aliceAccount)
-      ).toNumber()
-
-      await deployedSirenExchange.bTokenBuy(
-        seriesId,
-        10000,
-        uniswapRouterPath,
-        tokenAmountInMaximum,
-        deployedAmm.address,
-        deadline.getTime(),
-        uniswapV2RouterAddress,
-        {
-          from: aliceAccount,
-        },
-      )
-
-      const wTokenSellAmount = 3_500
-
-      await deployedERC1155Controller.setApprovalForAll(
-        deployedSirenExchange.address,
-        true,
-        {
-          from: aliceAccount,
-        },
-      )
-
-      await deployedAmm.withdrawCapital(100000, false, 100, {
-        from: aliceAccount,
-      })
-
-      const wTokenIndex = await deployedSeriesController.wTokenIndex(seriesId)
-
-      await deployedERC1155Controller.setApprovalForAll(
-        deployedAmm.address,
-        true,
-      )
-      await deployedSirenExchange.wTokenSell(
-        seriesId,
-        wTokenSellAmount,
-        sellUniswapRouterPath2,
-        0,
-        deployedAmm.address,
-        deadline.getTime(),
-        uniswapV2RouterAddress,
-        {
-          from: aliceAccount,
-        },
-      )
-
-      assertBNEq(
-        1500,
-        await deployedERC1155Controller.balanceOf(aliceAccount, wTokenIndex),
-        "Trader should have a balance of 0 WTokens",
-      )
-
-      assertBNEq(
-        aliceATokenPreWTokenSell <
-          (await userToken.balanceOf(aliceAccount)).toNumber(),
-        true,
-        "Trader should have a more AToken than before",
       )
     })
   })

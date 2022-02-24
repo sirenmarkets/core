@@ -224,31 +224,6 @@ export class SeriesVault extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(value[0].toBytes());
   }
 
-  setERC1155ApprovalForController(erc1155Contract: Address): boolean {
-    let result = super.call(
-      "setERC1155ApprovalForController",
-      "setERC1155ApprovalForController(address):(bool)",
-      [ethereum.Value.fromAddress(erc1155Contract)]
-    );
-
-    return result[0].toBoolean();
-  }
-
-  try_setERC1155ApprovalForController(
-    erc1155Contract: Address
-  ): ethereum.CallResult<boolean> {
-    let result = super.tryCall(
-      "setERC1155ApprovalForController",
-      "setERC1155ApprovalForController(address):(bool)",
-      [ethereum.Value.fromAddress(erc1155Contract)]
-    );
-    if (result.reverted) {
-      return new ethereum.CallResult();
-    }
-    let value = result.value;
-    return ethereum.CallResult.fromValue(value[0].toBoolean());
-  }
-
   supportsInterface(interfaceId: Bytes): boolean {
     let result = super.call(
       "supportsInterface",
@@ -456,10 +431,6 @@ export class SetERC1155ApprovalForControllerCall__Outputs {
 
   constructor(call: SetERC1155ApprovalForControllerCall) {
     this._call = call;
-  }
-
-  get value0(): boolean {
-    return this._call.outputValues[0].value.toBoolean();
   }
 }
 

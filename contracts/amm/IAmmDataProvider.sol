@@ -10,14 +10,6 @@ interface IAmmDataProvider {
         uint256 bTokenPrice
     ) external view returns (uint256, uint256);
 
-    function calcPrice(
-        uint256 timeUntilExpiry,
-        uint256 strike,
-        uint256 currentPrice,
-        uint256 volatility,
-        bool isPutOption
-    ) external pure returns (uint256);
-
     function bTokenGetCollateralIn(
         uint64 seriesId,
         address ammAddress,
@@ -49,7 +41,7 @@ interface IAmmDataProvider {
         uint256 impliedVolatility
     ) external view returns (uint256);
 
-    function getPriceForExpiredSeries(uint64 seriesId, uint256 volatilityFactor)
+    function getPriceForSeries(uint64 seriesId, uint256 annualVolatility)
         external
         view
         returns (uint256);
@@ -62,9 +54,41 @@ interface IAmmDataProvider {
         uint256 impliedVolatility
     ) external view returns (uint256);
 
-    function getRedeemableCollateral(
+    function getRedeemableCollateral(uint64 seriesId, uint256 wTokenBalance)
+        external
+        view
+        returns (uint256);
+
+    function getTotalPoolValueView(address ammAddress, bool includeUnclaimed)
+        external
+        view
+        returns (uint256);
+
+    function bTokenGetCollateralInView(
+        address ammAddress,
         uint64 seriesId,
-        uint256 wTokenBalance,
-        uint256 bTokenBalance
+        uint256 bTokenAmount
+    ) external view returns (uint256);
+
+    function bTokenGetCollateralOutView(
+        address ammAddress,
+        uint64 seriesId,
+        uint256 bTokenAmount
+    ) external view returns (uint256);
+
+    function wTokenGetCollateralOutView(
+        address ammAddress,
+        uint64 seriesId,
+        uint256 wTokenAmount
+    ) external view returns (uint256);
+
+    function getCollateralValueOfAllExpiredOptionTokensView(address ammAddress)
+        external
+        view
+        returns (uint256);
+
+    function getOptionTokensSaleValueView(
+        address ammAddress,
+        uint256 lpTokenAmount
     ) external view returns (uint256);
 }

@@ -22,11 +22,7 @@ if (
 }
 
 async function main() {
-  await deploySingletonContracts(
-    FEE_RECEIVER,
-    ADMIN_ADDRESS,
-    PRICE_ORACLE_DATE_OFFSET,
-  )
+  await deploySingletonContracts()
 }
 
 // We recommend this pattern to be able to use async/await everywhere

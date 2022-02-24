@@ -13,6 +13,7 @@ import {
   ERC1155ControllerInstance,
   SeriesVaultInstance,
   SimpleTokenInstance,
+  AddressesProviderInstance,
 } from "../../typechain"
 
 const SeriesController: SeriesControllerContract =
@@ -34,6 +35,8 @@ let closeFee: number
 let claimFee: number
 let seriesId: string
 
+let deployedAddressesProvider: AddressesProviderInstance
+
 import {
   getSeriesName,
   assertBNEq,
@@ -46,13 +49,10 @@ const STATE_EXPIRED = 1
 
 const ERROR_MESSAGES = {
   CANNOT_EXERCISE_EXPIRED: "Option contract must be in Open State to exercise",
-  CANNOT_EXERCISE_PRIOR_EXERCISE_WINDOW:
-    "Option contract must be in EXPIRED State to exercise",
-  CANNOT_CLAIM_OPEN:
-    "Option contract must be in EXPIRED State to claim collateral",
-  CANNOT_CLOSE_EXPIRED:
-    "Option contract must be in Open State to close a position",
-  CANNOT_MINT_NOT_OPEN: "Option contract must be in Open State to mint",
+  CANNOT_EXERCISE_PRIOR_EXERCISE_WINDOW: "!Expired",
+  CANNOT_CLAIM_OPEN: "!Expired",
+  CANNOT_CLOSE_EXPIRED: "!Open",
+  CANNOT_MINT_NOT_OPEN: "!Open",
   NOT_ENOUGH_BALANCE: "ERC20: transfer amount exceeds balance",
   NOT_APPROVED_BALANCE: "ERC20: transfer amount exceeds allowance",
   NON_MINTER: "mintOptions: only restrictedMinter can mint",
@@ -82,6 +82,7 @@ contract("Proxy Series Verification", (accounts) => {
       exerciseFee,
       closeFee,
       claimFee,
+      deployedAddressesProvider,
     } = await setupAllTestContracts())
   })
 
@@ -99,7 +100,7 @@ contract("Proxy Series Verification", (accounts) => {
     // cannot initialize twice
     await expectRevert(
       deployedSeriesController.__SeriesController_init(
-        deployedPriceOracle.address,
+        deployedAddressesProvider.address,
         deployedVault.address,
         deployedERC1155Controller.address,
         {
@@ -391,7 +392,7 @@ contract("Proxy Series Verification", (accounts) => {
         [],
         isPutOption,
       ),
-      "Invalid underlyingToken",
+      "!Underlying",
     )
 
     await expectRevert(
@@ -406,7 +407,7 @@ contract("Proxy Series Verification", (accounts) => {
         [],
         isPutOption,
       ),
-      "Invalid priceToken",
+      "!Price",
     )
 
     await expectRevert(
@@ -421,7 +422,7 @@ contract("Proxy Series Verification", (accounts) => {
         [],
         isPutOption,
       ),
-      "Invalid collateralToken",
+      "!Collateral",
     )
   })
 
@@ -449,7 +450,7 @@ contract("Proxy Series Verification", (accounts) => {
         [],
         isPutOption,
       ),
-      "SeriesController: Must specify Series' restricted minters",
+      "!restrictedMinters",
     )
   })
 
@@ -507,13 +508,13 @@ contract("Proxy Series Verification", (accounts) => {
       deployedSeriesController.mintOptions(1337, MINT_AMOUNT, {
         from: aliceAccount,
       }),
-      "SeriesController: Series at this _seriesId does not exist",
+      "!_seriesId",
     )
 
     // It should fail to mint when minter is not one of the restricted minters
     await expectRevert(
       deployedSeriesController.mintOptions(seriesId, MINT_AMOUNT),
-      "SeriesController: caller must have MINTER_ROLE",
+      "!Minter",
     )
 
     // It should succeed
@@ -1030,7 +1031,7 @@ contract("Proxy Series Verification", (accounts) => {
       deployedSeriesController.updateImplementation(newImpl.address, {
         from: aliceAccount,
       }),
-      "SeriesController: Caller is not the owner",
+      "!admin",
     )
 
     // now make sure it changes when we update the implementation
@@ -1184,5 +1185,5 @@ contract("Proxy Series Verification", (accounts) => {
         carolAccount,
       )),
     )
-  })
+  }).timeout(10000000)
 })

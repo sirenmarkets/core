@@ -132,11 +132,26 @@ interface ISeriesController {
         uint256 collateralAmount
     );
 
+    /** Emitted when the owner adds new allowed expirations */
+    event AllowedExpirationUpdated(uint256 newAllowedExpiration);
+
     ///////////////////// VIEW/PURE FUNCTIONS /////////////////////
 
     function priceDecimals() external view returns (uint8);
 
     function erc1155Controller() external view returns (address);
+
+    function allowedExpirationsList(uint256 expirationId)
+        external
+        view
+        returns (uint256);
+
+    function allowedExpirationsMap(uint256 expirationTimestamp)
+        external
+        view
+        returns (uint256);
+
+    function getExpirationIdRange() external view returns (uint256, uint256);
 
     function series(uint256 seriesId)
         external
@@ -198,12 +213,20 @@ interface ISeriesController {
         uint256 _optionTokenAmount
     ) external view returns (uint256);
 
+    function getCollateralPerUnderlying(
+        uint64 _seriesId,
+        uint256 _underlyingAmount,
+        uint256 _price
+    ) external view returns (uint256);
+
     /// @notice Returns the amount of collateralToken held in the vault on behalf of the Series at _seriesId
     /// @param _seriesId The index of the Series in the SeriesController
     function getSeriesERC20Balance(uint64 _seriesId)
         external
         view
         returns (uint256);
+
+    function latestIndex() external returns (uint64);
 
     ///////////////////// MUTATING FUNCTIONS /////////////////////
 
@@ -213,10 +236,21 @@ interface ISeriesController {
         uint64 _seriesId,
         uint256 _bTokenAmount,
         bool _revertOtm
-    ) external;
+    ) external returns (uint256);
 
-    function claimCollateral(uint64 _seriesId, uint256 _wTokenAmount) external;
+    function claimCollateral(uint64 _seriesId, uint256 _wTokenAmount)
+        external
+        returns (uint256);
 
     function closePosition(uint64 _seriesId, uint256 _optionTokenAmount)
-        external;
+        external
+        returns (uint256);
+
+    function createSeries(
+        ISeriesController.Tokens calldata _tokens,
+        uint256[] calldata _strikePrices,
+        uint40[] calldata _expirationDates,
+        address[] calldata _restrictedMinters,
+        bool _isPutOption
+    ) external;
 }

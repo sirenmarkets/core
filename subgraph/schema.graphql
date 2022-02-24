@@ -63,7 +63,6 @@ type Amm @entity {
   createdTransaction: Bytes!
   series: [SeriesAmm]! @derivedFrom(field: "amm")
   controller: SeriesController!
-  priceOracle: Bytes!
   underlyingToken: ERC20Token!
   priceToken: ERC20Token!
   collateralToken: ERC20Token!
@@ -99,7 +98,7 @@ type SeriesAmm @entity {
   " Equal to: <seriesID>-<AmmID>"
   id: ID!
   series: SeriesEntity!
-  amm: Amm!
+  amm: Amm
 }
 
 enum FeeType {
@@ -196,6 +195,9 @@ type Account @entity {
 
   "AmmTokenEvents that this account has interacted with"
   ammTokenEvents: [AmmTokenEvent!]! @derivedFrom(field: "account")
+
+  "LockedExpirationPools that this account has interacted with"
+  lockedExpirationPools: [LockedExpirationPool!]!
 }
 
 ## ERC1155
@@ -684,4 +686,17 @@ type ERC1155Controller @entity {
 
   "Address of the SeriesController this ERC1155Controller is paired this"
   controller: Bytes!
+}
+
+## LockedExpirationPool
+type LockedExpirationPool @entity {
+  " Equals to: <amm address>-<expirationDate>"
+  id: ID!
+
+  amm: Amm!
+  lockedWTokens: BigInt!
+  expirationDate: BigInt! ##make this the ID
+  availableCollateral: BigInt!
+  "Accounts that this LockedExpirationPool has interacted with"
+  accounts: [Account!]! @derivedFrom(field: "lockedExpirationPools")
 }

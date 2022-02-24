@@ -30,6 +30,9 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
     /// be either 1 day or 1 week
     uint256 internal dateOffset;
 
+    /// @dev array of all price feeds
+    IPriceOracle.PriceFeed[] internal priceFeeds;
+
     event SettlementPriceSet(
         address underlyingToken,
         address priceToken,
@@ -218,7 +221,7 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
         address underlyingToken,
         address priceToken,
         address oracle
-    ) external onlyOwner {
+    ) external override onlyOwner {
         require(
             oracles[underlyingToken][priceToken] == address(0x0),
             "PriceOracle: cannot set address for an existing oracle"
@@ -226,6 +229,11 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
 
         // set the pair's oracle on the PriceOracle
         oracles[underlyingToken][priceToken] = oracle;
+
+        // add to list of price feeds
+        priceFeeds.push(
+            IPriceOracle.PriceFeed(underlyingToken, priceToken, oracle)
+        );
 
         // Get the price and ensure it is valid
         uint256 currentPrice = getCurrentPrice(underlyingToken, priceToken);
@@ -304,5 +312,18 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
                 return fridayEightHoursAligned;
             }
         }
+    }
+
+    function getPriceFeed(uint256 feedId)
+        external
+        view
+        override
+        returns (IPriceOracle.PriceFeed memory)
+    {
+        return priceFeeds[feedId];
+    }
+
+    function getPriceFeedsCount() public view override returns (uint256) {
+        return priceFeeds.length;
     }
 }
