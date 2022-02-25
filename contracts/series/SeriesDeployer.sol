@@ -271,15 +271,15 @@ contract SeriesDeployer is
             _collateralMaximum
         );
 
-        // Buy options
-        uint256 amtBought = IMinterAmm(_existingAmm).bTokenBuy(
-            createdSeriesId,
-            _bTokenAmount,
-            _collateralMaximum
-        );
-
-        // Send bTokens to buyer
         {
+            // Buy options
+            uint256 amtBought = IMinterAmm(_existingAmm).bTokenBuy(
+                createdSeriesId,
+                _bTokenAmount,
+                _collateralMaximum
+            );
+
+            // Send bTokens to buyer
             bytes memory data;
             IERC1155(seriesController.erc1155Controller()).safeTransferFrom(
                 address(this),
@@ -291,11 +291,20 @@ contract SeriesDeployer is
         }
 
         // Send any unused collateral back to buyer
-        if (IERC20(ammTokens.collateralToken).balanceOf(address(this)) > 0) {
+        uint256 remainingBalance = IERC20(ammTokens.collateralToken).balanceOf(
+            address(this)
+        );
+        if (remainingBalance > 0) {
+            // Give allowane just in case
+            IERC20(ammTokens.collateralToken).approve(
+                msg.sender,
+                remainingBalance
+            );
+
             IERC20(ammTokens.collateralToken).safeTransferFrom(
                 address(this),
                 msg.sender,
-                IERC20(ammTokens.collateralToken).balanceOf(address(this))
+                remainingBalance
             );
         }
 
