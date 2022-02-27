@@ -2971,13 +2971,13 @@ export class BTokenBought extends Entity {
     this.set("poolValueSnapshot", Value.fromString(value));
   }
 
-  get seriesId(): i32 {
+  get seriesId(): BigInt {
     let value = this.get("seriesId");
-    return value.toI32();
+    return value.toBigInt();
   }
 
-  set seriesId(value: i32) {
-    this.set("seriesId", Value.fromI32(value));
+  set seriesId(value: BigInt) {
+    this.set("seriesId", Value.fromBigInt(value));
   }
 
   get transaction(): string {
@@ -3092,13 +3092,13 @@ export class BTokenSold extends Entity {
     this.set("poolValueSnapshot", Value.fromString(value));
   }
 
-  get seriesId(): i32 {
+  get seriesId(): BigInt {
     let value = this.get("seriesId");
-    return value.toI32();
+    return value.toBigInt();
   }
 
-  set seriesId(value: i32) {
-    this.set("seriesId", Value.fromI32(value));
+  set seriesId(value: BigInt) {
+    this.set("seriesId", Value.fromBigInt(value));
   }
 
   get transaction(): string {
@@ -3213,13 +3213,13 @@ export class WTokenSold extends Entity {
     this.set("poolValueSnapshot", Value.fromString(value));
   }
 
-  get seriesId(): i32 {
+  get seriesId(): BigInt {
     let value = this.get("seriesId");
-    return value.toI32();
+    return value.toBigInt();
   }
 
-  set seriesId(value: i32) {
-    this.set("seriesId", Value.fromI32(value));
+  set seriesId(value: BigInt) {
+    this.set("seriesId", Value.fromBigInt(value));
   }
 
   get transaction(): string {
