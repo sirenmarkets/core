@@ -22,7 +22,7 @@ import {
 } from "../../generated/schema"
 import { findOrCreateToken } from "./simpleToken"
 import { getId } from "./helpers/transaction"
-import { ethereum, BigInt} from "@graphprotocol/graph-ts"
+import { ethereum, BigInt, dataSource } from "@graphprotocol/graph-ts"
 
 export function handleAMMInitialized(event: AMMInitialized): void {
   // create AMM
@@ -104,7 +104,8 @@ export function handleBTokensBought(event: BTokensBought): void {
   bTokenBought.block = event.block.number
   bTokenBought.timestamp = event.block.timestamp
   bTokenBought.poolValueSnapshot = poolValueSnapShot.id
-  bTokenBought.seriesId = event.params.seriesId
+  bTokenBought.seriesId = event.params.seriesId  
+  bTokenBought.series = getSeriesControllerAddress() + "-" + event.params.seriesId.toString()
   bTokenBought.transaction = event.transaction.hash.toHex()
 
   bTokenBought.save()
@@ -122,7 +123,8 @@ export function handleBTokensSold(event: BTokensSold): void {
   bTokenSold.block = event.block.number
   bTokenSold.timestamp = event.block.timestamp
   bTokenSold.poolValueSnapshot = poolValueSnapShot.id
-  bTokenSold.seriesId = event.params.seriesId
+  bTokenSold.seriesId = event.params.seriesId  
+  bTokenSold.series = getSeriesControllerAddress() + "-" + event.params.seriesId.toString()
   bTokenSold.transaction = event.transaction.hash.toHex()
 
   bTokenSold.save()
@@ -140,7 +142,8 @@ export function handleWTokensSold(event: WTokensSold): void {
   wTokenSold.block = event.block.number
   wTokenSold.timestamp = event.block.timestamp
   wTokenSold.poolValueSnapshot = poolValueSnapShot.id
-  wTokenSold.seriesId = event.params.seriesId
+  wTokenSold.seriesId = event.params.seriesId  
+  wTokenSold.series = getSeriesControllerAddress() + "-" + event.params.seriesId.toString()
   wTokenSold.transaction = event.transaction.hash.toHex()
 
   wTokenSold.save()
@@ -173,4 +176,9 @@ function takePoolValueSnapshot(event: ethereum.Event): PoolValueSnapshot {
   poolValueSnapshot.save()
 
   return poolValueSnapshot as PoolValueSnapshot
+}
+
+function getSeriesControllerAddress(): String {
+  let context = dataSource.context()
+  return context.getString('seriesController')
 }
