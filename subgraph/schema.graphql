@@ -530,7 +530,8 @@ type BTokenBought implements AmmTokenEvent @entity {
   block: BigInt!
   timestamp: BigInt!
   poolValueSnapshot: PoolValueSnapshot!
-  seriesId: BigInt!
+  seriesId: BigInt!  
+  series: SeriesEntity!
   transaction: String!
 }
 type BTokenSold implements AmmTokenEvent @entity {
@@ -543,7 +544,8 @@ type BTokenSold implements AmmTokenEvent @entity {
   block: BigInt!
   timestamp: BigInt!
   poolValueSnapshot: PoolValueSnapshot!
-  seriesId: BigInt!
+  seriesId: BigInt!  
+  series: SeriesEntity!
   transaction: String!
 }
 type WTokenSold implements AmmTokenEvent @entity {
@@ -556,7 +558,8 @@ type WTokenSold implements AmmTokenEvent @entity {
   block: BigInt!
   timestamp: BigInt!
   poolValueSnapshot: PoolValueSnapshot!
-  seriesId: BigInt!
+  seriesId: BigInt!  
+  series: SeriesEntity!
   transaction: String!
 }
 

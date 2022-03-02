@@ -13,7 +13,7 @@
     "deploy-rinkeby": "NETWORK=rinkeby NAME=pascalclub/protocol-v2-rinkeby npm run deploy-remote",
     "deploy-mainnet": "NETWORK=mainnet NAME=sirenmarkets/protocol-v2 npm run deploy-remote",
     "deploy-matic": "NETWORK=matic NAME=sirenmarkets/protocol-v2-matic npm run deploy-remote",
-    "deploy-mumbai": "NETWORK=mumbai NAME=pascalclub/protocol-v2-mumbai npm run deploy-remote",
+    "deploy-mumbai": "NETWORK=mumbai NAME=sirenmarkets/protocol-v2-mumbai npm run deploy-remote",
     "graph-auth": "graph auth https://api.thegraph.com/deploy/ --"
   },
   "dependencies": {

@@ -2980,6 +2980,15 @@ export class BTokenBought extends Entity {
     this.set("seriesId", Value.fromBigInt(value));
   }
 
+  get series(): string {
+    let value = this.get("series");
+    return value.toString();
+  }
+
+  set series(value: string) {
+    this.set("series", Value.fromString(value));
+  }
+
   get transaction(): string {
     let value = this.get("transaction");
     return value.toString();
@@ -3101,6 +3110,15 @@ export class BTokenSold extends Entity {
     this.set("seriesId", Value.fromBigInt(value));
   }
 
+  get series(): string {
+    let value = this.get("series");
+    return value.toString();
+  }
+
+  set series(value: string) {
+    this.set("series", Value.fromString(value));
+  }
+
   get transaction(): string {
     let value = this.get("transaction");
     return value.toString();
@@ -3220,6 +3238,15 @@ export class WTokenSold extends Entity {
 
   set seriesId(value: BigInt) {
     this.set("seriesId", Value.fromBigInt(value));
+  }
+
+  get series(): string {
+    let value = this.get("series");
+    return value.toString();
+  }
+
+  set series(value: string) {
+    this.set("series", Value.fromString(value));
   }
 
   get transaction(): string {

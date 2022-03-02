@@ -99,6 +99,8 @@ dataSources:
       abis:
         - name: AmmFactory
           file: ../artifacts/contracts/amm/AmmFactory.sol/AmmFactory.json
+        - name: MinterAmm
+          file: ../artifacts/contracts/amm/MinterAmm.sol/MinterAmm.json
       eventHandlers:
         - event: OwnershipTransferred(indexed address,indexed address)
           handler: handleOwnershipTransferred
