@@ -133,8 +133,15 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
                 targetPrice = uint256(answer);
             }
 
+            if (roundId == 0) break;
             roundId -= 1;
             (, answer, , roundTimestamp, ) = aggregator.getRoundData(roundId);
+
+            // handle incomplete round
+            if (roundTimestamp == 0) {
+                // set in order for the loop to continue
+                roundTimestamp = timestamp;
+            }
         }
 
         return (targetRoundId, targetPrice);

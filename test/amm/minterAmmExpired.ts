@@ -424,6 +424,8 @@ contract("Minter AMM Expired", (accounts) => {
 
     // Move the block time into the exercise window
     await time.increase(ONE_WEEK_DURATION)
+    // Set oracle price round again for the new timestamp
+    await deployedMockPriceOracle.setLatestAnswer(25_000 * 10 ** 8)
 
     // Alice exercises her options
     // 2,000(amount) * (25,000(price) - 20,000(strike)) / 25,000(price) = 400 collateral
@@ -732,6 +734,7 @@ contract("Minter AMM Expired", (accounts) => {
 
     // Move the block time into the future so the contract is expired
     await time.increaseTo(expiration)
+    await deployedMockPriceOracle.setLatestAnswer(UNDERLYING_PRICE)
 
     // Make sure series is expired
     assertBNEq(
@@ -875,6 +878,7 @@ contract("Minter AMM Expired", (accounts) => {
 
     // Move the block time into the future so the contract is expired
     await time.increaseTo(expiration)
+    await deployedMockPriceOracle.setLatestAnswer(UNDERLYING_PRICE)
 
     // Make sure series is expired
     assertBNEq(

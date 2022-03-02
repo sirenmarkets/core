@@ -3,6 +3,7 @@ import { time, BN } from "@openzeppelin/test-helpers"
 import { artifacts, contract, assert } from "hardhat"
 import {
   PriceOracleInstance,
+  MockPriceOracleInstance,
   SimpleTokenContract,
   SimpleTokenInstance,
   MinterAmmInstance,
@@ -24,6 +25,7 @@ let deployedSeriesController: SeriesControllerInstance
 let deployedERC1155Controller: ERC1155ControllerInstance
 let deployedAmm: MinterAmmInstance
 let deployedPriceOracle: PriceOracleInstance
+let deployedMockPriceOracle: MockPriceOracleInstance
 
 let underlyingToken: SimpleTokenInstance
 let priceToken: SimpleTokenInstance
@@ -55,6 +57,7 @@ contract("Minter AMM Gas Measurement", (accounts) => {
       deployedSeriesController,
       deployedERC1155Controller,
       deployedPriceOracle,
+      deployedMockPriceOracle,
       expiration,
     } = await setupAllTestContracts({
       strikePrice: STRIKE_PRICE.toString(),
@@ -229,6 +232,7 @@ contract("Minter AMM Gas Measurement", (accounts) => {
     // Move the block time into the future so exactly numExpiredSeries number
     // of series are expired
     await time.increaseTo(expiration + numExpiredSeries * oneWeek + 60)
+    await deployedMockPriceOracle.setLatestAnswer(BTC_ORACLE_PRICE)
 
     // now that we advanced forward to the expiration date, we can set the Series' matching
     // settlement price on the PriceOracle
