@@ -1,5 +1,6 @@
 /* global artifacts contract it assert */
 import { artifacts, contract } from "hardhat"
+import { expectRevert } from "@openzeppelin/test-helpers"
 import {
   MockPriceOracleContract,
   MockPriceOracleInstance,
@@ -20,7 +21,24 @@ contract("Chainlink ETH/USD Proxy", () => {
 
   beforeEach(async () => {})
 
-  it("Calculates price correctly", async () => {
+  it("is deprecated", async () => {
+    let ethUsdOracle: MockPriceOracleInstance = await MockPriceOracle.new(8)
+    await ethUsdOracle.setLatestAnswer("176696799467")
+
+    let sushiEthOracle: MockPriceOracleInstance = await MockPriceOracle.new(18)
+    await sushiEthOracle.setLatestAnswer("9395798375082420")
+
+    let sushiUsdOracle: ChainlinkEthUsdProxyInstance =
+      await ChainlinkEthUsdProxy.new(
+        ethUsdOracle.address,
+        sushiEthOracle.address,
+        8,
+      )
+
+    expectRevert(sushiUsdOracle.latestRoundData(), "Method not implemented")
+  })
+
+  xit("Calculates price correctly", async () => {
     let ethUsdOracle: MockPriceOracleInstance = await MockPriceOracle.new(8)
     await ethUsdOracle.setLatestAnswer("176696799467")
 
