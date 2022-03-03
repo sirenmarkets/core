@@ -28,7 +28,7 @@ let priceToken: SimpleTokenInstance
 
 const underlyingToken2Address = "0x1574e9cb330def04be5a639f57dd52037a2ad206"
 
-contract("AMM Call Verification", (accounts) => {
+contract("Price Oracle Keeper", (accounts) => {
   const ownerAccount = accounts[0]
   const aliceAccount = accounts[1]
   const bobAccount = accounts[2]
@@ -71,6 +71,8 @@ contract("AMM Call Verification", (accounts) => {
 
     // increase time to next week
     await time.increaseTo(previousSettlementTime.add(new BN(60 * 60 * 24 * 7)))
+    await deployedMockPriceOracle.setLatestAnswer(3000)
+    await deployedMockPriceOracle2.setLatestAnswer(100)
 
     const currentSettlementTime =
       await deployedPriceOracle.get8amWeeklyOrDailyAligned(await time.latest())
@@ -91,7 +93,7 @@ contract("AMM Call Verification", (accounts) => {
     // perform upkeep
     await priceOracleKeeper.performUpkeep("0x0")
 
-    // Ceck that settlement price is set after the upkeep
+    // Check that settlement price is set after the upkeep
     assertBNEq(
       (
         await deployedPriceOracle.getSettlementPrice(
