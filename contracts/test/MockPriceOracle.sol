@@ -14,16 +14,59 @@ import "../series/PriceOracle.sol";
  * the AMM.
  */
 contract MockPriceOracle is PriceOracle, AggregatorV3Interface {
-    int256 public latestAnswer;
-
     uint8 internal priceDecimals;
+
+    struct Round {
+        uint80 roundId;
+        int256 answer;
+        uint256 startedAt;
+        uint256 updatedAt;
+        uint80 answeredInRound;
+    }
+
+    mapping(uint80 => Round) internal rounds;
+    uint80 nextRoundId;
 
     constructor(uint8 _priceDecimals) public {
         priceDecimals = _priceDecimals;
     }
 
     function setLatestAnswer(int256 _latestAnswer) public {
-        latestAnswer = _latestAnswer;
+        addRound(_latestAnswer, block.timestamp + 10, block.timestamp + 10);
+    }
+
+    function addRound(
+        int256 answer,
+        uint256 startedAt,
+        uint256 updatedAt
+    ) public {
+        Round memory round = Round(
+            nextRoundId,
+            answer,
+            startedAt,
+            updatedAt,
+            nextRoundId
+        );
+        rounds[nextRoundId] = round;
+        nextRoundId++;
+    }
+
+    function addRoundWithId(
+        uint80 roundId,
+        int256 answer,
+        uint256 startedAt,
+        uint256 updatedAt
+    ) public {
+        require(roundId >= nextRoundId, "roundId should increase");
+        Round memory round = Round(
+            roundId,
+            answer,
+            startedAt,
+            updatedAt,
+            roundId
+        );
+        rounds[roundId] = round;
+        nextRoundId = roundId + 1;
     }
 
     function decimals() public view override returns (uint8) {
@@ -54,7 +97,14 @@ contract MockPriceOracle is PriceOracle, AggregatorV3Interface {
             uint80 answeredInRound
         )
     {
-        return (_roundId, 42, 0, 1, _roundId);
+        Round memory round = rounds[_roundId];
+        return (
+            round.roundId,
+            round.answer,
+            round.startedAt,
+            round.updatedAt,
+            round.answeredInRound
+        );
     }
 
     function latestRoundData()
@@ -69,7 +119,7 @@ contract MockPriceOracle is PriceOracle, AggregatorV3Interface {
             uint80 answeredInRound
         )
     {
-        return (1337, latestAnswer, 0, 1, 1337); // 1337 is an arbitrary value, it does not matter for testing
+        return getRoundData(nextRoundId - 1);
     }
 
     function setSettlementPriceOnDate(
@@ -105,5 +155,13 @@ contract MockPriceOracle is PriceOracle, AggregatorV3Interface {
         settlementPrices[underlyingToken][priceToken][date] = price;
 
         emit SettlementPriceSet(underlyingToken, priceToken, date, spotPrice);
+    }
+
+    function reset() public {
+        for (uint80 i = 0; i < nextRoundId; i++) {
+            rounds[i] = Round(0, 0, 0, 0, 0);
+        }
+
+        nextRoundId = 0;
     }
 }

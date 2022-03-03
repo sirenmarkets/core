@@ -442,6 +442,14 @@ export async function setupSingletonTestContracts(
   let expiration: number = getNextFriday8amUTCTimestamp(
     (await now()) + ONE_WEEK_DURATION,
   )
+
+  // Set settlement price on expiration
+  await deployedMockPriceOracle.addRound(
+    oraclePrice,
+    expiration + 10,
+    expiration + 10,
+  )
+
   const deployedPriceOracle = await setupPriceOracle(
     underlyingToken.address,
     priceToken.address,

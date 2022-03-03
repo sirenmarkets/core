@@ -619,6 +619,7 @@ contract("wToken Vault", (accounts) => {
 
       // Expiration 1
       await mineBlock(expiration)
+      await deployedMockPriceOracle.setLatestAnswer(13_000e8)
 
       // Check redeemable collateral
       assertBNEq(
@@ -716,6 +717,7 @@ contract("wToken Vault", (accounts) => {
 
       // Expiration 1
       await mineBlock(expiration2)
+      await deployedMockPriceOracle.setLatestAnswer(16_000e8)
 
       // LP1 withdraws all capital
       await setNextBlockTimestamp(expiration2 + 10)

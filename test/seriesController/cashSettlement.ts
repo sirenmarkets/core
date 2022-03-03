@@ -411,6 +411,8 @@ contract("Cash Settlement", (accounts) => {
 
     await time.increaseTo(afterExpiry)
 
+    await deployedMockPriceOracle.setLatestAnswer(collateralPrice)
+
     claimCalc = await deployedSeriesController.getClaimAmount(
       seriesId,
       mintAmount,
@@ -427,6 +429,7 @@ contract("Cash Settlement", (accounts) => {
 
     // set the settlement price, and we should see the Series uses that price instead of the current price
     const newCurrentPrice = 25_000 * 10 ** wBTCDecimals
+    await deployedMockPriceOracle.reset()
     await deployedMockPriceOracle.setLatestAnswer(newCurrentPrice)
     await deployedPriceOracle.setSettlementPrice(
       underlyingToken.address,

@@ -117,7 +117,7 @@ contract("PriceOracle verification", (accounts) => {
     it("should fail if the oracle returns a negative value", async () => {
       await deployedMockPriceOracle.setLatestAnswer(-1)
       await expectRevert(
-        deployedPriceOracle.setSettlementPrice(
+        deployedPriceOracle.getCurrentPrice(
           underlyingToken.address,
           priceToken.address,
         ),
@@ -184,6 +184,7 @@ contract("PriceOracle verification", (accounts) => {
           priceToken.address,
           underlyingToken.address,
           nextFriday8amUTC,
+          0,
         ),
         "no oracle address for this token pair",
       )
@@ -195,6 +196,7 @@ contract("PriceOracle verification", (accounts) => {
           underlyingToken.address,
           priceToken.address,
           nextFriday8amUTC - 1,
+          0,
         ),
         "date is not aligned",
       )
@@ -206,37 +208,9 @@ contract("PriceOracle verification", (accounts) => {
           underlyingToken.address,
           priceToken.address,
           nextFriday8amUTC,
+          0,
         ),
         "date must be in the past",
-      )
-    })
-
-    it("should fail to set a price for a settlement date such that there would be gaps in the dates that have had their prices set", async () => {
-      // move time ahead so we have 2 unset settlement dates we can set
-      await time.increase(2 * weekDuration)
-
-      // at this point we have the dates "nextFriday8amUTC" and "nextFriday8amUTC + weekDuration" as both valid dates
-      // we can set a price on. Setting a price for "nextFriday8amUTC + weekDuration" would create a gap, so it should fail
-
-      await expectRevert(
-        deployedPriceOracle.setSettlementPriceForDate(
-          underlyingToken.address,
-          priceToken.address,
-          nextFriday8amUTC + weekDuration,
-        ),
-        "must use the earliest date without a price set",
-      )
-
-      // and now let's try it for another offset interval ahead
-      await time.increase(weekDuration)
-
-      await expectRevert(
-        deployedPriceOracle.setSettlementPriceForDate(
-          underlyingToken.address,
-          priceToken.address,
-          nextFriday8amUTC + 2 * weekDuration,
-        ),
-        "must use the earliest date without a price set",
       )
     })
   })
@@ -257,6 +231,13 @@ contract("PriceOracle verification", (accounts) => {
       )
 
       await time.increaseTo(nextFriday8amUTC) // advance to first settlement date
+
+      // Add round to oracle
+      await deployedMockPriceOracle.addRound(
+        humanCollateralPrice,
+        nextFriday8amUTC + 1,
+        nextFriday8amUTC + 1,
+      )
 
       const receipt = await deployedPriceOracle.setSettlementPrice(
         underlyingToken.address,
@@ -286,6 +267,13 @@ contract("PriceOracle verification", (accounts) => {
 
     it("should not change price when setting the same token + settlementDate multiple times", async () => {
       await time.increaseTo(nextFriday8amUTC) // advance to first settlement date
+
+      // Add round to oracle
+      await deployedMockPriceOracle.addRound(
+        humanCollateralPrice,
+        nextFriday8amUTC + 1,
+        nextFriday8amUTC + 1,
+      )
 
       await deployedPriceOracle.setSettlementPrice(
         underlyingToken.address,
@@ -339,6 +327,13 @@ contract("PriceOracle verification", (accounts) => {
 
       // advance to shared settlement date and successfuly set the price for each token pair
       await time.increaseTo(nextFriday8amUTC)
+      // Add round to oracle
+      await deployedMockPriceOracle.addRound(
+        humanCollateralPrice,
+        nextFriday8amUTC + 1,
+        nextFriday8amUTC + 1,
+      )
+
       await deployedPriceOracle.setSettlementPrice(
         underlyingToken.address,
         priceToken.address,
@@ -354,6 +349,13 @@ contract("PriceOracle verification", (accounts) => {
         newPriceTuple[1].toNumber(),
         humanCollateralPrice,
         "incorrect settlement price set",
+      )
+
+      // Add round to the second oracle
+      anotherMockPriceOracle.addRound(
+        12_000 * 10 ** differentDecimals,
+        nextFriday8amUTC + 1,
+        nextFriday8amUTC + 1,
       )
 
       await deployedPriceOracle.setSettlementPrice(
@@ -384,75 +386,6 @@ contract("PriceOracle verification", (accounts) => {
       assert.equal(false, settlementPriceTuple[0])
 
       assert.equal(0, settlementPriceTuple[1].toNumber())
-    })
-
-    it("should be able to set multiple settlement dates with a single call to PriceOracle.setSettlementDate", async () => {
-      const oneFridayAhead = nextFriday8amUTC + 7 * 24 * 60 * 60
-      const twoFridaysAhead = nextFriday8amUTC + 2 * (7 * 24 * 60 * 60)
-      await time.increaseTo(twoFridaysAhead)
-
-      // now, we should see 3 different settlement dates get set
-      const receipt = await deployedPriceOracle.setSettlementPrice(
-        underlyingToken.address,
-        priceToken.address,
-      )
-
-      expectEvent(receipt, "SettlementPriceSet", {
-        underlyingToken: underlyingToken.address,
-        priceToken: priceToken.address,
-        settlementDate: nextFriday8amUTC.toString(),
-        price: humanCollateralPrice,
-      })
-
-      expectEvent(receipt, "SettlementPriceSet", {
-        underlyingToken: underlyingToken.address,
-        priceToken: priceToken.address,
-        settlementDate: oneFridayAhead.toString(),
-        price: humanCollateralPrice,
-      })
-
-      expectEvent(receipt, "SettlementPriceSet", {
-        underlyingToken: underlyingToken.address,
-        priceToken: priceToken.address,
-        settlementDate: twoFridaysAhead.toString(),
-        price: humanCollateralPrice,
-      })
-
-      let newPriceTuple = await deployedPriceOracle.getSettlementPrice(
-        underlyingToken.address,
-        priceToken.address,
-        nextFriday8amUTC,
-      )
-      assert.equal(true, newPriceTuple[0])
-      assert.equal(
-        newPriceTuple[1].toNumber(),
-        humanCollateralPrice,
-        "incorrect settlement price set",
-      )
-
-      newPriceTuple = await deployedPriceOracle.getSettlementPrice(
-        underlyingToken.address,
-        priceToken.address,
-        oneFridayAhead,
-      )
-      assert.equal(true, newPriceTuple[0])
-      assert.equal(
-        newPriceTuple[1].toNumber(),
-        humanCollateralPrice,
-        "incorrect settlement price set",
-      )
-
-      newPriceTuple = await deployedPriceOracle.getSettlementPrice(
-        underlyingToken.address,
-        priceToken.address,
-        twoFridaysAhead,
-      )
-      assert.equal(true, newPriceTuple[0])
-      assert.equal(
-        newPriceTuple[1].toNumber(),
-        humanCollateralPrice,
-        "incorrect settlement price set",
-      )
     })
 
     it("should upgrade correctly", async () => {
@@ -496,11 +429,19 @@ contract("PriceOracle verification", (accounts) => {
         "incorrect settlement price set",
       )
 
+      // Add round to oracle
+      await deployedMockPriceOracle.addRound(
+        humanCollateralPrice,
+        nextFriday8amUTC + 1,
+        nextFriday8amUTC + 1,
+      )
+
       // set the price
       let receipt = await deployedPriceOracle.setSettlementPriceForDate(
         underlyingToken.address,
         priceToken.address,
         nextFriday8amUTC,
+        1,
       )
 
       // make sure the event fired
@@ -531,6 +472,7 @@ contract("PriceOracle verification", (accounts) => {
         underlyingToken.address,
         priceToken.address,
         nextFriday8amUTC,
+        0,
       )
 
       const setSettlementEvents = receipt.logs.filter(
@@ -555,10 +497,30 @@ contract("PriceOracle verification", (accounts) => {
 
       await time.increase(weekDuration)
 
+      // Add round to oracle
+      await deployedMockPriceOracle.addRound(
+        humanCollateralPrice,
+        nextFriday8amUTC + weekDuration + 1,
+        nextFriday8amUTC + weekDuration + 1,
+      )
+
+      // Check that trying old round returns an error
+      expectRevert(
+        deployedPriceOracle.setSettlementPriceForDate(
+          underlyingToken.address,
+          priceToken.address,
+          nextFriday8amUTC + weekDuration,
+          1,
+        ),
+        "!roundId",
+      )
+
+      // Try with correct roundId
       receipt = await deployedPriceOracle.setSettlementPriceForDate(
         underlyingToken.address,
         priceToken.address,
         nextFriday8amUTC + weekDuration,
+        2,
       )
 
       // make sure the event fired
@@ -581,6 +543,64 @@ contract("PriceOracle verification", (accounts) => {
         priceTuple[1].toNumber(),
         humanCollateralPrice,
         "incorrect settlement price set",
+      )
+    })
+
+    it("should handle non-monotonic roundId", async () => {
+      await time.increaseTo(nextFriday8amUTC) // advance to first settlement date
+
+      // Add round to oracle
+      await deployedMockPriceOracle.addRoundWithId(
+        1,
+        humanCollateralPrice,
+        nextFriday8amUTC - 1,
+        nextFriday8amUTC - 1,
+      )
+      // Add another round with gap in roundId
+      const price2 = new BN(20_000 * 10 ** 8)
+      const price3 = new BN(21_000 * 10 ** 8)
+      await deployedMockPriceOracle.addRoundWithId(
+        3,
+        price2,
+        nextFriday8amUTC + 1,
+        nextFriday8amUTC + 1,
+      )
+      await deployedMockPriceOracle.addRoundWithId(
+        5,
+        price3,
+        nextFriday8amUTC + 10,
+        nextFriday8amUTC + 10,
+      )
+      await deployedMockPriceOracle.addRoundWithId(
+        10,
+        price3,
+        nextFriday8amUTC + 20,
+        nextFriday8amUTC + 20,
+      )
+
+      const receipt = await deployedPriceOracle.setSettlementPrice(
+        underlyingToken.address,
+        priceToken.address,
+      )
+
+      expectEvent(receipt, "SettlementPriceSet", {
+        underlyingToken: underlyingToken.address,
+        priceToken: priceToken.address,
+        settlementDate: nextFriday8amUTC.toString(),
+        price: price2,
+      })
+
+      const newPriceTuple = await deployedPriceOracle.getSettlementPrice(
+        underlyingToken.address,
+        priceToken.address,
+        nextFriday8amUTC,
+      )
+
+      assert.equal(true, newPriceTuple[0])
+      assert.equal(
+        newPriceTuple[1].toString(),
+        price2.toString(),
+        "correct settlement price set",
       )
     })
   })
