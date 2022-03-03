@@ -5,6 +5,10 @@ pragma solidity 0.8.0;
 import "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
 
 /**
+!!!WARNING!!!: this file is deprecated and will not work with the current PriceOracle implementation
+due to not returning proper round ids and timestamps
+
+
 Converts prices from ETH/USD and <ASSET>/ETH oracles into <ASSET>/USD price
 according to specifyed decimal places
  */
@@ -87,6 +91,10 @@ contract ChainlinkEthUsdProxy is AggregatorV3Interface {
             uint80 answeredInRound
         )
     {
+        // This implementation will not work with the current PriceOracle implementatio
+        // due to not returning proper round ids and timestamps
+        require(false, "Method not implemented");
+
         (, int256 ethUsdPrice, , , ) = ethUsdOracle.latestRoundData();
         (, int256 assetEthPrice, , , ) = assetEthOracle.latestRoundData();
 
