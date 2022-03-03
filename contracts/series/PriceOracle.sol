@@ -87,15 +87,12 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
             (uint80 lastRoundId, , , , ) = aggregator.latestRoundData();
 
             // Find first round after the settlement date
-            (
-                uint80 targetRoundId,
-                uint256 targetPrice
-            ) = findFirstRoundAfterDate(
-                    underlyingToken,
-                    priceToken,
-                    priorAligned8am,
-                    lastRoundId
-                );
+            (, uint256 targetPrice) = findFirstRoundAfterDate(
+                underlyingToken,
+                priceToken,
+                priorAligned8am,
+                lastRoundId
+            );
 
             require(targetPrice > 0, "!targetPrice");
 
@@ -125,7 +122,6 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
 
         (uint80 roundId, int256 answer, , uint256 roundTimestamp, ) = aggregator
             .getRoundData(startWithRound);
-        uint80 targetRoundId;
 
         while (roundTimestamp >= timestamp) {
             if (answer > 0) {
