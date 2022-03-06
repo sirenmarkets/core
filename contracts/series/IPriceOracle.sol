@@ -41,6 +41,13 @@ interface IPriceOracle {
         address oracle
     ) external;
 
+    function updateOracleAddress(
+        address underlyingToken,
+        address priceToken,
+        address newOracle,
+        uint256 feedId
+    ) external;
+
     function getPriceFeed(uint256 feedId)
         external
         view

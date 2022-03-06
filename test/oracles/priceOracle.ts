@@ -28,6 +28,7 @@ import {
   setupPriceOracle,
   getNextFriday8amUTCTimestamp,
   setupAllTestContracts,
+  assertBNEq,
 } from "../util"
 
 const wbtcDecimals = 8
@@ -601,6 +602,35 @@ contract("PriceOracle verification", (accounts) => {
         newPriceTuple[1].toString(),
         price2.toString(),
         "correct settlement price set",
+      )
+    })
+
+    it("should update oracle address", async () => {
+      const newPrice = 123e8
+      const newMockPriceOracle = await MockPriceOracle.new(wbtcDecimals)
+      await newMockPriceOracle.setLatestAnswer(newPrice)
+
+      await deployedPriceOracle.updateOracleAddress(
+        underlyingToken.address,
+        priceToken.address,
+        newMockPriceOracle.address,
+        0,
+      )
+
+      // Check that address was updated
+      assertBNEq(
+        await deployedPriceOracle.getCurrentPrice(
+          underlyingToken.address,
+          priceToken.address,
+        ),
+        newPrice.toString(),
+        "Should return correct price from the new address",
+      )
+
+      assert(
+        (await deployedPriceOracle.getPriceFeed(0)).oracle ==
+          newMockPriceOracle.address,
+        "New oracle address should be set",
       )
     })
   })
