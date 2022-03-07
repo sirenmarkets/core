@@ -316,6 +316,38 @@ contract PriceOracle is IPriceOracle, OwnableUpgradeable, Proxiable {
         );
     }
 
+    /// @notice Updates the price oracle to use for the given underlyingToken and priceToken pair
+    /// @param underlyingToken Should be equal to the Series' underlyingToken field
+    /// @param priceToken Should be equal to the Series' priceToken field
+    /// @param newOracle The address of the price oracle contract
+    /// @param feedId Id of the price feed to be updated
+    function updateOracleAddress(
+        address underlyingToken,
+        address priceToken,
+        address newOracle,
+        uint256 feedId
+    ) external override onlyOwner {
+        require(newOracle != address(0x0), "!newOracle");
+
+        IPriceOracle.PriceFeed storage feed = priceFeeds[feedId];
+        require(feed.underlyingToken == underlyingToken, "!underlyingToken");
+        require(feed.priceToken == priceToken, "!priceToken");
+
+        feed.oracle = newOracle;
+        oracles[underlyingToken][priceToken] = newOracle;
+
+        uint256 earliestSettlementDate = get8amWeeklyOrDailyAligned(
+            block.timestamp
+        );
+
+        emit OracleSet(
+            underlyingToken,
+            priceToken,
+            newOracle,
+            earliestSettlementDate
+        );
+    }
+
     /// @notice update the PriceOracle's logic contract
     /// @param newPriceOracleImpl the address of the new price oracle implementation contract
     function updateImplementation(address newPriceOracleImpl)
