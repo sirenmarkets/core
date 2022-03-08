@@ -56,40 +56,62 @@ contract AmmDataProvider is IAmmDataProvider {
         );
     }
 
-    /// This function determines reserves of a bonding curve for a specific series.
-    /// Given price of bToken we determine what is the largest pool we can create such that
-    /// the ratio of its reserves satisfy the given bToken price: Rb / Rw = (1 - Pb) / Pb
     function getVirtualReserves(
         uint64 seriesId,
         address ammAddress,
         uint256 collateralTokenBalance,
         uint256 bTokenPrice
     ) public view override returns (uint256, uint256) {
-        // Get residual balances
-        uint256 bTokenBalance = 0; // no bTokens are allowed in the pool
-        uint256 wTokenBalance = erc1155Controller.balanceOf(
-            ammAddress,
-            SeriesLibrary.wTokenIndex(seriesId)
-        );
-
         ISeriesController.Series memory series = seriesController.series(
             seriesId
         );
 
-        // For put convert token balances into collateral locked in them
-        uint256 lockedUnderlyingValue = 1e18;
+        uint256 wTokenBalance = erc1155Controller.balanceOf(
+            ammAddress,
+            SeriesLibrary.wTokenIndex(seriesId)
+        );
         if (series.isPutOption) {
             wTokenBalance = seriesController.getCollateralPerOptionToken(
                 seriesId,
                 wTokenBalance
             );
+        }
+
+        return
+            getVirtualReservesInternal(
+                ammAddress,
+                collateralTokenBalance,
+                bTokenPrice,
+                wTokenBalance,
+                series
+            );
+    }
+
+    /// This function determines reserves of a bonding curve for a specific series.
+    /// Given price of bToken we determine what is the largest pool we can create such that
+    /// the ratio of its reserves satisfy the given bToken price: Rb / Rw = (1 - Pb) / Pb
+    function getVirtualReservesInternal(
+        address ammAddress,
+        uint256 collateralTokenBalance,
+        uint256 bTokenPrice,
+        uint256 wTokenBalance,
+        ISeriesController.Series memory series
+    ) private view returns (uint256, uint256) {
+        IMinterAmm amm = IMinterAmm(ammAddress);
+
+        // Get residual balances
+        uint256 bTokenBalance = 0; // no bTokens are allowed in the pool
+
+        // For put convert token balances into collateral locked in them
+        uint256 lockedUnderlyingValue = 1e18;
+        if (series.isPutOption) {
             // TODO: this logic causes the underlying price to be fetched twice from the oracle. Can be optimized.
             lockedUnderlyingValue =
                 (lockedUnderlyingValue * series.strikePrice) /
                 IPriceOracle(addressesProvider.getPriceOracle())
                     .getCurrentPrice(
-                        seriesController.underlyingToken(seriesId),
-                        seriesController.priceToken(seriesId)
+                        address(amm.underlyingToken()),
+                        address(amm.priceToken())
                     );
         }
 
@@ -401,7 +423,7 @@ contract AmmDataProvider is IAmmDataProvider {
             );
     }
 
-    function getPriceForSeriesInternal(
+    function getPriceForNewSeries(
         ISeriesController.Series memory series,
         uint256 underlyingPrice,
         uint256 annualVolatility

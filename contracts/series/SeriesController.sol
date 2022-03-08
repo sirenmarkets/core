@@ -415,14 +415,14 @@ contract SeriesController is
     /// @param _optionTokenAmount The amount of bToken/wToken
     /// @return The amount of collateral token received when exercising this amount of option token
     function getCollateralPerOptionToken(
-        uint64 _seriesId,
+        ISeriesController.Series memory _currentSeries,
         uint256 _optionTokenAmount
     ) public view override returns (uint256) {
         return
             getCollateralPerUnderlying(
-                _seriesId,
+                _currentSeries,
                 _optionTokenAmount,
-                allSeries[_seriesId].strikePrice
+                _currentSeries.strikePrice
             );
     }
 
@@ -433,14 +433,12 @@ contract SeriesController is
     /// @param _price The price of the collateral token in units of price token
     /// @return The amount of collateral
     function getCollateralPerUnderlying(
-        uint64 _seriesId,
+        ISeriesController.Series memory _currentSeries,
         uint256 _underlyingAmount,
         uint256 _price
     ) public view override returns (uint256) {
-        Series memory currentSeries = allSeries[_seriesId];
-
         // is it a call option?
-        if (!currentSeries.isPutOption) {
+        if (!_currentSeries.isPutOption) {
             // for call options this conversion is simple, because 1 optionToken locks
             // 1 unit of collateral token
             return _underlyingAmount;
@@ -453,11 +451,11 @@ contract SeriesController is
             (((_underlyingAmount * _price) / (uint256(10)**priceDecimals)) *
                 (uint256(10) **
                     (
-                        IERC20Lib(currentSeries.tokens.collateralToken)
+                        IERC20Lib(_currentSeries.tokens.collateralToken)
                             .decimals()
                     ))) /
             (uint256(10) **
-                (IERC20Lib(currentSeries.tokens.underlyingToken).decimals()));
+                (IERC20Lib(_currentSeries.tokens.underlyingToken).decimals()));
     }
 
     /// @notice Returns the settlement price for this Series.
