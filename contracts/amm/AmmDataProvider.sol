@@ -57,32 +57,31 @@ contract AmmDataProvider is IAmmDataProvider {
     }
 
     function getVirtualReserves(
-        uint64 seriesId,
+        ISeriesController.Series memory series,
         address ammAddress,
         uint256 collateralTokenBalance,
         uint256 bTokenPrice
     ) public view override returns (uint256, uint256) {
-        ISeriesController.Series memory series = seriesController.series(
-            seriesId
-        );
-
+        //We set wTokenBalance = 0
+        //
+        /*
         uint256 wTokenBalance = erc1155Controller.balanceOf(
             ammAddress,
             SeriesLibrary.wTokenIndex(seriesId)
         );
         if (series.isPutOption) {
             wTokenBalance = seriesController.getCollateralPerOptionToken(
-                seriesId,
+                series,
                 wTokenBalance
             );
-        }
+        }*/
 
         return
             getVirtualReservesInternal(
                 ammAddress,
                 collateralTokenBalance,
                 bTokenPrice,
-                wTokenBalance,
+                0, // wTokenBalance
                 series
             );
     }
@@ -165,13 +164,13 @@ contract AmmDataProvider is IAmmDataProvider {
     /// given Series
     /// @notice The premium depends on the amount of collateral token in the pool, the reserves
     /// of bToken and wToken in the pool, and the current series price of the underlying
-    /// @param seriesId The ID of the Series to buy bToken on
+    /// @param series The Series to buy bToken on
     /// @param ammAddress The AMM whose reserves we'll use
     /// @param bTokenAmount The amount of bToken to buy, which uses the same decimals as
     /// the underlying ERC20 token
     /// @return The amount of collateral token necessary to buy bTokenAmount worth of bTokens
     function bTokenGetCollateralIn(
-        uint64 seriesId,
+        ISeriesController.Series memory series,
         address ammAddress,
         uint256 bTokenAmount,
         uint256 collateralTokenBalance,
@@ -179,15 +178,14 @@ contract AmmDataProvider is IAmmDataProvider {
     ) public view override returns (uint256) {
         // Shortcut for 0 amount
         if (bTokenAmount == 0) return 0;
-
         bTokenAmount = seriesController.getCollateralPerOptionToken(
-            seriesId,
+            series,
             bTokenAmount
         );
 
         // For both puts and calls balances are expressed in collateral token
         (uint256 bTokenBalance, uint256 wTokenBalance) = getVirtualReserves(
-            seriesId,
+            series,
             ammAddress,
             collateralTokenBalance,
             bTokenPrice
@@ -209,7 +207,7 @@ contract AmmDataProvider is IAmmDataProvider {
 
     /// @dev Calculates the amount of collateral token a seller will receive for selling their option tokens,
     /// taking into account the AMM's level of reserves
-    /// @param seriesId The ID of the Series
+    /// @param seriesId The ID of Series
     /// @param ammAddress The AMM whose reserves we'll use
     /// @param optionTokenAmount The amount of option tokens (either bToken or wToken) to be sold
     /// @param collateralTokenBalance The amount of collateral token held by this AMM
@@ -227,14 +225,16 @@ contract AmmDataProvider is IAmmDataProvider {
     ) public view override returns (uint256) {
         // Shortcut for 0 amount
         if (optionTokenAmount == 0) return 0;
-
+        ISeriesController.Series memory series = seriesController.series(
+            seriesId
+        );
         optionTokenAmount = seriesController.getCollateralPerOptionToken(
-            seriesId,
+            series,
             optionTokenAmount
         );
 
         (uint256 bTokenBalance, uint256 wTokenBalance) = getVirtualReserves(
-            seriesId,
+            series,
             ammAddress,
             collateralTokenBalance,
             bTokenPrice
@@ -415,19 +415,14 @@ contract AmmDataProvider is IAmmDataProvider {
                 seriesController.priceToken(seriesId)
             );
 
-        return
-            getPriceForSeriesInternal(
-                series,
-                underlyingPrice,
-                annualVolatility
-            );
+        return getPriceForNewSeries(series, underlyingPrice, annualVolatility);
     }
 
     function getPriceForNewSeries(
         ISeriesController.Series memory series,
         uint256 underlyingPrice,
         uint256 annualVolatility
-    ) private view returns (uint256) {
+    ) public view override returns (uint256) {
         // Note! This function assumes the underlyingPrice is a valid series
         // price in units of underlyingToken/priceToken. If the onchain price
         // oracle's value were to drift from the true series price, then the bToken price
@@ -499,7 +494,7 @@ contract AmmDataProvider is IAmmDataProvider {
                 ISeriesController.SeriesState.OPEN
             ) {
                 // value all active bTokens and wTokens at current prices
-                uint256 bPrice = getPriceForSeriesInternal(
+                uint256 bPrice = getPriceForNewSeries(
                     series,
                     underlyingPrice,
                     impliedVolatility
@@ -515,7 +510,7 @@ contract AmmDataProvider is IAmmDataProvider {
                 // uint256 wPrice = lockedUnderlyingValue - bPrice;
                 uint256 tokensValueCollateral = seriesController
                     .getCollateralPerUnderlying(
-                        seriesId,
+                        series,
                         wTokenBalance * (lockedUnderlyingValue - bPrice),
                         underlyingPrice
                     ) / 1e18;
@@ -575,9 +570,12 @@ contract AmmDataProvider is IAmmDataProvider {
         uint256 bTokenAmount
     ) external view override returns (uint256) {
         IMinterAmm amm = IMinterAmm(ammAddress);
+        ISeriesController.Series memory series = seriesController.series(
+            seriesId
+        );
 
         uint256 collateralWithoutFees = bTokenGetCollateralIn(
-            seriesId,
+            series,
             ammAddress,
             bTokenAmount,
             amm.collateralBalance(),
@@ -606,7 +604,6 @@ contract AmmDataProvider is IAmmDataProvider {
         uint256 bTokenAmount
     ) external view override returns (uint256) {
         IMinterAmm amm = IMinterAmm(ammAddress);
-
         uint256 collateralWithoutFees = optionTokenGetCollateralOut(
             seriesId,
             ammAddress,
@@ -630,7 +627,6 @@ contract AmmDataProvider is IAmmDataProvider {
         uint256 wTokenAmount
     ) external view override returns (uint256) {
         IMinterAmm amm = IMinterAmm(ammAddress);
-
         return
             optionTokenGetCollateralOut(
                 seriesId,

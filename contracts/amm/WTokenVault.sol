@@ -141,7 +141,7 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
                 uint256 valuePerToken;
                 if (series.isPutOption) {
                     valuePerToken = seriesController.getCollateralPerUnderlying(
-                            seriesId,
+                            series,
                             (series.strikePrice * 1e18) /
                                 vars.underlyingPrice -
                                 bPrice,
@@ -339,7 +339,7 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
                 uint256 valuePerToken;
                 if (series.isPutOption) {
                     valuePerToken = seriesController.getCollateralPerUnderlying(
-                            seriesId,
+                            series,
                             (series.strikePrice * 1e18) /
                                 vars.underlyingPrice -
                                 bPrice,

@@ -794,10 +794,13 @@ contract MinterAmm is
 
         // Mint required number of bTokens for the direct buy (if required)
         if (bTokenBalance < senderAmount) {
+            ISeriesController.Series memory series = seriesController.series(
+                seriesId
+            );
             // Approve the collateral to mint bTokenAmount of new options
             uint256 bTokenCollateralAmount = seriesController
                 .getCollateralPerOptionToken(
-                    seriesId,
+                    series,
                     senderAmount - bTokenBalance
                 );
 
@@ -864,6 +867,9 @@ contract MinterAmm is
             "E22" // Series has expired
         );
         uint256 collateralAmount;
+        ISeriesController.Series memory series = seriesController.series(
+            seriesId
+        );
         {
             uint256 underlyingPrice = getCurrentUnderlyingPrice();
             (uint256 price, uint256 vega) = calculatePriceAndVega(
@@ -873,7 +879,7 @@ contract MinterAmm is
             require(price > 0, "E17");
 
             collateralAmount = getAmmDataProvider().bTokenGetCollateralIn(
-                seriesId,
+                series,
                 address(this),
                 bTokenAmount,
                 collateralBalance(),
@@ -882,7 +888,7 @@ contract MinterAmm is
             require(
                 collateralAmount * 1e18 >=
                     seriesController.getCollateralPerUnderlying(
-                        seriesId,
+                        series,
                         price * bTokenAmount,
                         underlyingPrice
                     ),
@@ -895,7 +901,7 @@ contract MinterAmm is
                     priceImpact =
                         (collateralAmount * 1e26) /
                         seriesController.getCollateralPerUnderlying(
-                            seriesId,
+                            series,
                             bTokenAmount,
                             1e8
                         ) /
@@ -939,7 +945,7 @@ contract MinterAmm is
 
         // Approve the collateral to mint bTokenAmount of new options
         uint256 bTokenCollateralAmount = seriesController
-            .getCollateralPerOptionToken(seriesId, bTokenAmount);
+            .getCollateralPerOptionToken(series, bTokenAmount);
 
         collateralToken.approve(
             address(seriesController),
@@ -990,6 +996,9 @@ contract MinterAmm is
             "E22" // Series has expired
         );
         uint256 collateralAmount;
+        ISeriesController.Series memory series = seriesController.series(
+            seriesId
+        );
         {
             uint256 underlyingPrice = getCurrentUnderlyingPrice();
             (uint256 price, uint256 vega) = calculatePriceAndVega(
@@ -1005,10 +1014,11 @@ contract MinterAmm is
                 price,
                 true
             );
+
             require(
                 collateralAmount * 1e18 <=
                     seriesController.getCollateralPerUnderlying(
-                        seriesId,
+                        series,
                         price * bTokenAmount,
                         underlyingPrice
                     ),
@@ -1022,7 +1032,7 @@ contract MinterAmm is
                         price -
                         (collateralAmount * 1e26) /
                         seriesController.getCollateralPerUnderlying(
-                            seriesId,
+                            series,
                             bTokenAmount,
                             1e8
                         ) /

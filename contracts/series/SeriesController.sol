@@ -177,19 +177,19 @@ contract SeriesController is
             if (settlementPrice >= currentSeries.strikePrice) {
                 // OTM
                 writerShare = getCollateralPerOptionToken(
-                    _seriesId,
+                    currentSeries,
                     _optionTokenAmount
                 );
                 buyerShare = 0;
             } else {
                 // ITM
                 writerShare = getCollateralPerUnderlying(
-                    _seriesId,
+                    currentSeries,
                     _optionTokenAmount,
                     settlementPrice
                 );
                 buyerShare = getCollateralPerUnderlying(
-                    _seriesId,
+                    currentSeries,
                     _optionTokenAmount,
                     currentSeries.strikePrice - settlementPrice
                 );
@@ -411,7 +411,7 @@ contract SeriesController is
     }
 
     /// @notice Given a series ID and an amount of bToken/wToken, return the amount of collateral token received when it's exercised
-    /// @param _seriesId The Series ID
+    /// @param _currentSeries The Series
     /// @param _optionTokenAmount The amount of bToken/wToken
     /// @return The amount of collateral token received when exercising this amount of option token
     function getCollateralPerOptionToken(
@@ -428,7 +428,7 @@ contract SeriesController is
 
     /// @dev Given a Series and an amount of underlying, return the amount of collateral adjusted for decimals
     /// @dev In almost every callsite of this function the price is equal to the strike price, except in Series.getSettlementAmounts where we use the settlementPrice
-    /// @param _seriesId The Series ID
+    /// @param _currentSeries The Series
     /// @param _underlyingAmount The amount of underlying
     /// @param _price The price of the collateral token in units of price token
     /// @return The amount of collateral
@@ -892,9 +892,9 @@ contract SeriesController is
             optionTokenAmounts,
             data
         );
-
+        ISeriesController.Series memory series = allSeries[_seriesId];
         uint256 collateralAmount = getCollateralPerOptionToken(
-            _seriesId,
+            series,
             _optionTokenAmount
         );
 
@@ -1088,9 +1088,9 @@ contract SeriesController is
             optionTokenIds,
             optionTokenAmounts
         );
-
+        ISeriesController.Series memory series = allSeries[_seriesId];
         uint256 collateralAmount = getCollateralPerOptionToken(
-            _seriesId,
+            series,
             _optionTokenAmount
         );
 
