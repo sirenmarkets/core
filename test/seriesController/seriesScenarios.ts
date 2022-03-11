@@ -229,9 +229,10 @@ contract("Series Scenarios", (accounts) => {
     // Bob mints options by locking up USDC, but because it's a put
     // we first need to convert the bToken amount into its equivalent
     // collateral (USDC) amount (which will be 12k * 1e6 * mintAmount)
+    const series = await deployedSeriesController.series(seriesId)
     const mintCollateralEquivalent =
       await deployedSeriesController.getCollateralPerOptionToken(
-        seriesId,
+        series,
         mintAmount,
       )
 

@@ -43,14 +43,8 @@ interface IAmmDataProvider {
         uint256 impliedVolatility
     ) external view returns (uint256);
 
-    function getPriceForSeries(uint64 seriesId, uint256 annualVolatility)
-        external
-        view
-        returns (uint256);
-
-    function getPriceForNewSeries(
+    function getPriceForSeries(
         ISeriesController.Series memory series,
-        uint256 underlyingPrice,
         uint256 annualVolatility
     ) external view returns (uint256);
 
@@ -75,6 +69,12 @@ interface IAmmDataProvider {
     function bTokenGetCollateralInView(
         address ammAddress,
         uint64 seriesId,
+        uint256 bTokenAmount
+    ) external view returns (uint256);
+
+    function bTokenGetCollateralInForNewSeries(
+        ISeriesController.Series memory series,
+        address ammAddress,
         uint256 bTokenAmount
     ) external view returns (uint256);
 

@@ -144,11 +144,11 @@ contract("SeriesController close", (accounts) => {
 
     // Amount we will be minting
     const MINT_AMOUNT = new BN(10000)
-
+    const series = await deployedSeriesController.series(seriesId)
     const collateralAmount = new BN(
       (
         await deployedSeriesController.getCollateralPerOptionToken(
-          seriesId,
+          series,
           MINT_AMOUNT,
         )
       ).toString(),

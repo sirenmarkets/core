@@ -712,10 +712,12 @@ contract MinterAmm is
     /// representing the price as a fraction of 1 collateral token unit
     function getPriceForSeries(uint64 seriesId) public view returns (uint256) {
         require(openSeries.contains(seriesId), "E13");
-
+        ISeriesController.Series memory series = seriesController.series(
+            seriesId
+        );
         return
             getAmmDataProvider().getPriceForSeries(
-                seriesId,
+                series,
                 getVolatility(seriesId)
             );
     }

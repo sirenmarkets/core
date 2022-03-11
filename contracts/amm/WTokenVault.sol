@@ -136,7 +136,7 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
 
                 uint256 bPrice = IAmmDataProvider(
                     addressesProvider.getAmmDataProvider()
-                ).getPriceForSeries(seriesId, vars.volatility);
+                ).getPriceForSeries(series, vars.volatility);
 
                 uint256 valuePerToken;
                 if (series.isPutOption) {
@@ -334,7 +334,7 @@ contract WTokenVault is OwnableUpgradeable, Proxiable, IWTokenVault {
 
                 uint256 bPrice = IAmmDataProvider(
                     addressesProvider.getAmmDataProvider()
-                ).getPriceForSeries(seriesId, vars.volatility);
+                ).getPriceForSeries(series, vars.volatility);
 
                 uint256 valuePerToken;
                 if (series.isPutOption) {
