@@ -61,10 +61,12 @@ contract PriceOracleKeeper is KeeperCompatibleInterface {
             );
 
             if (!isSet) {
-                oracle.setSettlementPrice(
-                    feed.underlyingToken,
-                    feed.priceToken
-                );
+                try
+                    oracle.setSettlementPrice(
+                        feed.underlyingToken,
+                        feed.priceToken
+                    )
+                {} catch {}
             }
         }
     }
