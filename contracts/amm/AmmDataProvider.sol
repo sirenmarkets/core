@@ -530,7 +530,6 @@ contract AmmDataProvider is IAmmDataProvider {
     /// @return The amount of collateral token necessary to buy bTokenAmount worth of bTokens
     /// NOTE: This returns the collateral + fee amount
     function bTokenGetCollateralInView(
-        //bTokenGetCollateralInForNewSeriesView
         address ammAddress,
         uint64 seriesId,
         uint256 bTokenAmount
@@ -560,6 +559,18 @@ contract AmmDataProvider is IAmmDataProvider {
         uint256 bTokenAmount
     ) external view override returns (uint256) {
         IMinterAmm amm = IMinterAmm(ammAddress);
+        require(
+            address(amm.priceToken()) == series.tokens.priceToken,
+            "!priceToken"
+        );
+        require(
+            address(amm.collateralToken()) == series.tokens.collateralToken,
+            "!collateralToken"
+        );
+        require(
+            address(amm.underlyingToken()) == series.tokens.underlyingToken,
+            "!underlyingToken"
+        );
 
         uint256 collateralWithoutFees = bTokenGetCollateralIn(
             series,

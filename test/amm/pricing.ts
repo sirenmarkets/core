@@ -1,16 +1,18 @@
-import { expectEvent, time } from "@openzeppelin/test-helpers"
+import { expectEvent, time, expectRevert } from "@openzeppelin/test-helpers"
 import { contract } from "hardhat"
 import {
   SimpleTokenInstance,
   MinterAmmInstance,
   AmmDataProviderInstance,
   ERC1155ControllerInstance,
+  SeriesControllerInstance,
 } from "../../typechain"
 
 let deployedAmm: MinterAmmInstance
 let deployedAmmDataProvider: AmmDataProviderInstance
 let deployedERC1155Controller: ERC1155ControllerInstance
 let collateralToken: SimpleTokenInstance
+let deployedSeriesController: SeriesControllerInstance
 
 let seriesId: string
 let expiration: number
@@ -36,6 +38,7 @@ contract("AMM Pricing", (accounts) => {
       deployedAmmDataProvider,
       seriesId,
       deployedERC1155Controller,
+      deployedSeriesController,
       expiration,
     } = await setupAllTestContracts({
       oraclePrice: BTC_ORACLE_PRICE,
@@ -107,6 +110,15 @@ contract("AMM Pricing", (accounts) => {
 
     assertBNEq(maximumCollateral, 154329)
 
+    const series = await deployedSeriesController.series(seriesId)
+    const maximumCollateralForNewSeries =
+      await deployedAmmDataProvider.bTokenGetCollateralInForNewSeries(
+        series,
+        deployedAmm.address,
+        10000,
+      )
+    assertBNEq(maximumCollateralForNewSeries, maximumCollateral)
+
     ret = await deployedAmm.bTokenBuy(seriesId, 10000, maximumCollateral, {
       from: aliceAccount,
     })
@@ -166,6 +178,7 @@ contract("AMM Pricing", (accounts) => {
       seriesId,
       deployedERC1155Controller,
       deployedAmmDataProvider,
+      deployedSeriesController,
       expiration,
     } = await setupAllTestContracts({
       oraclePrice: BTC_ORACLE_PRICE,
@@ -197,6 +210,86 @@ contract("AMM Pricing", (accounts) => {
       await collateralToken.balanceOf(deployedAmm.address),
       10000,
       "Collateral should have been used to mint",
+    )
+
+    // Buy bTokens
+    const maximumCollateral =
+      await deployedAmmDataProvider.bTokenGetCollateralInView(
+        deployedAmm.address,
+        seriesId,
+        10000,
+      )
+
+    assertBNEq(maximumCollateral, 2315)
+
+    const series = await deployedSeriesController.series(seriesId)
+    const maximumCollateralForNewSeries =
+      await deployedAmmDataProvider.bTokenGetCollateralInForNewSeries(
+        series,
+        deployedAmm.address,
+        10000,
+      )
+    assertBNEq(maximumCollateralForNewSeries, maximumCollateral)
+
+    //bTokenGetCollateralInForNewSeries revert testing
+    let tokens = {
+      ...series.tokens,
+    }
+    let seriesRevert
+
+    seriesRevert = {
+      expirationDate: "1648800000",
+      isPutOption: false,
+      strikePrice: "1500000000000",
+      tokens: { ...tokens },
+    }
+    // 0x29D7d1dd5B6f9C864d9db560D72a247c178aE86B is some random address from internet
+    // Check revert for priceToken
+    seriesRevert.tokens.priceToken =
+      "0x29D7d1dd5B6f9C864d9db560D72a247c178aE86B"
+    await expectRevert(
+      deployedAmmDataProvider.bTokenGetCollateralInForNewSeries(
+        seriesRevert,
+        deployedAmm.address,
+        10000,
+      ),
+      "!priceToken",
+    )
+
+    // Check revert for collateralToken
+    seriesRevert = {
+      expirationDate: "1648800000",
+      isPutOption: false,
+      strikePrice: "1500000000000",
+      tokens: { ...tokens },
+    }
+    seriesRevert.tokens.collateralToken =
+      "0x29D7d1dd5B6f9C864d9db560D72a247c178aE86B"
+    await expectRevert(
+      deployedAmmDataProvider.bTokenGetCollateralInForNewSeries(
+        seriesRevert,
+        deployedAmm.address,
+        10000,
+      ),
+      "!collateralToken",
+    )
+
+    // Check revert for underlyingToken
+    seriesRevert = {
+      expirationDate: "1648800000",
+      isPutOption: false,
+      strikePrice: "1500000000000",
+      tokens: { ...tokens },
+    }
+    seriesRevert.tokens.underlyingToken =
+      "0x29D7d1dd5B6f9C864d9db560D72a247c178aE86B"
+    await expectRevert(
+      deployedAmmDataProvider.bTokenGetCollateralInForNewSeries(
+        seriesRevert,
+        deployedAmm.address,
+        10000,
+      ),
+      "!underlyingToken",
     )
 
     const startTime = expiration - ONE_WEEK_DURATION
