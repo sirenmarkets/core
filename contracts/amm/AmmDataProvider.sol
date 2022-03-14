@@ -393,11 +393,24 @@ contract AmmDataProvider is IAmmDataProvider {
                 series.tokens.underlyingToken,
                 series.tokens.priceToken
             );
+        return
+            getPriceForSeriesInternal(
+                series,
+                underlyingPrice,
+                annualVolatility
+            );
+    }
+
+    function getPriceForSeriesInternal(
+        ISeriesController.Series memory series,
+        uint256 underlyingPrice,
+        uint256 annualVolatility
+    ) private view returns (uint256) {
         // Note! This function assumes the underlyingPrice is a valid series
         // price in units of underlyingToken/priceToken. If the onchain price
         // oracle's value were to drift from the true series price, then the bToken price
         // we calculate here would also drift, and will result in undefined
-        // behavior for any functions which call getPriceForSeries
+        // behavior for any functions which call getPriceForSeriesInternal
         (uint256 call, uint256 put) = IBlackScholes(
             addressesProvider.getBlackScholes()
         ).optionPrices(
@@ -464,7 +477,11 @@ contract AmmDataProvider is IAmmDataProvider {
                 ISeriesController.SeriesState.OPEN
             ) {
                 // value all active bTokens and wTokens at current prices
-                uint256 bPrice = getPriceForSeries(series, impliedVolatility);
+                uint256 bPrice = getPriceForSeriesInternal(
+                    series,
+                    underlyingPrice,
+                    impliedVolatility
+                );
                 // wPrice = 1 - bPrice
                 uint256 lockedUnderlyingValue = 1e18;
                 if (series.isPutOption) {
