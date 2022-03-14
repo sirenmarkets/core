@@ -2,18 +2,16 @@
 
 pragma solidity 0.8.0;
 
-import "../series/ISeriesController.sol";
-
 interface IAmmDataProvider {
     function getVirtualReserves(
-        ISeriesController.Series memory series,
+        uint64 seriesId,
         address ammAddress,
         uint256 collateralTokenBalance,
         uint256 bTokenPrice
     ) external view returns (uint256, uint256);
 
     function bTokenGetCollateralIn(
-        ISeriesController.Series memory series,
+        uint64 seriesId,
         address ammAddress,
         uint256 bTokenAmount,
         uint256 collateralTokenBalance,
@@ -43,10 +41,10 @@ interface IAmmDataProvider {
         uint256 impliedVolatility
     ) external view returns (uint256);
 
-    function getPriceForSeries(
-        ISeriesController.Series memory series,
-        uint256 annualVolatility
-    ) external view returns (uint256);
+    function getPriceForSeries(uint64 seriesId, uint256 annualVolatility)
+        external
+        view
+        returns (uint256);
 
     function getTotalPoolValue(
         bool includeUnclaimed,
@@ -69,12 +67,6 @@ interface IAmmDataProvider {
     function bTokenGetCollateralInView(
         address ammAddress,
         uint64 seriesId,
-        uint256 bTokenAmount
-    ) external view returns (uint256);
-
-    function bTokenGetCollateralInForNewSeries(
-        ISeriesController.Series memory series,
-        address ammAddress,
         uint256 bTokenAmount
     ) external view returns (uint256);
 
