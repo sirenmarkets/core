@@ -65,9 +65,9 @@ contract AmmDataProvider is IAmmDataProvider {
         uint256 collateralTokenBalance,
         uint256 bTokenPrice
     ) public view override returns (uint256, uint256) {
-        //We commenting this out, but in the furute for perpetuals we will need it
         //We set wTokenBalance = 0
-        //
+        uint256 wTokenBalance = 0;
+        //We commenting this out, but in the furute for perpetuals we will need it
         /*
         uint256 wTokenBalance = erc1155Controller.balanceOf(
             ammAddress,
@@ -88,7 +88,8 @@ contract AmmDataProvider is IAmmDataProvider {
         // For put convert token balances into collateral locked in them
         uint256 lockedUnderlyingValue = 1e18;
         if (series.isPutOption) {
-            // TODO: this logic causes the underlying price to be fetched twice from the oracle. Can be optimized.
+            // TODO: this logic causes the underlying price to be fetched twice from the oracle.
+            //Can be optimized.
             lockedUnderlyingValue =
                 (lockedUnderlyingValue * series.strikePrice) /
                 IPriceOracle(addressesProvider.getPriceOracle())
@@ -100,7 +101,7 @@ contract AmmDataProvider is IAmmDataProvider {
 
         // Max amount of tokens we can get by adding current balance plus what can be minted from collateral
         uint256 bTokenBalanceMax = bTokenBalance + collateralTokenBalance;
-        uint256 wTokenBalanceMax = 0 + collateralTokenBalance; //We set wTokenBalance = 0
+        uint256 wTokenBalanceMax = wTokenBalance + collateralTokenBalance;
 
         uint256 wTokenPrice = lockedUnderlyingValue - bTokenPrice;
 
@@ -553,6 +554,16 @@ contract AmmDataProvider is IAmmDataProvider {
         return collateralWithoutFees + tradeFee;
     }
 
+    /// @notice Calculate premium (i.e. the option price) to buy bTokenAmount bTokens for a
+    ///  new Series
+    /// @notice The premium depends on the amount of collateral token in the pool, the reserves
+    /// of bToken and wToken in the pool, and the current series price of the underlying
+    /// @param series The new Series to buy bToken on
+    /// @param bTokenAmount The amount of bToken to buy, which uses the same decimals as
+    /// the underlying ERC20 token
+    /// @param ammAddress adress of the amm
+    /// @return The amount of collateral token necessary to buy bTokenAmount worth of bTokens
+    /// NOTE: This returns the collateral + fee amount
     function bTokenGetCollateralInForNewSeries(
         ISeriesController.Series memory series,
         address ammAddress,

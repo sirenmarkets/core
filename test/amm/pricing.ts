@@ -108,7 +108,11 @@ contract("AMM Pricing", (accounts) => {
         10000,
       )
 
-    assertBNEq(maximumCollateral, 154329)
+    assertBNEq(
+      maximumCollateral,
+      154329,
+      "Incorent maximumCollateral value for bToken",
+    )
 
     const series = await deployedSeriesController.series(seriesId)
     const maximumCollateralForNewSeries =
@@ -117,7 +121,11 @@ contract("AMM Pricing", (accounts) => {
         deployedAmm.address,
         10000,
       )
-    assertBNEq(maximumCollateralForNewSeries, maximumCollateral)
+    assertBNEq(
+      maximumCollateralForNewSeries,
+      maximumCollateral,
+      "MaximumCollateral should be equal for existent series and non existent series",
+    )
 
     ret = await deployedAmm.bTokenBuy(seriesId, 10000, maximumCollateral, {
       from: aliceAccount,
@@ -220,7 +228,11 @@ contract("AMM Pricing", (accounts) => {
         10000,
       )
 
-    assertBNEq(maximumCollateral, 2315)
+    assertBNEq(
+      maximumCollateral,
+      2315,
+      "Incorent maximumCollateral value for bToken",
+    )
 
     const series = await deployedSeriesController.series(seriesId)
     const maximumCollateralForNewSeries =
@@ -229,7 +241,11 @@ contract("AMM Pricing", (accounts) => {
         deployedAmm.address,
         10000,
       )
-    assertBNEq(maximumCollateralForNewSeries, maximumCollateral)
+    assertBNEq(
+      maximumCollateralForNewSeries,
+      maximumCollateral,
+      "MaximumCollateral should be equal for existent series and non existent series",
+    )
 
     //bTokenGetCollateralInForNewSeries revert testing
     let tokens = {
