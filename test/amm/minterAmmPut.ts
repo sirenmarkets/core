@@ -300,9 +300,10 @@ contract("AMM Put Verification", (accounts) => {
 
     const capitalAmount = 10_000
     // 10_000 * 150
+    const series = await deployedSeriesController.series(seriesId)
     const capitalCollateral =
       await deployedSeriesController.getCollateralPerOptionToken(
-        seriesId,
+        series,
         capitalAmount,
       )
 
@@ -340,7 +341,7 @@ contract("AMM Put Verification", (accounts) => {
     const aliceAmount = 1_000
     const aliceCollateral =
       await deployedSeriesController.getCollateralPerOptionToken(
-        seriesId,
+        series,
         aliceAmount,
       )
 
@@ -417,7 +418,7 @@ contract("AMM Put Verification", (accounts) => {
     // 3000 * 150
     const bTokenBuyCollateral =
       await deployedSeriesController.getCollateralPerOptionToken(
-        seriesId,
+        series,
         bTokenBuyAmount,
       )
     let ammCollateralAmount =
@@ -462,7 +463,7 @@ contract("AMM Put Verification", (accounts) => {
     const bobAmount = 1_000
     const bobCollateral =
       await deployedSeriesController.getCollateralPerOptionToken(
-        seriesId,
+        series,
         bobAmount,
       ) // 150_000
     await collateralToken.mint(bobAccount, bobCollateral)
