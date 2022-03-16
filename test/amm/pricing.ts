@@ -22,6 +22,11 @@ import {
   ONE_WEEK_DURATION,
   setupAllTestContracts,
   setNextBlockTimestamp,
+  setupSingletonTestContracts,
+  setupAmm,
+  setupSeries,
+  getNextFriday8amUTCTimestamp,
+  now,
 } from "../util"
 
 const BTC_ORACLE_PRICE = 14_000 * 1e8 // BTC oracle answer has 8 decimals places, same as BTC
@@ -381,6 +386,103 @@ contract("AMM Pricing", (accounts) => {
       ),
       10076,
       "Total assets value in the AMM should be above 10k",
+    )
+  })
+
+  it("bToken...View should return the same as bToken...NewSeries", async () => {
+    // This test tests the call series only
+    expiration = getNextFriday8amUTCTimestamp((await now()) + ONE_WEEK_DURATION)
+
+    let priceToken: SimpleTokenInstance
+    let underlyingToken: SimpleTokenInstance
+    let deployedAmmFactory
+    let deployedPriceOracle
+    let deployedBlackScholes
+    let deployedAddressesProvider
+    ;({
+      underlyingToken,
+      collateralToken,
+      priceToken,
+      deployedAmmFactory,
+      deployedAmmDataProvider,
+      deployedSeriesController,
+      deployedPriceOracle,
+      deployedAmmDataProvider,
+      deployedBlackScholes,
+      deployedAddressesProvider,
+    } = await setupSingletonTestContracts({
+      oraclePrice: BTC_ORACLE_PRICE,
+    }))
+
+    const { deployedAmm } = await setupAmm({
+      deployedAmmFactory,
+      deployedPriceOracle,
+      deployedAmmDataProvider,
+      deployedBlackScholes,
+      deployedAddressesProvider,
+      underlyingToken,
+      priceToken,
+      collateralToken,
+      tradeFeeBasisPoints: 0,
+    })
+
+    // Approve collateral
+    await collateralToken.mint(ownerAccount, 10000)
+    await collateralToken.approve(deployedAmm.address, 10000)
+
+    // Provide capital
+    let ret = await deployedAmm.provideCapital(10000, 0)
+
+    expectEvent(ret, "LpTokensMinted", {
+      minter: ownerAccount,
+      collateralAdded: "10000",
+      lpTokensMinted: "10000",
+    })
+
+    const startTime = expiration - ONE_WEEK_DURATION
+    await time.increaseTo(startTime) // use the same time, no matter when this test gets called
+
+    const tokens = {
+      underlyingToken: underlyingToken.address,
+      collateralToken: collateralToken.address,
+      priceToken: priceToken.address,
+    }
+
+    const series = {
+      tokens,
+      expirationDate: expiration,
+      isPutOption: false,
+      strikePrice: STRIKE_PRICE.toString(),
+    }
+    const maximumCollateralForNewSeries =
+      await deployedAmmDataProvider.bTokenGetCollateralInForNewSeries(
+        series,
+        deployedAmm.address,
+        10000,
+      )
+
+    ;({ seriesId } = await setupSeries({
+      deployedSeriesController,
+      underlyingToken,
+      priceToken,
+      collateralToken,
+      expiration,
+      restrictedMinters: [deployedAmm.address],
+      strikePrice: STRIKE_PRICE.toString(),
+      isPutOption: false,
+    }))
+
+    const maximumCollateral =
+      await deployedAmmDataProvider.bTokenGetCollateralInView(
+        deployedAmm.address,
+        seriesId,
+        10000,
+      )
+
+    assertBNEq(
+      maximumCollateral,
+      maximumCollateralForNewSeries,
+      "bTokens...ForNewSeries and bTokens...InView should be the same",
     )
   })
 })
