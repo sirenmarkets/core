@@ -22,9 +22,9 @@ const AutomaticClaimKeeper: AutomaticClaimKeeperContract = artifacts.require(
   "AutomaticClaimKeeper",
 )
 /**
- * Testing keeper for expired tokens.
+ * Testing Automatic Claim Keeper .
  */
-contract("Expired Tokens Keeper", (accounts) => {
+contract("Automatic Claim Keeper", (accounts) => {
   const ownerAccount = accounts[0]
   const aliceAccount = accounts[1]
 
