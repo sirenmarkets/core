@@ -5,6 +5,7 @@ import "../amm/IAmmDataProvider.sol";
 import "../series/SeriesLibrary.sol";
 import "../series/ISeriesController.sol";
 import "../configuration/IAddressesProvider.sol";
+import "../series/SeriesDeployer.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
@@ -237,6 +238,130 @@ contract SirenExchange is ERC1155Holder, ReentrancyGuard {
         getErc1155Controller().setApprovalForAll(sirenAmmAddress, false);
 
         return amounts;
+    }
+
+    /// @notice Buy the bToken of a new series to the AMM in exchange for user tokens
+    /// @param bTokenAmount The amount of bToken to buy
+    /// @param path The path of the user token we supply to the collateral token the series wishes to receive
+    /// @param tokenAmountInMaximum The largest amount of user tokens the caller is willing to pay for the bTokens
+    /// @param sirenAmmAddress address of the amm that we wish to call
+    /// @param deadline deadline the transaction must be completed by
+    /// @param _router address of the router we wish to use ( QuickSwap or SushiSwap )
+    /// @dev Exchange user tokens for bToken for a given series.
+    /// We supply a user token that is not the collateral token of this series and then find the route
+    /// Of the user token provided to the collateral token using Uniswap router the addresses provided are currently from QuickSwap and SushiSwap.
+    /// We then call bTokenBuy in MinterAMM to buy the bTokens and then send the bought bTokens to the user
+    function bTokenBuyForNewSeries(
+        uint256 bTokenAmount,
+        address[] calldata path,
+        uint256 tokenAmountInMaximum,
+        address sirenAmmAddress,
+        uint256 deadline,
+        address _router,
+        ISeriesController.Series memory series
+    ) external nonReentrant returns (uint256[] memory amounts) {
+        uint256 collateralPremium;
+        uint256[] memory amountsIn;
+        {
+            require(
+                path[path.length - 1] ==
+                    address(IMinterAmm(sirenAmmAddress).collateralToken()),
+                "SirenExchange: Path does not route to collateral Token"
+            );
+            // Calculate the amount of underlying collateral we need to provide to get the desired bTokens
+            collateralPremium = getAmmDataProvider()
+                .bTokenGetCollateralInForNewSeries(
+                    series,
+                    sirenAmmAddress,
+                    bTokenAmount
+                );
+
+            // Calculate the amount of token we need to provide to the router so we can get the needed collateral
+            amountsIn = IUniswapV2Router02(_router).getAmountsIn(
+                collateralPremium,
+                path
+            );
+        }
+        require(
+            amountsIn[0] <= tokenAmountInMaximum,
+            "SirenExchange: Not Enough tokens sent"
+        );
+
+        // Transfer the tokens from user to the contract
+        TransferHelper.safeTransferFrom(
+            path[0],
+            msg.sender,
+            address(this),
+            amountsIn[0]
+        );
+        TransferHelper.safeApprove(path[0], _router, amountsIn[0]);
+
+        // Executes the swap giving the needed user token amount to the siren exchange for the appropriate collateral to pay for the btokens
+        amounts = IUniswapV2Router02(_router).swapTokensForExactTokens(
+            collateralPremium,
+            amountsIn[0],
+            path,
+            address(this),
+            deadline
+        );
+
+        TransferHelper.safeApprove(
+            path[path.length - 1],
+            sirenAmmAddress,
+            collateralPremium
+        );
+
+        {
+            // Call MinterAmm bTokenBuy contract
+            createSeriesAndBuy(
+                sirenAmmAddress,
+                series,
+                bTokenAmount,
+                tokenAmountInMaximum,
+                path,
+                amounts
+            );
+        }
+
+        return amounts;
+    }
+
+    function createSeriesAndBuy(
+        address sirenAmmAddress,
+        ISeriesController.Series memory series,
+        uint256 bTokenAmount,
+        uint256 tokenAmountInMaximum,
+        address[] calldata path,
+        uint256[] memory amounts
+    ) internal returns (uint64 seriesId) {
+        seriesId = SeriesDeployer(sirenAmmAddress).autoCreateSeriesAndBuy(
+            IMinterAmm(sirenAmmAddress),
+            series.strikePrice,
+            series.expirationDate,
+            series.isPutOption,
+            bTokenAmount,
+            tokenAmountInMaximum
+        );
+
+        // Transfer the btokens to the correct address ( caller of this contract)
+        getErc1155Controller().safeTransferFrom(
+            address(this),
+            msg.sender,
+            SeriesLibrary.bTokenIndex(seriesId),
+            bTokenAmount,
+            dataReturn()
+        );
+
+        emit BTokenBuy(
+            amounts,
+            path,
+            sirenAmmAddress,
+            bTokenAmount,
+            seriesId,
+            msg.sender
+        );
+
+        return seriesId;
     }
 
     function getErc1155Controller() internal view returns (IERC1155) {
