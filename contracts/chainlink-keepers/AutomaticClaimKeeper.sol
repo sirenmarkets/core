@@ -4,7 +4,7 @@ pragma solidity 0.8.0;
 import "./KeeperCompatibleInterface.sol";
 import "../amm/IMinterAmm.sol";
 
-contract ExpiredTokensKeeper is KeeperCompatibleInterface {
+contract AutomaticClaimKeeper is KeeperCompatibleInterface {
     uint256 public lastTimeStamp = 0;
     address[] amms;
 

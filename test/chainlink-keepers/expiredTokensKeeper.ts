@@ -2,7 +2,7 @@ import { time } from "@openzeppelin/test-helpers"
 import { artifacts, contract } from "hardhat"
 import {
   SimpleTokenContract,
-  ExpiredTokensKeeperContract,
+  AutomaticClaimKeeperContract,
 } from "../../typechain"
 
 import {
@@ -18,8 +18,8 @@ const STRIKE_PRICE = 20000e8 // 20000 USD
 const UNDERLYING_PRICE = 14_000 * 10 ** 8 // BTC oracle answer has 8 decimals places, same as BTC
 
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
-const ExpiredTokensKeeper: ExpiredTokensKeeperContract = artifacts.require(
-  "ExpiredTokensKeeper",
+const AutomaticClaimKeeper: AutomaticClaimKeeperContract = artifacts.require(
+  "AutomaticClaimKeeper",
 )
 /**
  * Testing keeper for expired tokens.
@@ -100,14 +100,14 @@ contract("Expired Tokens Keeper", (accounts) => {
     })
 
     // Let us deploy our keeper
-    const etk = await ExpiredTokensKeeper.new([
+    const etk = await AutomaticClaimKeeper.new([
       deployedAmm.address,
       otherDeployedAmm.address,
     ])
     assertBNEq(
       await etk.getAmms(),
       [deployedAmm.address, otherDeployedAmm.address],
-      "Invalid addreses in ExpiredTokensKeeper contract",
+      "Invalid addreses in AutomaticClaimKeeper contract",
     )
 
     // test first Amm

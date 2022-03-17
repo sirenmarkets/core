@@ -1,13 +1,4 @@
-import { deploy_automatic_claim_keeper } from "./lib/deploy_automaitc_claim_chainlink_keeper"
-import { argumentError } from "./lib/helper"
-
-const PRICE_ORACLE_DATE_OFFSET = parseInt(process.env.PRICE_ORACLE_DATE_OFFSET)
-if (
-  Number.isNaN(PRICE_ORACLE_DATE_OFFSET) ||
-  PRICE_ORACLE_DATE_OFFSET == null
-) {
-  argumentError("PRICE_ORACLE_DATE_OFFSET")
-}
+import { deploy_automatic_claim_keeper } from "./lib/deploy_automaitc_claim_keeper"
 
 async function main() {
   await deploy_automatic_claim_keeper()
