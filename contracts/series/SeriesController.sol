@@ -411,34 +411,34 @@ contract SeriesController is
     }
 
     /// @notice Given a series ID and an amount of bToken/wToken, return the amount of collateral token received when it's exercised
-    /// @param _currentSeries The Series
+    /// @param _series The Series
     /// @param _optionTokenAmount The amount of bToken/wToken
     /// @return The amount of collateral token received when exercising this amount of option token
     function getCollateralPerOptionToken(
-        ISeriesController.Series memory _currentSeries,
+        ISeriesController.Series memory _series,
         uint256 _optionTokenAmount
     ) public view override returns (uint256) {
         return
             getCollateralPerUnderlying(
-                _currentSeries,
+                _series,
                 _optionTokenAmount,
-                _currentSeries.strikePrice
+                _series.strikePrice
             );
     }
 
     /// @dev Given a Series and an amount of underlying, return the amount of collateral adjusted for decimals
     /// @dev In almost every callsite of this function the price is equal to the strike price, except in Series.getSettlementAmounts where we use the settlementPrice
-    /// @param _currentSeries The Series
+    /// @param _series The Series
     /// @param _underlyingAmount The amount of underlying
     /// @param _price The price of the collateral token in units of price token
     /// @return The amount of collateral
     function getCollateralPerUnderlying(
-        ISeriesController.Series memory _currentSeries,
+        ISeriesController.Series memory _series,
         uint256 _underlyingAmount,
         uint256 _price
     ) public view override returns (uint256) {
         // is it a call option?
-        if (!_currentSeries.isPutOption) {
+        if (!_series.isPutOption) {
             // for call options this conversion is simple, because 1 optionToken locks
             // 1 unit of collateral token
             return _underlyingAmount;
@@ -450,12 +450,9 @@ contract SeriesController is
         return
             (((_underlyingAmount * _price) / (uint256(10)**priceDecimals)) *
                 (uint256(10) **
-                    (
-                        IERC20Lib(_currentSeries.tokens.collateralToken)
-                            .decimals()
-                    ))) /
+                    (IERC20Lib(_series.tokens.collateralToken).decimals()))) /
             (uint256(10) **
-                (IERC20Lib(_currentSeries.tokens.underlyingToken).decimals()));
+                (IERC20Lib(_series.tokens.underlyingToken).decimals()));
     }
 
     /// @notice Returns the settlement price for this Series.

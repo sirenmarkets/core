@@ -53,8 +53,10 @@ contract("Series Scenarios", (accounts) => {
     // Give Alice the collateral
     await collateralToken.mint(aliceAccount, mintAmount)
 
+    // Erase all previous rounds
+    await deployedMockPriceOracle.reset()
     const oraclePrice = 22_000 * 10 ** 8 // 22k
-    await deployedMockPriceOracle.setLatestAnswer(oraclePrice)
+    await deployedMockPriceOracle.addRound(oraclePrice, expiration, expiration)
 
     const { seriesId } = await setupSeries({
       deployedSeriesController,

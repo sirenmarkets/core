@@ -209,12 +209,12 @@ interface ISeriesController {
     function isPutOption(uint64 _seriesId) external view returns (bool);
 
     function getCollateralPerOptionToken(
-        ISeriesController.Series memory _currentSeries,
+        ISeriesController.Series memory _series,
         uint256 _optionTokenAmount
     ) external view returns (uint256);
 
     function getCollateralPerUnderlying(
-        ISeriesController.Series memory _currentSeries,
+        ISeriesController.Series memory _series,
         uint256 _underlyingAmount,
         uint256 _price
     ) external view returns (uint256);
