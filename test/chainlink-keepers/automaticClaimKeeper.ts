@@ -2,7 +2,8 @@ import { time } from "@openzeppelin/test-helpers"
 import { artifacts, contract } from "hardhat"
 import {
   SimpleTokenContract,
-  AutomaticClaimKeeperContract,
+  PriceOracleKeeperContract,
+  PriceOracleKeeperInstance,
 } from "../../typechain"
 
 import {
@@ -18,9 +19,8 @@ const STRIKE_PRICE = 20000e8 // 20000 USD
 const UNDERLYING_PRICE = 14_000 * 10 ** 8 // BTC oracle answer has 8 decimals places, same as BTC
 
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
-const AutomaticClaimKeeper: AutomaticClaimKeeperContract = artifacts.require(
-  "AutomaticClaimKeeper",
-)
+const PriceOracleKeeper: PriceOracleKeeperContract =
+  artifacts.require("PriceOracleKeeper")
 /**
  * Testing Automatic Claim Keeper .
  */
@@ -100,15 +100,7 @@ contract("Automatic Claim Keeper", (accounts) => {
     })
 
     // Let us deploy our keeper
-    const etk = await AutomaticClaimKeeper.new([
-      deployedAmm.address,
-      otherDeployedAmm.address,
-    ])
-    assertBNEq(
-      await etk.getAmms(),
-      [deployedAmm.address, otherDeployedAmm.address],
-      "Invalid addreses in AutomaticClaimKeeper contract",
-    )
+    const etk = await PriceOracleKeeper.new(deployedAddressesProvider.address)
 
     // test first Amm
     let series = await deployedAmm.getAllSeries()
@@ -118,7 +110,8 @@ contract("Automatic Claim Keeper", (accounts) => {
     series = await otherDeployedAmm.getAllSeries()
     assertBNEq(series.length, 2, "Second Amm should have 2 series")
 
-    let checkUpKepp = await etk.checkUpkeep("0x00")
+    let checkUpKepp = await etk.contract.methods.checkUpKepp("0x00").call()
+    console.log(checkUpKepp)
     assertBNEq(
       checkUpKepp["0"],
       true,
