@@ -297,7 +297,7 @@ contract SeriesDeployer is
         if (remainingBalance > 0) {
             // Give allowane just in case
             IERC20(ammTokens.collateralToken).approve(
-                msg.sender,
+                address(this),
                 remainingBalance
             );
 
