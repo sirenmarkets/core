@@ -1,9 +1,18 @@
-import { time } from "@openzeppelin/test-helpers"
+import { time, BN } from "@openzeppelin/test-helpers"
 import { artifacts, contract } from "hardhat"
 import {
   SimpleTokenContract,
   PriceOracleKeeperContract,
-  PriceOracleKeeperInstance,
+  MockPriceOracleContract,
+  MockPriceOracleInstance,
+  MinterAmmInstance,
+  AmmFactoryInstance,
+  SeriesControllerInstance,
+  PriceOracleInstance,
+  AmmDataProviderInstance,
+  BlackScholesInstance,
+  SimpleTokenInstance,
+  AddressesProviderInstance,
 } from "../../typechain"
 
 import {
@@ -13,14 +22,31 @@ import {
   setupSeries,
   ONE_WEEK_DURATION,
   ONE_DAY_DURATION,
+  now,
 } from "../util"
 
 const STRIKE_PRICE = 20000e8 // 20000 USD
 const UNDERLYING_PRICE = 14_000 * 10 ** 8 // BTC oracle answer has 8 decimals places, same as BTC
 
+const MockPriceOracle: MockPriceOracleContract =
+  artifacts.require("MockPriceOracle")
 const SimpleToken: SimpleTokenContract = artifacts.require("SimpleToken")
 const PriceOracleKeeper: PriceOracleKeeperContract =
   artifacts.require("PriceOracleKeeper")
+let deployedAmm: MinterAmmInstance
+let deployedAmmFactory: AmmFactoryInstance
+let deployedSeriesController: SeriesControllerInstance
+let deployedPriceOracle: PriceOracleInstance
+let deployedAmmDataProvider: AmmDataProviderInstance
+let underlyingToken: SimpleTokenInstance
+let priceToken: SimpleTokenInstance
+let collateralToken: SimpleTokenInstance
+let deployedAddressesProvider: AddressesProviderInstance
+let expiration: number
+let deployedMockPriceOracle: MockPriceOracleInstance
+let deployedBlackScholes: BlackScholesInstance
+let seriesId1Amm1: string
+
 /**
  * Testing Automatic Claim Keeper .
  */
@@ -28,8 +54,8 @@ contract("Automatic Claim Keeper", (accounts) => {
   const ownerAccount = accounts[0]
   const aliceAccount = accounts[1]
 
-  it("Test the whole keeper for expired tokens on 2 Amms", async () => {
-    let {
+  beforeEach(async () => {
+    ;({
       deployedAmm,
       deployedAmmFactory,
       deployedSeriesController,
@@ -46,8 +72,70 @@ contract("Automatic Claim Keeper", (accounts) => {
     } = await setupAllTestContracts({
       oraclePrice: UNDERLYING_PRICE,
       strikePrice: STRIKE_PRICE.toString(),
-    })
+    }))
+  })
 
+  it("CheckUpkeep should return true even though the price is set", async () => {
+    await time.increaseTo(expiration)
+    await deployedMockPriceOracle.setLatestAnswer(3000)
+
+    await deployedPriceOracle.setSettlementPrice(
+      underlyingToken.address,
+      priceToken.address,
+    )
+
+    // Check that settlement price is not set before upkeep
+    const result = await deployedPriceOracle.getSettlementPrice(
+      underlyingToken.address,
+      priceToken.address,
+      expiration,
+    )
+    assert(result[0] == true, "settlementPrice should be set")
+
+    const etk = await PriceOracleKeeper.new(deployedAddressesProvider.address)
+    let checkUpKepp = await etk.contract.methods.checkUpkeep("0x00").call()
+
+    assert(checkUpKepp.upkeepNeeded == true, "Still need to claim tokens")
+    await deployedAmm.claimAllExpiredTokens()
+    checkUpKepp = await etk.contract.methods.checkUpkeep("0x00").call()
+
+    assert(
+      checkUpKepp.upkeepNeeded == false,
+      "Price should be set and expiredTokens should be claimed",
+    )
+  })
+
+  it("The performUpkeep should claim the tokens even though the price is set", async () => {
+    await time.increaseTo(expiration)
+    await deployedMockPriceOracle.setLatestAnswer(3000)
+
+    await deployedPriceOracle.setSettlementPrice(
+      underlyingToken.address,
+      priceToken.address,
+    )
+
+    // Check that settlement price is not set before upkeep
+    const result = await deployedPriceOracle.getSettlementPrice(
+      underlyingToken.address,
+      priceToken.address,
+      expiration,
+    )
+    assert(result[0] == true, "settlementPrice should be set")
+
+    const etk = await PriceOracleKeeper.new(deployedAddressesProvider.address)
+    let checkUpKepp = await etk.contract.methods.checkUpkeep("0x00").call()
+
+    assert(checkUpKepp.upkeepNeeded == true, "Still need to claim tokens")
+    await etk.performUpkeep("0x00")
+    checkUpKepp = await etk.contract.methods.checkUpkeep("0x00").call()
+
+    assert(
+      checkUpKepp.upkeepNeeded == false,
+      "Price should be set and expiredTokens should be claimed",
+    )
+  })
+
+  it("Test the whole keeper for expired tokens on 2 Amms", async () => {
     //Setup second series
     const { seriesId: seriesId2Amm1 } = await setupSeries({
       deployedSeriesController,
@@ -63,6 +151,15 @@ contract("Automatic Claim Keeper", (accounts) => {
     const otherUnderlyingToken = await SimpleToken.new()
     await otherUnderlyingToken.initialize("Wrapped ETH", "WETH", 18)
     const otherCollateralToken = otherUnderlyingToken
+
+    let deployedMockPriceOracle2 = await MockPriceOracle.new(18)
+    deployedMockPriceOracle2.setLatestAnswer(STRIKE_PRICE)
+
+    deployedPriceOracle.addTokenPair(
+      otherUnderlyingToken.address,
+      priceToken.address,
+      deployedMockPriceOracle2.address,
+    )
 
     const { deployedAmm: otherDeployedAmm } = await setupAmm({
       deployedAmmFactory,
@@ -110,22 +207,6 @@ contract("Automatic Claim Keeper", (accounts) => {
     series = await otherDeployedAmm.getAllSeries()
     assertBNEq(series.length, 2, "Second Amm should have 2 series")
 
-    let checkUpKepp = await etk.contract.methods.checkUpKepp("0x00").call()
-    console.log(checkUpKepp)
-    assertBNEq(
-      checkUpKepp["0"],
-      true,
-      "upkeepNeeded should be true, after initialization",
-    )
-
-    await etk.performUpkeep("0x00") // first upkeep has to be done
-    checkUpKepp = await etk.checkUpkeep("0x00")
-    assertBNEq(
-      checkUpKepp["0"],
-      false,
-      "upkeepNeeded should be false, after first run of performUpkeep",
-    )
-
     // Nothing should have changed for both Amms
     series = await deployedAmm.getAllSeries()
     assertBNEq(
@@ -143,7 +224,6 @@ contract("Automatic Claim Keeper", (accounts) => {
 
     // We create some bTokens simulation for first Amm
     // use the same time, no matter when this test gets called
-    await time.increaseTo(expiration - 1 * ONE_WEEK_DURATION)
     const initialCapital = 10000
 
     // We mint btokens from all series we have created for first AMM
@@ -165,26 +245,19 @@ contract("Automatic Claim Keeper", (accounts) => {
     const BUY_AMOUNT = 3000
 
     // Buy bTokens from first series
-    let ammReceipt = await deployedAmm.bTokenBuy(
-      seriesId1Amm1,
-      BUY_AMOUNT,
-      BUY_AMOUNT,
-      { from: aliceAccount },
-    )
+    await deployedAmm.bTokenBuy(seriesId1Amm1, BUY_AMOUNT, BUY_AMOUNT, {
+      from: aliceAccount,
+    })
 
     // Buy bTokens from second series
-    ammReceipt = await deployedAmm.bTokenBuy(
-      seriesId2Amm1,
-      BUY_AMOUNT,
-      BUY_AMOUNT,
-      {
-        from: aliceAccount,
-      },
-    )
+    await deployedAmm.bTokenBuy(seriesId2Amm1, BUY_AMOUNT, BUY_AMOUNT, {
+      from: aliceAccount,
+    })
 
     // We need to test performUpkeep after some series have expired
     await time.increaseTo(expiration + 3 * ONE_WEEK_DURATION - ONE_DAY_DURATION)
     await deployedMockPriceOracle.setLatestAnswer(UNDERLYING_PRICE)
+    deployedMockPriceOracle2.setLatestAnswer(STRIKE_PRICE)
     // Before running performUpkeep, everything should be the same as before
 
     // test the first Amm
@@ -195,9 +268,9 @@ contract("Automatic Claim Keeper", (accounts) => {
     series = await otherDeployedAmm.getAllSeries()
     assertBNEq(series.length, 2, "Second Amm should have 2 series")
 
-    checkUpKepp = await etk.checkUpkeep("0x00")
+    let checkUpKepp = await etk.contract.methods.checkUpkeep("0x00").call()
     assertBNEq(
-      checkUpKepp["0"],
+      checkUpKepp.upkeepNeeded,
       true,
       "upkeepNeeded should be true, because one week has passed already",
     )
@@ -213,7 +286,7 @@ contract("Automatic Claim Keeper", (accounts) => {
     series = await otherDeployedAmm.getAllSeries()
     assertBNEq(series.length, 0, "Second Amm should have 0 series")
 
-    checkUpKepp = await etk.checkUpkeep("0x00")
-    assertBNEq(checkUpKepp["0"], false, "upkeepNeeded should be false")
+    checkUpKepp = await etk.contract.methods.checkUpkeep("0x00").call()
+    assertBNEq(checkUpKepp.upkeepNeeded, false, "upkeepNeeded should be false")
   })
 })
