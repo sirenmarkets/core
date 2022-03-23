@@ -475,7 +475,7 @@ contract("Auto Series Creation", (accounts) => {
     )
   })
 
-  it.only("Checks that reaming balance is returned to the user", async () => {
+  it("Checks that reaming balance is returned to the user", async () => {
     ;({
       underlyingToken,
       collateralToken,
