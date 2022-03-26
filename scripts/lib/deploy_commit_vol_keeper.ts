@@ -3,29 +3,29 @@ import * as hre from "hardhat"
 const ADDRESSES_PROVIDER = process.env.ADDRESSES_PROVIDER
 
 export async function deploy_commit_vol_keeper(): Promise<any> {
-  const AutomaticClaimVolKeeper = await hre.ethers.getContractFactory(
-    "AutomaticClaimVolKeeper",
+  const VolatilityOracleKeeper = await hre.ethers.getContractFactory(
+    "VolatilityOracleKeeper",
   )
 
-  const automaticClaimVolKeeper = await AutomaticClaimVolKeeper.deploy(
+  const volatilityOracleKeeper = await VolatilityOracleKeeper.deploy(
     ADDRESSES_PROVIDER,
   )
 
-  await automaticClaimVolKeeper.deployed()
+  await volatilityOracleKeeper.deployed()
   console.log(
-    "AutomaticClaimVolKeeper deployed to:       ",
-    automaticClaimVolKeeper.address.toLowerCase(),
+    "VolatilityOracleKeeper deployed to:       ",
+    volatilityOracleKeeper.address.toLowerCase(),
   )
 
   console.log("[*] Verifying...")
   console.log("[*] Waiting 1 min before continuing...")
   await sleep(61000)
-  await verifyContract(automaticClaimVolKeeper.address, "PriceOracleKeeper", [
+  await verifyContract(volatilityOracleKeeper.address, "PriceOracleKeeper", [
     ADDRESSES_PROVIDER,
   ])
 
   return {
-    automaticClaimVolKeeper,
+    volatilityOracleKeeper,
   }
 }
 

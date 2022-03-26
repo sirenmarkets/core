@@ -6,7 +6,7 @@ import "../series/IVolatilityOracle.sol";
 import "../configuration/IAddressesProvider.sol";
 import "../series/IPriceOracle.sol";
 
-contract AutomaticClaimVolKeeper is KeeperCompatibleInterface {
+contract VolatilityOracleKeeper is KeeperCompatibleInterface {
     IAddressesProvider public immutable addressesProvider;
 
     constructor(IAddressesProvider _addressesProvider) {

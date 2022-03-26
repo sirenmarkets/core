@@ -8,10 +8,10 @@ import {
 import { time } from "@openzeppelin/test-helpers"
 import { artifacts, contract, ethers } from "hardhat"
 const { provider } = ethers
-import { AutomaticClaimVolKeeperContract } from "../../typechain"
+import { VolatilityOracleKeeperContract } from "../../typechain"
 
-const AutomaticClaimVolKeeper: AutomaticClaimVolKeeperContract =
-  artifacts.require("AutomaticClaimVolKeeper")
+const volatilityOracleKeeper: VolatilityOracleKeeperContract =
+  artifacts.require("VolatilityOracleKeeper")
 const PERIOD = 86400
 
 const WINDOW_IN_DAYS = 90 // 3 month vol data
@@ -61,7 +61,7 @@ contract("Volatility Oracle Keeper", (accounts) => {
     )
 
     // We setup keeper
-    deployedVolatilityKeeper = await AutomaticClaimVolKeeper.new(
+    deployedVolatilityKeeper = await volatilityOracleKeeper.new(
       deployedAddressesProvider.address,
     )
   })
