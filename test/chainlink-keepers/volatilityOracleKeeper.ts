@@ -1,9 +1,4 @@
-import {
-  now,
-  getNextFriday8amUTCTimestamp,
-  setupAllTestContracts,
-  assertBNEq,
-} from "../util"
+import { setupAllTestContracts, assertBNEq } from "../util"
 
 import { time } from "@openzeppelin/test-helpers"
 import { artifacts, contract, ethers } from "hardhat"
@@ -15,39 +10,27 @@ const volatilityOracleKeeper: VolatilityOracleKeeperContract =
 const PERIOD = 86400
 
 const WINDOW_IN_DAYS = 90 // 3 month vol data
-const getTopOfPeriod = async () => {
+const getNextPeriod = async () => {
   const latestTimestamp = (await provider.getBlock("latest")).timestamp
-  let topOfPeriod: number
-  const rem = latestTimestamp % PERIOD
-  if (rem < Math.floor(PERIOD / 2)) {
-    topOfPeriod = latestTimestamp - rem + PERIOD
-  } else {
-    topOfPeriod = latestTimestamp + rem + PERIOD
-  }
-  return topOfPeriod
+  let nextPeriod: number = latestTimestamp + PERIOD - (latestTimestamp % PERIOD)
+  return nextPeriod
 }
 
 contract("Volatility Oracle Keeper", (accounts) => {
   let priceToken
   let underlyingToken
   let deployedMockPriceOracle
-  let deployedPriceOracle
-  let nextFriday8amUTC: number
   let deployedVolatilityOracle
   let deployedVolatilityKeeper
   let deployedAddressesProvider
   beforeEach(async () => {
     ;({
       deployedAddressesProvider,
-      deployedPriceOracle,
       deployedMockPriceOracle,
       underlyingToken,
       priceToken,
     } = await setupAllTestContracts({}))
     // create the price oracle fresh for each test
-
-    nextFriday8amUTC = getNextFriday8amUTCTimestamp(await now())
-
     const volatility = await ethers.getContractFactory("VolatilityOracle", {})
 
     deployedVolatilityOracle = await volatility.deploy()
@@ -67,8 +50,8 @@ contract("Volatility Oracle Keeper", (accounts) => {
   })
 
   it("checkUp and performUpkeep test", async () => {
-    let topOfPeriod1 = (await getTopOfPeriod()) + PERIOD
-    await time.increaseTo(topOfPeriod1)
+    let nextPeriod1 = (await getNextPeriod()) + PERIOD
+    await time.increaseTo(nextPeriod1)
     await deployedMockPriceOracle.setLatestAnswer(10000)
     let checkUpkeep = await deployedVolatilityKeeper.contract.methods
       .checkUpkeep("0x00")
@@ -92,6 +75,22 @@ contract("Volatility Oracle Keeper", (accounts) => {
       underlyingToken.address,
       priceToken.address,
     )
+    checkUpkeep = await deployedVolatilityKeeper.contract.methods
+      .checkUpkeep("0x00")
+      .call()
+    assertBNEq(checkUpkeep.upkeepNeeded, false, "Everything should be set")
+
+    // We shall test performUpkeep now
+    let nextPeriod2 = (await getNextPeriod()) + PERIOD
+    await time.increaseTo(nextPeriod2)
+    await deployedMockPriceOracle.setLatestAnswer(1000)
+
+    checkUpkeep = await deployedVolatilityKeeper.contract.methods
+      .checkUpkeep("0x00")
+      .call()
+    assertBNEq(checkUpkeep.upkeepNeeded, true, "It should be albe to do upkeep")
+
+    await deployedVolatilityKeeper.performUpkeep("0x00")
 
     checkUpkeep = await deployedVolatilityKeeper.contract.methods
       .checkUpkeep("0x00")
