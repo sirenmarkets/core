@@ -11,7 +11,7 @@ dataSources:
       startBlock: {{controllerStartBlock}}
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.4
+      apiVersion: 0.0.6
       language: wasm/assemblyscript
       entities:
         - SeriesEntity
@@ -42,7 +42,7 @@ dataSources:
       startBlock: {{vaultStartBlock}}
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.4
+      apiVersion: 0.0.6
       language: wasm/assemblyscript
       entities:
         - SeriesVault
@@ -62,7 +62,7 @@ dataSources:
       startBlock: {{erc1155ControllerStartBlock}}
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.4
+      apiVersion: 0.0.6
       language: wasm/assemblyscript
       entities:
         - ERC1155Controller
@@ -92,7 +92,7 @@ dataSources:
       startBlock: {{ammFactoryStartBlock}}
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.4
+      apiVersion: 0.0.6
       language: wasm/assemblyscript
       entities:
         - OwnershipTransfer
@@ -116,7 +116,7 @@ dataSources:
       startBlock: {{ammFactoryStartBlock}}
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.4
+      apiVersion: 0.0.6
       language: wasm/assemblyscript
       entities:
         - SettlementPrice
@@ -138,7 +138,7 @@ dataSources:
       startBlock: {{ammFactoryStartBlock}}
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.4
+      apiVersion: 0.0.6
       language: wasm/assemblyscript
       entities:
         - Amm
@@ -163,7 +163,7 @@ templates:
       abi: SimpleToken
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.4
+      apiVersion: 0.0.6
       language: wasm/assemblyscript
       entities:
         - Transfer
@@ -184,7 +184,7 @@ templates:
       abi: MinterAmm
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.4
+      apiVersion: 0.0.6
       language: wasm/assemblyscript
       entities:
         - Amm

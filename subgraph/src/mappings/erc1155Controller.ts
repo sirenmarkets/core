@@ -132,6 +132,9 @@ function handleTransfer(
   let erc1155ControllerContract = ERC1155Controller.load(
     event.address.toHexString(),
   )
+  if(erc1155ControllerContract === null) {
+    return
+  }
   let seriesControllerAddress = Address.fromString(
     erc1155ControllerContract.controller.toHexString(),
   )

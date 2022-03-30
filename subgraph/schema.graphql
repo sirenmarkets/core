@@ -68,14 +68,14 @@ type Amm @entity {
   createdBlock: BigInt!
   createdTimestamp: BigInt!
   createdTransaction: Bytes!
-  series: [SeriesAmm]! @derivedFrom(field: "amm")
+  series: [SeriesAmm!]! @derivedFrom(field: "amm")
   controller: SeriesController!
   underlyingToken: ERC20Token!
   priceToken: ERC20Token!
   collateralToken: ERC20Token!
   tradeFeeBasisPoints: Int!
   lpToken: ERC20Token!
-  poolValueSnapshots: [PoolValueSnapshot]! @derivedFrom(field: "amm")
+  poolValueSnapshots: [PoolValueSnapshot!]! @derivedFrom(field: "amm")
 }
 
 #
@@ -232,13 +232,13 @@ type ERC1155Token @entity {
   totalSupply: BigInt!
 
   " Total token burned "
-  totalBurned: BigInt
+  totalBurned: BigInt!
 
   " Total token minted "
-  totalMinted: BigInt
+  totalMinted: BigInt!
 
   " Total token transferred "
-  totalTransferred: BigInt
+  totalTransferred: BigInt!
 
   " List of token events "
   events: [ERC1155TokenEvent!]! @derivedFrom(field: "tokens")
@@ -393,13 +393,13 @@ type ERC20Token @entity {
   totalSupply: BigInt!
 
   " Total token burned "
-  totalBurned: BigInt
+  totalBurned: BigInt!
 
   " Total token minted "
-  totalMinted: BigInt
+  totalMinted: BigInt!
 
   " Total token transferred "
-  totalTransferred: BigInt
+  totalTransferred: BigInt!
 
   " List of token events "
   events: [ERC20TokenEvent!]! @derivedFrom(field: "token")
@@ -487,7 +487,7 @@ interface AmmTokenEvent {
   tokenAmount: BigInt!
   #eventType is an array so we can select the types of events we want using the syntax ```eventType_not_contains: []```in graphql
   #There is currently not an easy implementation to select based on multiple enums unless we put them in an array and select what the array does not contain
-  eventType: [AmmTokenEventType]!
+  eventType: [AmmTokenEventType!]!
   amm: Amm!
   block: BigInt!
   timestamp: BigInt!
@@ -501,7 +501,7 @@ type LpTokenMinted implements AmmTokenEvent @entity {
   account: Account!
   collateralAmount: BigInt!
   tokenAmount: BigInt!
-  eventType: [AmmTokenEventType]!
+  eventType: [AmmTokenEventType!]!
   amm: Amm!
   block: BigInt!
   timestamp: BigInt!
@@ -513,7 +513,7 @@ type LpTokenBurned implements AmmTokenEvent @entity {
   account: Account!
   collateralAmount: BigInt!
   tokenAmount: BigInt!
-  eventType: [AmmTokenEventType]!
+  eventType: [AmmTokenEventType!]!
   amm: Amm!
   block: BigInt!
   timestamp: BigInt!
@@ -525,12 +525,12 @@ type BTokenBought implements AmmTokenEvent @entity {
   account: Account!
   collateralAmount: BigInt!
   tokenAmount: BigInt!
-  eventType: [AmmTokenEventType]!
+  eventType: [AmmTokenEventType!]!
   amm: Amm!
   block: BigInt!
   timestamp: BigInt!
   poolValueSnapshot: PoolValueSnapshot!
-  seriesId: BigInt!  
+  seriesId: BigInt!
   series: SeriesEntity!
   transaction: String!
 }
@@ -539,12 +539,12 @@ type BTokenSold implements AmmTokenEvent @entity {
   account: Account!
   collateralAmount: BigInt!
   tokenAmount: BigInt!
-  eventType: [AmmTokenEventType]!
+  eventType: [AmmTokenEventType!]!
   amm: Amm!
   block: BigInt!
   timestamp: BigInt!
   poolValueSnapshot: PoolValueSnapshot!
-  seriesId: BigInt!  
+  seriesId: BigInt!
   series: SeriesEntity!
   transaction: String!
 }
@@ -553,12 +553,12 @@ type WTokenSold implements AmmTokenEvent @entity {
   account: Account!
   collateralAmount: BigInt!
   tokenAmount: BigInt!
-  eventType: [AmmTokenEventType]!
+  eventType: [AmmTokenEventType!]!
   amm: Amm!
   block: BigInt!
   timestamp: BigInt!
   poolValueSnapshot: PoolValueSnapshot!
-  seriesId: BigInt!  
+  seriesId: BigInt!
   series: SeriesEntity!
   transaction: String!
 }

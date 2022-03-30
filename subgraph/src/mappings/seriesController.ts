@@ -66,6 +66,9 @@ export function handleSeriesCreated(event: SeriesCreated): void {
   let seriesControllerEntity = SeriesControllerEntity.load(
     seriesControllerAddress,
   )
+  if(seriesControllerEntity === null ){
+    return
+  }
   series.priceOracle = seriesControllerEntity.priceOracle
 
   // ERC1155 tokens

@@ -338,7 +338,9 @@ export class MinterAmm__getSeriesResultValue0Struct extends ethereum.Tuple {
   }
 
   get tokens(): MinterAmm__getSeriesResultValue0TokensStruct {
-    return this[2].toTuple() as MinterAmm__getSeriesResultValue0TokensStruct;
+    return changetype<MinterAmm__getSeriesResultValue0TokensStruct>(
+      this[2].toTuple()
+    );
   }
 
   get strikePrice(): BigInt {
@@ -790,7 +792,9 @@ export class MinterAmm extends ethereum.SmartContract {
       [ethereum.Value.fromUnsignedBigInt(seriesId)]
     );
 
-    return result[0].toTuple() as MinterAmm__getSeriesResultValue0Struct;
+    return changetype<MinterAmm__getSeriesResultValue0Struct>(
+      result[0].toTuple()
+    );
   }
 
   try_getSeries(
@@ -806,7 +810,7 @@ export class MinterAmm extends ethereum.SmartContract {
     }
     let value = result.value;
     return ethereum.CallResult.fromValue(
-      value[0].toTuple() as MinterAmm__getSeriesResultValue0Struct
+      changetype<MinterAmm__getSeriesResultValue0Struct>(value[0].toTuple())
     );
   }
 

@@ -394,7 +394,9 @@ export class SeriesControllerInitialized__Params {
   }
 
   get fees(): SeriesControllerInitializedFeesStruct {
-    return this._event.parameters[3].value.toTuple() as SeriesControllerInitializedFeesStruct;
+    return changetype<SeriesControllerInitializedFeesStruct>(
+      this._event.parameters[3].value.toTuple()
+    );
   }
 }
 
@@ -434,7 +436,9 @@ export class SeriesCreated__Params {
   }
 
   get tokens(): SeriesCreatedTokensStruct {
-    return this._event.parameters[1].value.toTuple() as SeriesCreatedTokensStruct;
+    return changetype<SeriesCreatedTokensStruct>(
+      this._event.parameters[1].value.toTuple()
+    );
   }
 
   get restrictedMinters(): Array<Address> {
@@ -564,7 +568,9 @@ export class SeriesController__seriesResultValue0Struct extends ethereum.Tuple {
   }
 
   get tokens(): SeriesController__seriesResultValue0TokensStruct {
-    return this[2].toTuple() as SeriesController__seriesResultValue0TokensStruct;
+    return changetype<SeriesController__seriesResultValue0TokensStruct>(
+      this[2].toTuple()
+    );
   }
 
   get strikePrice(): BigInt {
@@ -1472,7 +1478,9 @@ export class SeriesController extends ethereum.SmartContract {
       [ethereum.Value.fromUnsignedBigInt(seriesId)]
     );
 
-    return result[0].toTuple() as SeriesController__seriesResultValue0Struct;
+    return changetype<SeriesController__seriesResultValue0Struct>(
+      result[0].toTuple()
+    );
   }
 
   try_series(
@@ -1488,7 +1496,7 @@ export class SeriesController extends ethereum.SmartContract {
     }
     let value = result.value;
     return ethereum.CallResult.fromValue(
-      value[0].toTuple() as SeriesController__seriesResultValue0Struct
+      changetype<SeriesController__seriesResultValue0Struct>(value[0].toTuple())
     );
   }
 
@@ -1645,7 +1653,9 @@ export class __SeriesController_initCall__Inputs {
   }
 
   get _fees(): __SeriesController_initCall_feesStruct {
-    return this._call.inputValues[3].value.toTuple() as __SeriesController_initCall_feesStruct;
+    return changetype<__SeriesController_initCall_feesStruct>(
+      this._call.inputValues[3].value.toTuple()
+    );
   }
 }
 
@@ -1769,7 +1779,9 @@ export class CreateSeriesCall__Inputs {
   }
 
   get _tokens(): CreateSeriesCall_tokensStruct {
-    return this._call.inputValues[0].value.toTuple() as CreateSeriesCall_tokensStruct;
+    return changetype<CreateSeriesCall_tokensStruct>(
+      this._call.inputValues[0].value.toTuple()
+    );
   }
 
   get _strikePrices(): Array<BigInt> {

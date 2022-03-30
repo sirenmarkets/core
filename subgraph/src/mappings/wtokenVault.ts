@@ -62,7 +62,9 @@
 
     let id = event.params.ammAddress.toHexString() + '-' + event.params.expirationDate.toHexString()
     let lockedExpirationPool = LockedExpirationPool.load(id)
-
+    if(lockedExpirationPool === null){
+      return
+    }
     lockedExpirationPool.availableCollateral =  lockedExpirationPool.availableCollateral.plus(event.params.collateralAmount)
     lockedExpirationPool.lockedWTokens = lockedExpirationPool.lockedWTokens.minus(event.params.wTokenAmount)
 

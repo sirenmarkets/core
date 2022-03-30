@@ -233,7 +233,9 @@ export class PriceOracle extends ethereum.SmartContract {
       [ethereum.Value.fromUnsignedBigInt(feedId)]
     );
 
-    return result[0].toTuple() as PriceOracle__getPriceFeedResultValue0Struct;
+    return changetype<PriceOracle__getPriceFeedResultValue0Struct>(
+      result[0].toTuple()
+    );
   }
 
   try_getPriceFeed(
@@ -249,7 +251,9 @@ export class PriceOracle extends ethereum.SmartContract {
     }
     let value = result.value;
     return ethereum.CallResult.fromValue(
-      value[0].toTuple() as PriceOracle__getPriceFeedResultValue0Struct
+      changetype<PriceOracle__getPriceFeedResultValue0Struct>(
+        value[0].toTuple()
+      )
     );
   }
 
@@ -514,6 +518,10 @@ export class SetSettlementPriceForDateCall__Inputs {
   get date(): BigInt {
     return this._call.inputValues[2].value.toBigInt();
   }
+
+  get roundId(): BigInt {
+    return this._call.inputValues[3].value.toBigInt();
+  }
 }
 
 export class SetSettlementPriceForDateCall__Outputs {
@@ -580,6 +588,48 @@ export class UpdateImplementationCall__Outputs {
   _call: UpdateImplementationCall;
 
   constructor(call: UpdateImplementationCall) {
+    this._call = call;
+  }
+}
+
+export class UpdateOracleAddressCall extends ethereum.Call {
+  get inputs(): UpdateOracleAddressCall__Inputs {
+    return new UpdateOracleAddressCall__Inputs(this);
+  }
+
+  get outputs(): UpdateOracleAddressCall__Outputs {
+    return new UpdateOracleAddressCall__Outputs(this);
+  }
+}
+
+export class UpdateOracleAddressCall__Inputs {
+  _call: UpdateOracleAddressCall;
+
+  constructor(call: UpdateOracleAddressCall) {
+    this._call = call;
+  }
+
+  get underlyingToken(): Address {
+    return this._call.inputValues[0].value.toAddress();
+  }
+
+  get priceToken(): Address {
+    return this._call.inputValues[1].value.toAddress();
+  }
+
+  get newOracle(): Address {
+    return this._call.inputValues[2].value.toAddress();
+  }
+
+  get feedId(): BigInt {
+    return this._call.inputValues[3].value.toBigInt();
+  }
+}
+
+export class UpdateOracleAddressCall__Outputs {
+  _call: UpdateOracleAddressCall;
+
+  constructor(call: UpdateOracleAddressCall) {
     this._call = call;
   }
 }

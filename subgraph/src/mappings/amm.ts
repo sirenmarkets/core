@@ -32,9 +32,13 @@ export function handleAMMInitialized(event: AMMInitialized): void {
   amm.createdTransaction = event.transaction.hash
   amm.createdBlock = event.block.number
   amm.createdTimestamp = event.block.timestamp
-  amm.controller = SeriesController.load(
+  let controller = SeriesController.load(
     event.params.controller.toHexString(),
-  ).id
+  )
+  if(controller === null){
+    return
+  }
+  amm.controller = controller.id
 
   amm.tradeFeeBasisPoints = contract.tradeFeeBasisPoints()
 
