@@ -101,6 +101,7 @@ contract PriceOracleKeeper is KeeperCompatibleInterface {
     function performUpkeep(
         bytes calldata /* performData */
     ) external override {
+        bool completedWork = false;
         IPriceOracle oracle = IPriceOracle(addressesProvider.getPriceOracle());
         uint256 settlementTimestamp = oracle.get8amWeeklyOrDailyAligned(
             block.timestamp
@@ -115,10 +116,14 @@ contract PriceOracleKeeper is KeeperCompatibleInterface {
                 feed.priceToken
             );
             if (callAmm != address(0)) {
-                try IMinterAmm(callAmm).claimAllExpiredTokens() {} catch {}
+                try IMinterAmm(callAmm).claimAllExpiredTokens() {
+                    completedWork = true;
+                } catch {}
             }
             if (putAmm != address(0)) {
-                try IMinterAmm(putAmm).claimAllExpiredTokens() {} catch {}
+                try IMinterAmm(putAmm).claimAllExpiredTokens() {
+                    completedWork = true;
+                } catch {}
             }
             (bool isSet, ) = oracle.getSettlementPrice(
                 feed.underlyingToken,
@@ -132,8 +137,11 @@ contract PriceOracleKeeper is KeeperCompatibleInterface {
                         feed.underlyingToken,
                         feed.priceToken
                     )
-                {} catch {}
+                {
+                    completedWork = true;
+                } catch {}
             }
         }
+        require(completedWork, "!work");
     }
 }
