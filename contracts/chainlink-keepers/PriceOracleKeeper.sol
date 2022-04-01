@@ -33,6 +33,7 @@ contract PriceOracleKeeper is KeeperCompatibleInterface {
         bytes calldata /* checkData */
     )
         external
+        view
         override
         returns (
             bool upkeepNeeded,

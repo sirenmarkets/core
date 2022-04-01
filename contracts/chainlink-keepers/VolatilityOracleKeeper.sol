@@ -18,12 +18,20 @@ contract VolatilityOracleKeeper is KeeperCompatibleInterface {
         bytes calldata /* checkData */
     )
         external
+        view
         override
         returns (
             bool upkeepNeeded,
             bytes memory /* performData */
         )
     {
+        upkeepNeeded = true;
+    }
+
+    function performUpkeep(
+        bytes calldata /* performData */
+    ) external override {
+        bool completedWork = false;
         IPriceOracle pOracle = IPriceOracle(addressesProvider.getPriceOracle());
         IVolatilityOracle vOracle = IVolatilityOracle(
             addressesProvider.getVolatilityOracle()
@@ -32,25 +40,9 @@ contract VolatilityOracleKeeper is KeeperCompatibleInterface {
         for (uint256 i = 0; i < feedCount; i++) {
             IPriceOracle.PriceFeed memory feed = pOracle.getPriceFeed(i);
             try vOracle.commit(feed.underlyingToken, feed.priceToken) {
-                upkeepNeeded = true;
-                break;
+                completedWork = true;
             } catch {}
         }
-    }
-
-    function performUpkeep(
-        bytes calldata /* performData */
-    ) external override {
-        IPriceOracle pOracle = IPriceOracle(addressesProvider.getPriceOracle());
-        IVolatilityOracle vOracle = IVolatilityOracle(
-            addressesProvider.getVolatilityOracle()
-        );
-        uint256 feedCount = pOracle.getPriceFeedsCount();
-        for (uint256 i = 0; i < feedCount; i++) {
-            IPriceOracle.PriceFeed memory feed = pOracle.getPriceFeed(i);
-            try
-                vOracle.commit(feed.underlyingToken, feed.priceToken)
-            {} catch {}
-        }
+        require(completedWork, "!work");
     }
 }
