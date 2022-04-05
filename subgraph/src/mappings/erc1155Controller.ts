@@ -232,7 +232,7 @@ function handleTransfer(
   }
 }
 
-function getOrCreateERC1155AccountBalance(
+export function getOrCreateERC1155AccountBalance(
   account: Account,
   token: ERC1155Token,
 ): ERC1155AccountBalance {

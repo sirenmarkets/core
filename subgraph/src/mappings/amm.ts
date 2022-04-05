@@ -8,7 +8,9 @@ import {
   MinterAmm as AmmContract,
 } from "../../generated/templates/Amm/MinterAmm"
 import {AmmDataProvider } from "../../generated/templates/AmmDataProvider/AmmDataProvider"
-
+import { 
+  SeriesController as SeriesControllerContract
+ } from "../../generated/SeriesController/SeriesController"
 import { SimpleToken as SimpleTokenContract } from "../../generated/templates/Amm/SimpleToken"
 import {
   Amm,
@@ -18,11 +20,19 @@ import {
   LpTokenBurned,
   BTokenBought,
   BTokenSold,
-  WTokenSold
+  WTokenSold,
+  Position
 } from "../../generated/schema"
 import { findOrCreateToken } from "./simpleToken"
 import { getId } from "./helpers/transaction"
-import { ethereum, BigInt, dataSource } from "@graphprotocol/graph-ts"
+import { ZERO, ONE, TWO } from "./helpers/number"
+import {
+  getOrCreateERC1155AccountBalance,
+  findOrCreateERC1155Token,
+  seriesIdToBTokenId  
+ } from "./erc1155Controller"
+ import { getOrCreateAccount } from "./account"
+import { ethereum, BigInt, dataSource, BigDecimal, log, Address } from "@graphprotocol/graph-ts"
 
 export function handleAMMInitialized(event: AMMInitialized): void {
   // create AMM
@@ -109,6 +119,55 @@ export function handleBTokensBought(event: BTokensBought): void {
   bTokenBought.transaction = event.transaction.hash.toHex()
 
   bTokenBought.save()
+
+  let controller = Address.fromString(getSeriesControllerAddress())
+  let erc1155Addr = SeriesControllerContract.bind(
+    controller).erc1155Controller()
+  let erc1155 = findOrCreateERC1155Token(
+    controller, 
+    seriesIdToBTokenId(
+      event.params.seriesId 
+    )
+  )
+  let id = 
+    event.params.buyer.toHexString() + '-' +
+    erc1155Addr.toHexString() + '-' +  
+    event.params.seriesId.toString()
+  
+  let pos = Position.load(id)
+  if(pos === null) {
+    pos = new Position(id)
+    pos.costBasic = new BigDecimal(event.params.collateralPaid)
+    pos.costBasic = pos.costBasic.div(
+      new BigDecimal(event.params.bTokensBought)
+    )
+  } else {
+    // we need to get amount of b-tokens
+    let balance = getOrCreateERC1155AccountBalance(
+      getOrCreateAccount(event.params.buyer),
+      erc1155
+    )
+    // This happens after the token has been transfered
+    // That is why we need to substract the btokens amount to get previous token amount
+    let previousBalance = new BigDecimal(balance.amount.minus(event.params.bTokensBought))
+    let newBTokens = new BigDecimal(event.params.bTokensBought)
+    let paidForNew = new BigDecimal(event.params.collateralPaid)
+    pos.costBasic = 
+      pos.costBasic.times(previousBalance).plus(
+        paidForNew
+      ).div(
+        previousBalance.plus(newBTokens)// == balance.amount
+      )  
+  }
+  pos.account = event.params.buyer.toHexString()
+  pos.seriesId = event.params.seriesId
+  pos.token = erc1155Addr.toHexString()
+  pos.block = event.block.number
+  pos.modified = event.block.timestamp
+  pos.transaction = event.transaction.hash.toHex()
+  pos.save()
+  
+   
 }
 
 export function handleBTokensSold(event: BTokensSold): void {
@@ -128,6 +187,58 @@ export function handleBTokensSold(event: BTokensSold): void {
   bTokenSold.transaction = event.transaction.hash.toHex()
 
   bTokenSold.save()
+
+  let controller = Address.fromString(getSeriesControllerAddress())
+  let erc1155Addr = SeriesControllerContract.bind(
+    controller).erc1155Controller()
+  let erc1155 = findOrCreateERC1155Token(
+    controller, 
+    seriesIdToBTokenId(
+      event.params.seriesId 
+    )
+  )
+  let id = 
+    event.params.seller.toHexString() + '-' +
+    erc1155Addr.toHexString() + '-' +  
+    event.params.seriesId.toString()
+
+  let pos = Position.load(id)
+  if(pos === null){
+    log.critical("The position have to be created for {} and series {}",[
+      event.params.seller.toHex(), event.params.seriesId.toString()
+    ])
+    return
+  }
+
+  // we need to get amount of b-tokens
+  let balance = getOrCreateERC1155AccountBalance(
+    getOrCreateAccount(event.params.seller),
+    erc1155
+  )
+  if(balance.amount == ZERO){
+    // User sold all  btokens
+    pos.costBasic = new BigDecimal(ZERO)
+  } else {
+    // This happens after the token has been transfered
+    // That is why we need to add the btokens amount to get previous token amount
+    let previousBalance = new BigDecimal(balance.amount.minus(event.params.bTokensSold))
+    let soldBTokens = new BigDecimal(event.params.bTokensSold)
+    let receivedForNew = new BigDecimal(event.params.collateralPaid)
+    pos.costBasic = 
+    pos.costBasic.times(previousBalance).minus(
+      receivedForNew
+    ).div(
+      // Diff should be non ZERO
+      previousBalance.minus(soldBTokens)// == balance.amount
+    )  
+  }
+  pos.account = event.params.seller.toHexString()
+  pos.seriesId = event.params.seriesId
+  pos.token = erc1155Addr.toHexString()
+  pos.block = event.block.number
+  pos.modified = event.block.timestamp
+  pos.transaction = event.transaction.hash.toHex()
+  pos.save()
 }
 
 export function handleWTokensSold(event: WTokensSold): void {
@@ -178,7 +289,7 @@ function takePoolValueSnapshot(event: ethereum.Event): PoolValueSnapshot {
   return poolValueSnapshot as PoolValueSnapshot
 }
 
-function getSeriesControllerAddress(): String {
+function getSeriesControllerAddress(): string {
   let context = dataSource.context()
   return context.getString('seriesController')
 }
