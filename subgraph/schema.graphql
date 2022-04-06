@@ -580,7 +580,7 @@ type Position @entity {
   token: ERC1155Token!
 
   " Average cost of bTokens position "
-  costBasic: BigDecimal!
+  costBasic: BigDecimal
 
   " Block number in which the balance was last modified "
   block: BigInt!

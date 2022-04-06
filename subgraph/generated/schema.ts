@@ -3325,13 +3325,21 @@ export class Position extends Entity {
     this.set("token", Value.fromString(value));
   }
 
-  get costBasic(): BigDecimal {
+  get costBasic(): BigDecimal | null {
     let value = this.get("costBasic");
-    return value.toBigDecimal();
+    if (value === null || value.kind == ValueKind.NULL) {
+      return null;
+    } else {
+      return value.toBigDecimal();
+    }
   }
 
-  set costBasic(value: BigDecimal) {
-    this.set("costBasic", Value.fromBigDecimal(value));
+  set costBasic(value: BigDecimal | null) {
+    if (value === null) {
+      this.unset("costBasic");
+    } else {
+      this.set("costBasic", Value.fromBigDecimal(value as BigDecimal));
+    }
   }
 
   get block(): BigInt {

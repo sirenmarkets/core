@@ -17,10 +17,11 @@ import {
   ERC1155TokenMint,
   ERC1155TokenTransfer,
   SeriesEntity,
+  Position
 } from "../../generated/schema"
 import { getId, getERC1155TransferId } from "./helpers/transaction"
 import { ZERO, ONE, TWO } from "./helpers/number"
-import { BigInt, Address, ethereum } from "@graphprotocol/graph-ts"
+import { BigInt, Address, ethereum, BigDecimal } from "@graphprotocol/graph-ts"
 import { getOrCreateAccount } from "./account"
 const GENESIS_ADDRESS = "0x0000000000000000000000000000000000000000"
 
@@ -191,10 +192,10 @@ function handleTransfer(
     token.totalTransferred = token.totalTransferred.plus(amount)
     token.save()
   }
-
+  let sourceAccount = getOrCreateAccount(from)
+  let destinationAccount = getOrCreateAccount(to)
   // Updates balances of accounts
-  if (isTransfer || isBurn) {
-    let sourceAccount = getOrCreateAccount(from)
+  if (isBurn || isTransfer) {
 
     let accountBalance = decreaseERC1155AccountBalance(
       sourceAccount,
@@ -205,15 +206,13 @@ function handleTransfer(
     accountBalance.modified = event.block.timestamp
     accountBalance.transaction = event.transaction.hash
 
-    sourceAccount.save()
     accountBalance.save()
 
     // To provide information about evolution of account balances
     saveERC1155AccountBalanceSnapshot(accountBalance, eventId, event)
   }
 
-  if (isTransfer || isMint) {
-    let destinationAccount = getOrCreateAccount(to)
+  if (isMint || isTransfer) {
 
     let accountBalance = increaseERC1155AccountBalance(
       destinationAccount,
@@ -224,12 +223,96 @@ function handleTransfer(
     accountBalance.modified = event.block.timestamp
     accountBalance.transaction = event.transaction.hash
 
-    destinationAccount.save()
+    
     accountBalance.save()
 
     // To provide information about evolution of account balances
     saveERC1155AccountBalanceSnapshot(accountBalance, eventId, event)
   }
+  if(isTransfer &&
+    !sourceAccount.isAmm &&
+    !destinationAccount.isAmm &&
+    !isWToken(id)
+    ){
+    let seriesId = tokenIdToSeriesId(id)
+    let posId = '-' +
+    event.address.toHexString() + '-' +  
+    seriesId.toString()
+
+    let fromPosId = from.toHexString() + posId
+    let toPosId = to.toHexString() + posId
+
+    let fromAccount = getOrCreateAccount(from)
+    let toAccount = getOrCreateAccount(to)
+    
+
+    // From Position should have been already created because:
+    // 1. b tokens are only minted to Amm, which are omitted in if statement
+    // 2. As a user, before you can send the tokens, you need to buy from Amm
+    // but this creates BTokensBought event, which creates a position
+    let fromPos = Position.load(fromPosId)
+
+    let toPos = Position.load(toPosId)
+    if(toPos === null || toPos.costBasic === null) {
+      // the cost basics do not change, we just update it for receiver
+      toPos = new Position(toPosId)
+      toPos.account = toAccount.id
+      toPos.seriesId = seriesId
+      toPos.token = event.address.toHexString()
+
+      // toAccount, didn't have any tokens, so the costBasic have to
+      // be the same
+      toPos.costBasic = fromPos.costBasic
+    } else {
+      // the balances should already exists
+      // We will not change them ,therefore we will not save them
+      // we get updated balances, after transfered events have been settleted 
+      let fromBalance = getOrCreateERC1155AccountBalance(fromAccount, token)
+      let toBalance = getOrCreateERC1155AccountBalance(toAccount, token)
+      
+      let toPrevCollateral = toPos.costBasic.times(
+        new BigDecimal(toBalance.amount.minus(amount))
+      )
+      toPos.costBasic = toPrevCollateral.plus(
+        fromPos.costBasic.times(
+          new BigDecimal(amount)
+        )
+      ).div(
+        // ToBalance includes also the transfered amount
+        new BigDecimal(toBalance.amount)
+      )
+
+      // From has sended all of his bTokens
+      if (fromBalance.amount == ZERO) {
+        fromPos.costBasic = null
+      } else {
+        let fromPrevCollateral = fromPos.costBasic.times(
+          new BigDecimal(fromBalance.amount.plus(amount))
+        )
+        fromPos.costBasic = fromPrevCollateral.minus(
+          toPos.costBasic.times(
+            new BigDecimal(amount)
+          )
+        ).div(
+          // fromBalance have been already update and it does not
+          // contain sended amount 
+          new BigDecimal(fromBalance.amount)
+        ) 
+      }
+    }
+    toPos.block = event.block.number
+    toPos.modified = event.block.timestamp
+    toPos.transaction = event.transaction.hash.toHex()
+
+    fromPos.block = event.block.number
+    fromPos.modified = event.block.timestamp
+    fromPos.transaction = event.transaction.hash.toHex()
+
+    toPos.save()
+    fromPos.save()
+  }
+  destinationAccount.save()
+  sourceAccount.save()
 }
 
 export function getOrCreateERC1155AccountBalance(

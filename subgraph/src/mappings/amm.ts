@@ -135,7 +135,7 @@ export function handleBTokensBought(event: BTokensBought): void {
     event.params.seriesId.toString()
   
   let pos = Position.load(id)
-  if(pos === null) {
+  if(pos === null || pos.costBasic === null) {
     pos = new Position(id)
     pos.costBasic = new BigDecimal(event.params.collateralPaid)
     pos.costBasic = pos.costBasic.div(
@@ -143,10 +143,12 @@ export function handleBTokensBought(event: BTokensBought): void {
     )
   } else {
     // we need to get amount of b-tokens
+    let accountBuyer = getOrCreateAccount(event.params.buyer)
     let balance = getOrCreateERC1155AccountBalance(
-      getOrCreateAccount(event.params.buyer),
+      accountBuyer,
       erc1155
     )
+    accountBuyer.save()
     // This happens after the token has been transfered
     // That is why we need to substract the btokens amount to get previous token amount
     let previousBalance = new BigDecimal(balance.amount.minus(event.params.bTokensBought))
@@ -157,7 +159,9 @@ export function handleBTokensBought(event: BTokensBought): void {
         paidForNew
       ).div(
         previousBalance.plus(newBTokens)// == balance.amount
-      )  
+      )
+
+    balance.save()  
   }
   pos.account = event.params.buyer.toHexString()
   pos.seriesId = event.params.seriesId
@@ -166,8 +170,8 @@ export function handleBTokensBought(event: BTokensBought): void {
   pos.modified = event.block.timestamp
   pos.transaction = event.transaction.hash.toHex()
   pos.save()
+  erc1155.save() 
   
-   
 }
 
 export function handleBTokensSold(event: BTokensSold): void {
@@ -211,13 +215,15 @@ export function handleBTokensSold(event: BTokensSold): void {
   }
 
   // we need to get amount of b-tokens
+  let accountSeller = getOrCreateAccount(event.params.seller)
   let balance = getOrCreateERC1155AccountBalance(
-    getOrCreateAccount(event.params.seller),
+    accountSeller,
     erc1155
   )
+  accountSeller.save()
   if(balance.amount == ZERO){
     // User sold all  btokens
-    pos.costBasic = new BigDecimal(ZERO)
+    pos.costBasic = null
   } else {
     // This happens after the token has been transfered
     // That is why we need to add the btokens amount to get previous token amount
@@ -239,6 +245,7 @@ export function handleBTokensSold(event: BTokensSold): void {
   pos.modified = event.block.timestamp
   pos.transaction = event.transaction.hash.toHex()
   pos.save()
+  erc1155.save()
 }
 
 export function handleWTokensSold(event: WTokensSold): void {
