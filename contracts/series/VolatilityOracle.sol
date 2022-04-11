@@ -119,10 +119,11 @@ contract VolatilityOracle is DSMath, OwnableUpgradeable, Proxiable {
     /**
      * @notice Initialized pool observation window
      */
-    function addTokenPair(address underlyingToken, address priceToken)
-        external
-        onlyOwner
-    {
+    function addTokenPair(
+        address underlyingToken,
+        address priceToken,
+        uint256 price
+    ) external onlyOwner {
         require(
             observations[underlyingToken][priceToken].length == 0,
             "Pool initialized"
@@ -130,6 +131,10 @@ contract VolatilityOracle is DSMath, OwnableUpgradeable, Proxiable {
         observations[underlyingToken][priceToken] = new int256[](windowSize);
 
         emit TokenPairAdded(underlyingToken, priceToken);
+
+        lastPrices[underlyingToken][priceToken] = price;
+
+        emit LastPriceSet(underlyingToken, priceToken, price);
     }
 
     /**
@@ -302,15 +307,5 @@ contract VolatilityOracle is DSMath, OwnableUpgradeable, Proxiable {
             mean,
             dsq
         );
-    }
-
-    function setLastPrice(
-        address underlyingToken,
-        address priceToken,
-        uint256 price
-    ) external onlyOwner {
-        lastPrices[underlyingToken][priceToken] = price;
-
-        emit LastPriceSet(underlyingToken, priceToken, price);
     }
 }

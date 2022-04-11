@@ -5,12 +5,10 @@ const WINDOW_SIZE = 90
 const WEEK_DURATION = 7 * DAY_DURATION
 
 export async function deployVolatilityOracle(
-  priceOracle: string,
-  gnosisAddress: string,
   dateOffset: number,
+  windowInDays: number,
+  addressesProvider: string,
 ): Promise<any> {
-  gnosisAddress = gnosisAddress.toLowerCase()
-
   const [signer] = await hre.ethers.getSigners()
   const deployerAddress = signer.address.toLowerCase()
 
@@ -20,23 +18,27 @@ export async function deployVolatilityOracle(
     throw new Error("date offset must be either 1 week or 1 day")
   }
 
-  const VolatilityOracleFactory = await hre.ethers.getContractFactory(
+  const Proxy = await hre.ethers.getContractFactory("Proxy")
+
+  const VolatilityOracle = await hre.ethers.getContractFactory(
     "VolatilityOracle",
   )
-  console.log("DAYDURATION", DAY_DURATION)
-  console.log("PORICE ORACLE", priceOracle)
-  console.log("WINDOW_SIZE", WINDOW_SIZE)
-  const volatilityOracle = await VolatilityOracleFactory.deploy(
-    DAY_DURATION,
-    priceOracle,
-    WINDOW_SIZE,
-  )
+  const volatilityOracleLogic = await VolatilityOracle.deploy()
+  await volatilityOracleLogic.deployed()
 
-  await volatilityOracle.deployed()
+  const volOracleProxy = await Proxy.deploy(volatilityOracleLogic.address)
+  await volOracleProxy.deployed()
   console.log(
-    "Volatility Oracle deployed to:       ",
+    "Logic VolatilityOracle deployed to:       ",
+    volatilityOracleLogic.address.toLowerCase(),
+  )
+  const volatilityOracle = VolatilityOracle.attach(volOracleProxy.address)
+  console.log(
+    "VolatilityOracle deployed to:             ",
     volatilityOracle.address.toLowerCase(),
   )
+
+  volatilityOracle.initialize(DAY_DURATION, addressesProvider, windowInDays)
 
   return {
     volatilityOracle,
