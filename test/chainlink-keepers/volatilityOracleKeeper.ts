@@ -66,6 +66,7 @@ contract("Volatility Oracle Keeper", (accounts) => {
     await deployedVolatilityOracle.addTokenPair(
       underlyingToken.address,
       priceToken.address,
+      10000,
     )
     checkUpkeep = await deployedVolatilityKeeper.contract.methods
       .checkUpkeep("0x00")
