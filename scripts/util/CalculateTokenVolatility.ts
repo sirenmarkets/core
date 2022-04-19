@@ -63,6 +63,7 @@ async function getPrices() {
     await deployedMockVolatilityOracle.addTokenPair(
       underlyingToken.address,
       priceToken.address,
+      underlyingPrice,
     )
     let vol = await calculateVolOffChain(prices)
     console.log("Vol", vol)

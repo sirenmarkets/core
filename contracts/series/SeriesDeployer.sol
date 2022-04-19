@@ -273,7 +273,7 @@ contract SeriesDeployer is
 
         {
             // Buy options
-            uint256 amtBought = IMinterAmm(_existingAmm).bTokenBuy(
+            uint256 collateralAmount = IMinterAmm(_existingAmm).bTokenBuy(
                 createdSeriesId,
                 _bTokenAmount,
                 _collateralMaximum
@@ -285,7 +285,7 @@ contract SeriesDeployer is
                 address(this),
                 msg.sender,
                 SeriesLibrary.bTokenIndex(createdSeriesId),
-                amtBought,
+                _bTokenAmount,
                 data
             );
         }
@@ -297,7 +297,7 @@ contract SeriesDeployer is
         if (remainingBalance > 0) {
             // Give allowane just in case
             IERC20(ammTokens.collateralToken).approve(
-                msg.sender,
+                address(this),
                 remainingBalance
             );
 
