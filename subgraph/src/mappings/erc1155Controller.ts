@@ -241,8 +241,6 @@ function handleTransfer(
 
     let fromPosId = from.toHexString() + posId
     let toPosId = to.toHexString() + posId
-
-    let fromAccount = getOrCreateAccount(from)
     let toAccount = getOrCreateAccount(to)
     
 
@@ -253,28 +251,27 @@ function handleTransfer(
     let fromPos = Position.load(fromPosId)
 
     let toPos = Position.load(toPosId)
-    if(toPos === null || toPos.costBasic === null) {
+    if(toPos === null) {
       // the cost basics do not change, we just update it for receiver
       toPos = new Position(toPosId)
       toPos.account = toAccount.id
       toPos.seriesId = seriesId
       toPos.token = event.address.toHexString()
 
-      // toAccount, didn't have any tokens, so the costBasic have to
+      // toAccount, didn't have any tokens, so the costBasis have to
       // be the same
-      toPos.costBasic = fromPos.costBasic
+      toPos.costBasis = fromPos.costBasis
     } else {
       // the balances should already exists
       // We will not change them ,therefore we will not save them
       // we get updated balances, after transfered events have been settleted 
-      let fromBalance = getOrCreateERC1155AccountBalance(fromAccount, token)
       let toBalance = getOrCreateERC1155AccountBalance(toAccount, token)
       
-      let toPrevCollateral = toPos.costBasic.times(
+      let toPrevCollateral = toPos.costBasis.times(
         new BigDecimal(toBalance.amount.minus(amount))
       )
-      toPos.costBasic = toPrevCollateral.plus(
-        fromPos.costBasic.times(
+      toPos.costBasis = toPrevCollateral.plus(
+        fromPos.costBasis.times(
           new BigDecimal(amount)
         )
       ).div(
@@ -282,34 +279,12 @@ function handleTransfer(
         new BigDecimal(toBalance.amount)
       )
 
-      // From has sended all of his bTokens
-      if (fromBalance.amount == ZERO) {
-        fromPos.costBasic = null
-      } else {
-        let fromPrevCollateral = fromPos.costBasic.times(
-          new BigDecimal(fromBalance.amount.plus(amount))
-        )
-        fromPos.costBasic = fromPrevCollateral.minus(
-          toPos.costBasic.times(
-            new BigDecimal(amount)
-          )
-        ).div(
-          // fromBalance have been already update and it does not
-          // contain sended amount 
-          new BigDecimal(fromBalance.amount)
-        ) 
-      }
+      // We do not update From costbasis
     }
     toPos.block = event.block.number
     toPos.modified = event.block.timestamp
     toPos.transaction = event.transaction.hash.toHex()
-
-    fromPos.block = event.block.number
-    fromPos.modified = event.block.timestamp
-    fromPos.transaction = event.transaction.hash.toHex()
-
     toPos.save()
-    fromPos.save()
   }
   destinationAccount.save()
   sourceAccount.save()
