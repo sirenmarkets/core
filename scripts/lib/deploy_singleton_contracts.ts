@@ -63,7 +63,7 @@ export async function deploySingletonContracts(
     "VolatilityOracle",
   )
   const AddressesProvider = await hre.ethers.getContractFactory(
-    "AddressesProvider",
+    "AddressesProvider ",
   )
   const AmmDataProvider = await hre.ethers.getContractFactory("AmmDataProvider")
 

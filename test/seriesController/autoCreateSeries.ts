@@ -474,4 +474,78 @@ contract("Auto Series Creation", (accounts) => {
       "seriesPerExpirationLimit should be correct",
     )
   })
+
+  it("Checks that reaming balance is returned to the user", async () => {
+    ;({
+      underlyingToken,
+      collateralToken,
+      priceToken,
+      deployedSeriesController,
+      expiration,
+      deployedAmm,
+      deployedAddressesProvider,
+      deployedERC1155Controller,
+      deployedSeriesDeployer,
+    } = await setupAllTestContracts({
+      strikePrice: STRIKE_PRICE.toString(),
+      oraclePrice: UNDERLYING_PRICE,
+      annualizedVolatility: ANNUALIZED_VOLATILITY,
+    }))
+
+    // Add a new expiration
+    const newExpiration = expiration + ONE_WEEK_DURATION
+    await deployedSeriesController.updateAllowedExpirations([newExpiration])
+
+    // Mint and approve tokens
+    await underlyingToken.mint(aliceAccount, 10e8)
+    await underlyingToken.approve(deployedSeriesDeployer.address, 10e8, {
+      from: aliceAccount,
+    })
+
+    // Get the index count
+    const beforeCount = await deployedSeriesController.latestIndex()
+
+    await deployedSeriesDeployer.updateAllowedTokenStrikeRanges(
+      underlyingToken.address,
+      50, // min 50% of underlying price
+      150, // max 150% of underlying price
+      1e8,
+    )
+
+    // Create the series and buy tokens
+    await deployedSeriesDeployer.autoCreateSeriesAndBuy(
+      deployedAmm.address,
+      STRIKE_PRICE,
+      newExpiration,
+      false,
+      1e8,
+      1e9,
+      {
+        from: aliceAccount,
+      },
+    )
+
+    // Ensure the series index was incremented to show the series was created
+    const afterCount = await deployedSeriesController.latestIndex()
+    assert(
+      afterCount.eq(beforeCount.add(new BN(1))),
+      "New series should update index",
+    )
+
+    // Verify bTokens - series ID is current - 1
+    const bTokenIndex = await deployedSeriesController.bTokenIndex(beforeCount)
+    assertBNEq(
+      await deployedERC1155Controller.balanceOf(aliceAccount, bTokenIndex),
+      1e8,
+      "bTokens should be purchased",
+    )
+
+    // Verify Alice got back unused collateral back
+    const collateralBalance = await underlyingToken.balanceOf(aliceAccount)
+    assertBNEq(
+      collateralBalance,
+      9e8,
+      "Alice should have 9e8 collateral returned to her",
+    )
+  })
 })
