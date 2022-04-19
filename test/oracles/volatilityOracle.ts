@@ -89,6 +89,7 @@ contract("Volatility Oracle", (accounts) => {
       await deployedVolatilityOracle.addTokenPair(
         underlyingToken.address,
         priceToken.address,
+        0, // we do not care
       )
     })
 
@@ -96,11 +97,13 @@ contract("Volatility Oracle", (accounts) => {
       await deployedVolatilityOracle.addTokenPair(
         underlyingToken.address,
         priceToken.address,
+        0, // we do not care
       )
       await expectRevert(
         deployedVolatilityOracle.addTokenPair(
           underlyingToken.address,
           priceToken.address,
+          0, // we do not care
         ),
         "Pool initialized",
       )
@@ -127,6 +130,7 @@ contract("Volatility Oracle", (accounts) => {
       await deployedVolatilityOracle.addTokenPair(
         underlyingToken.address,
         priceToken.address,
+        0, // we do not care
       )
       await time.increase(topOfPeriod1)
       for (let i = 0; i < values.length; i++) {
@@ -188,6 +192,7 @@ contract("Volatility Oracle", (accounts) => {
       await deployedVolatilityOracle.addTokenPair(
         underlyingToken.address,
         priceToken.address,
+        0,
       )
 
       let onChainVol1 = await calculateVolOnChain(valueSet1)
