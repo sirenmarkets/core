@@ -125,6 +125,7 @@ export async function setUpMockVolatilityOracle(
   windowInDays,
   addressesProviderAddress: string,
   volatility: number,
+  oraclePrice: number,
 ): Promise<MockVolatilityOracleInstance> {
   const deployedMockVolatilityOracle: MockVolatilityOracleInstance =
     await MockVolatilityOracle.new()
@@ -138,6 +139,7 @@ export async function setUpMockVolatilityOracle(
   await deployedMockVolatilityOracle.addTokenPair(
     underlyingAddress,
     priceAddress,
+    oraclePrice,
   )
 
   await deployedMockVolatilityOracle.setAnnualizedVol(
@@ -505,6 +507,7 @@ export async function setupSingletonTestContracts(
     WINDOW_IN_DAYS,
     deployedAddressesProvider.address,
     annualizedVolatility,
+    oraclePrice,
   )
 
   deployedAddressesProvider.setVolatilityOracle(

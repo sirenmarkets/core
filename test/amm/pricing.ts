@@ -1,16 +1,18 @@
-import { expectEvent, time } from "@openzeppelin/test-helpers"
+import { expectEvent, time, expectRevert } from "@openzeppelin/test-helpers"
 import { contract } from "hardhat"
 import {
   SimpleTokenInstance,
   MinterAmmInstance,
   AmmDataProviderInstance,
   ERC1155ControllerInstance,
+  SeriesControllerInstance,
 } from "../../typechain"
 
 let deployedAmm: MinterAmmInstance
 let deployedAmmDataProvider: AmmDataProviderInstance
 let deployedERC1155Controller: ERC1155ControllerInstance
 let collateralToken: SimpleTokenInstance
+let deployedSeriesController: SeriesControllerInstance
 
 let seriesId: string
 let expiration: number
@@ -20,6 +22,11 @@ import {
   ONE_WEEK_DURATION,
   setupAllTestContracts,
   setNextBlockTimestamp,
+  setupSingletonTestContracts,
+  setupAmm,
+  setupSeries,
+  getNextFriday8amUTCTimestamp,
+  now,
 } from "../util"
 
 const BTC_ORACLE_PRICE = 14_000 * 1e8 // BTC oracle answer has 8 decimals places, same as BTC
@@ -36,6 +43,7 @@ contract("AMM Pricing", (accounts) => {
       deployedAmmDataProvider,
       seriesId,
       deployedERC1155Controller,
+      deployedSeriesController,
       expiration,
     } = await setupAllTestContracts({
       oraclePrice: BTC_ORACLE_PRICE,
@@ -105,7 +113,24 @@ contract("AMM Pricing", (accounts) => {
         10000,
       )
 
-    assertBNEq(maximumCollateral, 154329)
+    assertBNEq(
+      maximumCollateral,
+      154329,
+      "Incorent maximumCollateral value for bToken",
+    )
+
+    const series = await deployedSeriesController.series(seriesId)
+    const maximumCollateralForNewSeries =
+      await deployedAmmDataProvider.bTokenGetCollateralInForNewSeries(
+        series,
+        deployedAmm.address,
+        10000,
+      )
+    assertBNEq(
+      maximumCollateralForNewSeries,
+      maximumCollateral,
+      "MaximumCollateral should be equal for existent series and non existent series",
+    )
 
     ret = await deployedAmm.bTokenBuy(seriesId, 10000, maximumCollateral, {
       from: aliceAccount,
@@ -166,6 +191,7 @@ contract("AMM Pricing", (accounts) => {
       seriesId,
       deployedERC1155Controller,
       deployedAmmDataProvider,
+      deployedSeriesController,
       expiration,
     } = await setupAllTestContracts({
       oraclePrice: BTC_ORACLE_PRICE,
@@ -197,6 +223,94 @@ contract("AMM Pricing", (accounts) => {
       await collateralToken.balanceOf(deployedAmm.address),
       10000,
       "Collateral should have been used to mint",
+    )
+
+    // Buy bTokens
+    const maximumCollateral =
+      await deployedAmmDataProvider.bTokenGetCollateralInView(
+        deployedAmm.address,
+        seriesId,
+        10000,
+      )
+
+    assertBNEq(
+      maximumCollateral,
+      2315,
+      "Incorent maximumCollateral value for bToken",
+    )
+
+    const series = await deployedSeriesController.series(seriesId)
+    const maximumCollateralForNewSeries =
+      await deployedAmmDataProvider.bTokenGetCollateralInForNewSeries(
+        series,
+        deployedAmm.address,
+        10000,
+      )
+    assertBNEq(
+      maximumCollateralForNewSeries,
+      maximumCollateral,
+      "MaximumCollateral should be equal for existent series and non existent series",
+    )
+
+    //bTokenGetCollateralInForNewSeries revert testing
+    let tokens = {
+      ...series.tokens,
+    }
+    let seriesRevert
+
+    seriesRevert = {
+      expirationDate: "1648800000",
+      isPutOption: false,
+      strikePrice: "1500000000000",
+      tokens: { ...tokens },
+    }
+    // 0x29D7d1dd5B6f9C864d9db560D72a247c178aE86B is some random address from internet
+    // Check revert for priceToken
+    seriesRevert.tokens.priceToken =
+      "0x29D7d1dd5B6f9C864d9db560D72a247c178aE86B"
+    await expectRevert(
+      deployedAmmDataProvider.bTokenGetCollateralInForNewSeries(
+        seriesRevert,
+        deployedAmm.address,
+        10000,
+      ),
+      "!priceToken",
+    )
+
+    // Check revert for collateralToken
+    seriesRevert = {
+      expirationDate: "1648800000",
+      isPutOption: false,
+      strikePrice: "1500000000000",
+      tokens: { ...tokens },
+    }
+    seriesRevert.tokens.collateralToken =
+      "0x29D7d1dd5B6f9C864d9db560D72a247c178aE86B"
+    await expectRevert(
+      deployedAmmDataProvider.bTokenGetCollateralInForNewSeries(
+        seriesRevert,
+        deployedAmm.address,
+        10000,
+      ),
+      "!collateralToken",
+    )
+
+    // Check revert for underlyingToken
+    seriesRevert = {
+      expirationDate: "1648800000",
+      isPutOption: false,
+      strikePrice: "1500000000000",
+      tokens: { ...tokens },
+    }
+    seriesRevert.tokens.underlyingToken =
+      "0x29D7d1dd5B6f9C864d9db560D72a247c178aE86B"
+    await expectRevert(
+      deployedAmmDataProvider.bTokenGetCollateralInForNewSeries(
+        seriesRevert,
+        deployedAmm.address,
+        10000,
+      ),
+      "!underlyingToken",
     )
 
     const startTime = expiration - ONE_WEEK_DURATION
@@ -272,6 +386,103 @@ contract("AMM Pricing", (accounts) => {
       ),
       10076,
       "Total assets value in the AMM should be above 10k",
+    )
+  })
+
+  it("bToken...View should return the same as bToken...NewSeries", async () => {
+    // This test tests the call series only
+    expiration = getNextFriday8amUTCTimestamp((await now()) + ONE_WEEK_DURATION)
+
+    let priceToken: SimpleTokenInstance
+    let underlyingToken: SimpleTokenInstance
+    let deployedAmmFactory
+    let deployedPriceOracle
+    let deployedBlackScholes
+    let deployedAddressesProvider
+    ;({
+      underlyingToken,
+      collateralToken,
+      priceToken,
+      deployedAmmFactory,
+      deployedAmmDataProvider,
+      deployedSeriesController,
+      deployedPriceOracle,
+      deployedAmmDataProvider,
+      deployedBlackScholes,
+      deployedAddressesProvider,
+    } = await setupSingletonTestContracts({
+      oraclePrice: BTC_ORACLE_PRICE,
+    }))
+
+    const { deployedAmm } = await setupAmm({
+      deployedAmmFactory,
+      deployedPriceOracle,
+      deployedAmmDataProvider,
+      deployedBlackScholes,
+      deployedAddressesProvider,
+      underlyingToken,
+      priceToken,
+      collateralToken,
+      tradeFeeBasisPoints: 0,
+    })
+
+    // Approve collateral
+    await collateralToken.mint(ownerAccount, 10000)
+    await collateralToken.approve(deployedAmm.address, 10000)
+
+    // Provide capital
+    let ret = await deployedAmm.provideCapital(10000, 0)
+
+    expectEvent(ret, "LpTokensMinted", {
+      minter: ownerAccount,
+      collateralAdded: "10000",
+      lpTokensMinted: "10000",
+    })
+
+    const startTime = expiration - ONE_WEEK_DURATION
+    await time.increaseTo(startTime) // use the same time, no matter when this test gets called
+
+    const tokens = {
+      underlyingToken: underlyingToken.address,
+      collateralToken: collateralToken.address,
+      priceToken: priceToken.address,
+    }
+
+    const series = {
+      tokens,
+      expirationDate: expiration,
+      isPutOption: false,
+      strikePrice: STRIKE_PRICE.toString(),
+    }
+    const maximumCollateralForNewSeries =
+      await deployedAmmDataProvider.bTokenGetCollateralInForNewSeries(
+        series,
+        deployedAmm.address,
+        10000,
+      )
+
+    ;({ seriesId } = await setupSeries({
+      deployedSeriesController,
+      underlyingToken,
+      priceToken,
+      collateralToken,
+      expiration,
+      restrictedMinters: [deployedAmm.address],
+      strikePrice: STRIKE_PRICE.toString(),
+      isPutOption: false,
+    }))
+
+    const maximumCollateral =
+      await deployedAmmDataProvider.bTokenGetCollateralInView(
+        deployedAmm.address,
+        seriesId,
+        10000,
+      )
+
+    assertBNEq(
+      maximumCollateral,
+      maximumCollateralForNewSeries,
+      "bTokens...ForNewSeries and bTokens...InView should be the same",
     )
   })
 })
