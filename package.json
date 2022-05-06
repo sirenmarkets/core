@@ -11,7 +11,7 @@
   "scripts": {
     "build": "npm run compile && rollup -c && cp ./src/ethers/*.d.ts ./dist/ethers/",
     "compile": "hardhat compile",
-    "test": "npx hardhat test",
+    "test": "NODE_OPTIONS=--openssl-legacy-provider npx hardhat test",
     "coverage": "npx hardhat clean && npx hardhat compile && npx hardhat coverage && npx hardhat clean",
     "publish:package": "npm publish --access public",
     "remixd": "remixd -s . --remix-ide https://remix.ethereum.org",

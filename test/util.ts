@@ -494,6 +494,8 @@ export async function setupSingletonTestContracts(
     deployedAddressesProvider.address,
   )
 
+  deployedAddressesProvider.setSeriesDeployer(deployedSeriesDeployer.address)
+
   // Add the series deployer contract to the allowed creators list
   await deployedSeriesController.grantRole(
     await deployedSeriesController.SERIES_DEPLOYER_ROLE(),

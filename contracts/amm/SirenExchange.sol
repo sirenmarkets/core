@@ -259,7 +259,7 @@ contract SirenExchange is ERC1155Holder, ReentrancyGuard {
         uint256 deadline,
         address _router,
         ISeriesController.Series memory series
-    ) external nonReentrant returns (uint256[] memory amounts) {
+    ) external nonReentrant returns (uint64 seriesId) {
         uint256 collateralPremium;
         uint256[] memory amountsIn;
         {
@@ -297,35 +297,37 @@ contract SirenExchange is ERC1155Holder, ReentrancyGuard {
         TransferHelper.safeApprove(path[0], _router, amountsIn[0]);
 
         // Executes the swap giving the needed user token amount to the siren exchange for the appropriate collateral to pay for the btokens
-        amounts = IUniswapV2Router02(_router).swapTokensForExactTokens(
-            collateralPremium,
-            amountsIn[0],
-            path,
-            address(this),
-            deadline
-        );
-
-        TransferHelper.safeApprove(
-            path[path.length - 1],
-            sirenAmmAddress,
-            collateralPremium
-        );
+        uint256[] memory amounts = IUniswapV2Router02(_router)
+            .swapTokensForExactTokens(
+                collateralPremium,
+                amountsIn[0],
+                path,
+                address(this),
+                deadline
+            );
 
         {
-            // Call MinterAmm bTokenBuy contract
-            createSeriesAndBuy(
-                sirenAmmAddress,
-                series,
-                bTokenAmount,
-                tokenAmountInMaximum,
-                path,
-                amounts
-            );
+            //Create the series and buy
+            return
+                createSeriesAndBuy(
+                    sirenAmmAddress,
+                    series,
+                    bTokenAmount,
+                    collateralPremium,
+                    path,
+                    amounts
+                );
         }
-
-        return amounts;
     }
 
+    /// @notice Creates a Series and then executes a Buy on that new series
+    /// @param sirenAmmAddress address of the amm that we wish to call
+    /// @param series The newly sereis that we are creating
+    /// @param bTokenAmount The amount of bToken to buy
+    /// @param tokenAmountInMaximum The largest amount of user tokens the caller is willing to pay for the bTokens
+    /// @param path The path of the collateral token of the series to the user token the caller wishes to receive
+    /// @param amounts desired user tokens directly back to the sender
+    /// @return seriesId the id of the newly created series
     function createSeriesAndBuy(
         address sirenAmmAddress,
         ISeriesController.Series memory series,
@@ -334,15 +336,21 @@ contract SirenExchange is ERC1155Holder, ReentrancyGuard {
         address[] calldata path,
         uint256[] memory amounts
     ) internal returns (uint64 seriesId) {
-        seriesId = SeriesDeployer(sirenAmmAddress).autoCreateSeriesAndBuy(
-            IMinterAmm(sirenAmmAddress),
-            series.strikePrice,
-            series.expirationDate,
-            series.isPutOption,
-            bTokenAmount,
+        TransferHelper.safeApprove(
+            path[path.length - 1],
+            address(SeriesDeployer(addressesProvider.getSeriesDeployer())),
             tokenAmountInMaximum
         );
 
+        seriesId = SeriesDeployer(addressesProvider.getSeriesDeployer())
+            .autoCreateSeriesAndBuy(
+                IMinterAmm(sirenAmmAddress),
+                series.strikePrice,
+                series.expirationDate,
+                series.isPutOption,
+                bTokenAmount,
+                tokenAmountInMaximum
+            );
         // Transfer the btokens to the correct address ( caller of this contract)
         getErc1155Controller().safeTransferFrom(
             address(this),
