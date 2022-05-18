@@ -20,7 +20,7 @@ import {
   Position
 } from "../../generated/schema"
 import { getId, getERC1155TransferId } from "./helpers/transaction"
-import { ZERO, ONE, TWO } from "./helpers/number"
+import { ZERO, ONE, TWO, getDecimalScale} from "./helpers/number"
 import { BigInt, Address, ethereum, BigDecimal } from "@graphprotocol/graph-ts"
 import { getOrCreateAccount } from "./account"
 const GENESIS_ADDRESS = "0x0000000000000000000000000000000000000000"
@@ -251,6 +251,7 @@ function handleTransfer(
     let fromPos = Position.load(fromPosId)
 
     let toPos = Position.load(toPosId)
+    let scale = new BigDecimal(getDecimalScale(seriesControllerAddress,seriesId ))
     if(toPos === null) {
       // the cost basics do not change, we just update it for receiver
       toPos = new Position(toPosId)
@@ -260,18 +261,22 @@ function handleTransfer(
 
       // toAccount, didn't have any tokens, so the costBasis have to
       // be the same
-      toPos.costBasis = fromPos.costBasis
+      // We need to unscale it, so later the program scales it back by default
+      toPos.costBasis = fromPos.costBasis.div(scale) 
     } else {
       // the balances should already exists
       // We will not change them ,therefore we will not save them
       // we get updated balances, after transfered events have been settleted 
       let toBalance = getOrCreateERC1155AccountBalance(toAccount, token)
       
-      let toPrevCollateral = toPos.costBasis.times(
+      let toUnsacled = toPos.costBasis.div(scale)
+      let fromUnsacled = fromPos.costBasis.div(scale)
+
+      let toPrevCollateral = toUnsacled.times(
         new BigDecimal(toBalance.amount.minus(amount))
       )
       toPos.costBasis = toPrevCollateral.plus(
-        fromPos.costBasis.times(
+        fromUnsacled.times(
           new BigDecimal(amount)
         )
       ).div(
@@ -281,6 +286,8 @@ function handleTransfer(
 
       // We do not update From costbasis
     }
+    // We need to rescale the costBasis based on underlying and collateral decimals
+    toPos.costBasis = toPos.costBasis.times(scale)
     toPos.block = event.block.number
     toPos.modified = event.block.timestamp
     toPos.transaction = event.transaction.hash.toHex()

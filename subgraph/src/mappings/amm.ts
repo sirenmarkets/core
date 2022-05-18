@@ -25,7 +25,7 @@ import {
 } from "../../generated/schema"
 import { findOrCreateToken } from "./simpleToken"
 import { getId } from "./helpers/transaction"
-import { ZERO, ONE, TWO } from "./helpers/number"
+import { ZERO, ONE, TWO, getDecimalScale } from "./helpers/number"
 import {
   getOrCreateERC1155AccountBalance,
   findOrCreateERC1155Token,
@@ -135,6 +135,7 @@ export function handleBTokensBought(event: BTokensBought): void {
     event.params.seriesId.toString()
   
   let pos = Position.load(id)
+  let scale = new BigDecimal(getDecimalScale(controller,event.params.seriesId ))
   if(pos === null) {
     pos = new Position(id)
     pos.costBasis = new BigDecimal(event.params.collateralPaid)
@@ -154,6 +155,10 @@ export function handleBTokensBought(event: BTokensBought): void {
     let previousBalance = new BigDecimal(balance.amount.minus(event.params.bTokensBought))
     let newBTokens = new BigDecimal(event.params.bTokensBought)
     let paidForNew = new BigDecimal(event.params.collateralPaid)
+
+    //We need to unscale the costBasis and then scale it back
+    pos.costBasis =  pos.costBasis.div(scale)
+
     pos.costBasis = 
       pos.costBasis.times(previousBalance).plus(
         paidForNew
@@ -163,6 +168,9 @@ export function handleBTokensBought(event: BTokensBought): void {
 
     balance.save()  
   }
+  // We need to scale the costBasis based on underlying and collateral decimals
+  pos.costBasis = pos.costBasis.times(scale)
+  
   pos.account = event.params.buyer.toHexString()
   pos.seriesId = event.params.seriesId
   pos.token = erc1155Addr.toHexString()
