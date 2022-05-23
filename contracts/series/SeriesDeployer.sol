@@ -13,7 +13,6 @@ import "../proxy/Proxiable.sol";
 import "./ISeriesController.sol";
 import "./SeriesLibrary.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "hardhat/console.sol";
 
 contract SeriesDeployer is
     Proxiable,
