@@ -76,6 +76,7 @@ type Amm @entity {
   tradeFeeBasisPoints: Int!
   lpToken: ERC20Token!
   poolValueSnapshots: [PoolValueSnapshot]! @derivedFrom(field: "amm")
+  ammTokenEvents: [AmmTokenEvent]! @derivedFrom(field: "amm")
 }
 
 #
