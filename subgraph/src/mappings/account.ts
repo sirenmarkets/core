@@ -21,6 +21,7 @@ export function getOrCreateAccount(accountAddress: Bytes): Account {
   
   newAccount.lockedExpirationPools = []
   newAccount.address = accountAddress
+  newAccount.isAmm = false
 
   return newAccount
 }
