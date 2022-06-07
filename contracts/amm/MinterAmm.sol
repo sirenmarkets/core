@@ -1182,7 +1182,10 @@ contract MinterAmm is
                 0,
                 series.isPutOption
             );
-        return (pricesStdVega.price, pricesStdVega.stdVega);
+        return (
+            ((pricesStdVega.price * 1e18) / underlyingPrice),
+            pricesStdVega.stdVega
+        );
     }
 
     function collateralBalance() public view override returns (uint256) {

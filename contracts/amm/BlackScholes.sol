@@ -463,9 +463,9 @@ contract BlackScholes is IBlackScholes {
                 d2
             );
             if (isPut) {
-                price = put.divideDecimalRoundPrecise(spotPrecise);
+                price = put;
             } else {
-                price = call.divideDecimalRoundPrecise(spotPrecise);
+                price = call;
             }
         }
         return
