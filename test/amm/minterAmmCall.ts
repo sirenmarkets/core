@@ -1062,7 +1062,7 @@ contract("AMM Call Verification", (accounts) => {
     // Check that AMM calculates correct bToken price
     assertBNEq(
       await deployedAmm.getPriceForSeries(anotherSeriesIndex),
-      "65274048842857142", // 0.065 * 1e18
+      "65274048842692143", // 0.065 * 1e18
       "AMM should calculate bToken price correctly",
     )
 

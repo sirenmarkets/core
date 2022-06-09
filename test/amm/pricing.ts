@@ -83,7 +83,7 @@ contract("AMM Pricing", (accounts) => {
 
     assertBNEq(
       (await deployedAmm.getPriceForSeries(seriesId)).toString(),
-      "110102040416428571", // 0.1101 WBTC
+      "110102040416342143", // 0.1101 WBTC
       "AMM should have correct price for series",
     )
 
@@ -318,7 +318,7 @@ contract("AMM Pricing", (accounts) => {
 
     assertBNEq(
       (await deployedAmm.getPriceForSeries(seriesId)).toString(),
-      "38673468987857142", // 0.039 BTC / contract
+      "38673459149954286", // 0.039 BTC / contract
       "AMM should have correct price for series",
     )
 

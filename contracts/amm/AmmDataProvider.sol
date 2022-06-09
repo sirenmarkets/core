@@ -413,7 +413,7 @@ contract AmmDataProvider is IAmmDataProvider {
         // behavior for any functions which call getPriceForSeriesInternal
         (uint256 call, uint256 put) = IBlackScholes(
             addressesProvider.getBlackScholes()
-        ).optionPrices(
+        ).optionPricesInUnderlying(
                 series.expirationDate - block.timestamp,
                 annualVolatility,
                 underlyingPrice,
@@ -421,9 +421,9 @@ contract AmmDataProvider is IAmmDataProvider {
                 0
             );
         if (series.isPutOption == true) {
-            return ((put * 1e18) / underlyingPrice);
+            return (put);
         } else {
-            return ((call * 1e18) / underlyingPrice);
+            return (call);
         }
     }
 

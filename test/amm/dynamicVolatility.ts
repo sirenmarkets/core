@@ -103,7 +103,7 @@ contract("Dynamic Volatility", (accounts) => {
 
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "28392151706428571",
+        "28392151706747857",
         "Price should be correct before trading",
       )
       assertBNEq(
@@ -121,7 +121,7 @@ contract("Dynamic Volatility", (accounts) => {
 
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "29219953725000000",
+        "29219953724950714",
         "Price should be correct after trade1",
       )
       assertBNEq(
@@ -148,7 +148,7 @@ contract("Dynamic Volatility", (accounts) => {
 
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "28393349920714285",
+        "28393349920382857",
         "Price should be correct after trade2",
       )
       assertBNEq(
@@ -166,7 +166,7 @@ contract("Dynamic Volatility", (accounts) => {
 
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "29220944582142857",
+        "29220944581886429",
         "Price should be correct after trade3",
       )
       assertBNEq(
@@ -180,7 +180,7 @@ contract("Dynamic Volatility", (accounts) => {
 
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "28505986415714285",
+        "28505986415665714",
         "Price should be correct after 2hr wait",
       )
       assertBNEq(
@@ -193,7 +193,7 @@ contract("Dynamic Volatility", (accounts) => {
       await mineBlock(startTime + 4 * 3600)
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "27792468763571428",
+        "27792468763271429",
         "Price should be correct after 4hr wait",
       )
       assertBNEq(
@@ -231,7 +231,7 @@ contract("Dynamic Volatility", (accounts) => {
 
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "191913052197142857",
+        "191913052196903571",
         "Price should be correct after trade1",
       )
       assertBNEq(
@@ -245,7 +245,7 @@ contract("Dynamic Volatility", (accounts) => {
       await mineBlock(checkpoint)
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "108781215803571428",
+        "108781215803875714",
         "Price should be correct after 2hr wait",
       )
       assertBNEq(
@@ -259,7 +259,7 @@ contract("Dynamic Volatility", (accounts) => {
       await mineBlock(checkpoint)
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "27997093028571428",
+        "27997093028271429",
         "Price should be correct after 4hr wait",
       )
       assertBNEq(
@@ -273,7 +273,7 @@ contract("Dynamic Volatility", (accounts) => {
       await mineBlock(checkpoint)
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "27182172210000000",
+        "27182172210042857",
         "Price should be correct after 8hr wait",
       )
       assertBNEq(
@@ -301,7 +301,7 @@ contract("Dynamic Volatility", (accounts) => {
 
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "5595734308571428",
+        "5595734308452143",
         "Price should be correct after sell",
       )
       assertBNEq(
@@ -315,7 +315,7 @@ contract("Dynamic Volatility", (accounts) => {
       await mineBlock(checkpoint)
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "15251524481428571",
+        "15251524481628571",
         "Price should be correct after 2hr wait",
       )
       assertBNEq(
@@ -329,7 +329,7 @@ contract("Dynamic Volatility", (accounts) => {
       await mineBlock(checkpoint)
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "26551845691428571",
+        "26551845691140714",
         "Price should be correct after 4hr wait",
       )
       assertBNEq(
@@ -420,7 +420,7 @@ contract("Dynamic Volatility", (accounts) => {
 
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "3671615714285",
+        "3671615775714",
         "Price should be correct after trade",
       )
       assertBNEq(
@@ -437,7 +437,7 @@ contract("Dynamic Volatility", (accounts) => {
 
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "4068350000000",
+        "4068349824286",
         "Price should be correct after trade",
       )
       assertBNEq(
@@ -451,7 +451,7 @@ contract("Dynamic Volatility", (accounts) => {
       await mineBlock(checkpoint)
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "485759285714",
+        "485759267143",
         "Price should be correct after 1 hour",
       )
       assertBNEq(
@@ -478,7 +478,7 @@ contract("Dynamic Volatility", (accounts) => {
       })
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "459073571428",
+        "459073819286",
         "Price should be correct after sell",
       )
       assertBNEq(
@@ -541,7 +541,7 @@ contract("Dynamic Volatility", (accounts) => {
 
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "99820723135000000",
+        "99820723135319286",
         "Price should be correct before trading",
       )
       assertBNEq(
@@ -559,7 +559,7 @@ contract("Dynamic Volatility", (accounts) => {
 
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "101068663367857142",
+        "101068663367649286",
         "Price should be correct after trade1",
       )
       assertBNEq(
@@ -586,7 +586,7 @@ contract("Dynamic Volatility", (accounts) => {
 
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "99824626515000000",
+        "99824626514898571",
         "Price should be correct after trade2",
       )
       assertBNEq(
@@ -604,7 +604,7 @@ contract("Dynamic Volatility", (accounts) => {
 
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "101072514693571428",
+        "101072514693392857",
         "Price should be correct after trade3",
       )
       assertBNEq(
@@ -618,7 +618,7 @@ contract("Dynamic Volatility", (accounts) => {
 
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "100145202624285714",
+        "100145202624350000",
         "Price should be correct after 2hr wait",
       )
       assertBNEq(
@@ -631,7 +631,7 @@ contract("Dynamic Volatility", (accounts) => {
       await mineBlock(startTime + 4 * 3600)
       assertBNEq(
         await deployedAmm.getPriceForSeries(seriesId),
-        "99222087010714285",
+        "99222087010467857",
         "Price should be correct after 4hr wait",
       )
       assertBNEq(
