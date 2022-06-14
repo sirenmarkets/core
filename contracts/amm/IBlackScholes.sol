@@ -32,6 +32,14 @@ interface IBlackScholes {
         int256 rateDecimal
     ) external view returns (uint256 call, uint256 put);
 
+    function optionPricesInUnderlying(
+        uint256 timeToExpirySec,
+        uint256 volatilityDecimal,
+        uint256 spotDecimal,
+        uint256 strikeDecimal,
+        int256 rateDecimal
+    ) external view returns (uint256 call, uint256 put);
+
     function pricesDeltaStdVega(
         uint256 timeToExpirySec,
         uint256 volatilityDecimal,

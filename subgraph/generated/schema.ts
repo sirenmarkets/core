@@ -1246,6 +1246,15 @@ export class Account extends Entity {
     this.set("address", Value.fromBytes(value));
   }
 
+  get isAmm(): boolean {
+    let value = this.get("isAmm");
+    return value.toBoolean();
+  }
+
+  set isAmm(value: boolean) {
+    this.set("isAmm", Value.fromBoolean(value));
+  }
+
   get erc20Balances(): Array<string> {
     let value = this.get("erc20Balances");
     return value.toStringArray();
@@ -3247,6 +3256,108 @@ export class WTokenSold extends Entity {
 
   set series(value: string) {
     this.set("series", Value.fromString(value));
+  }
+
+  get transaction(): string {
+    let value = this.get("transaction");
+    return value.toString();
+  }
+
+  set transaction(value: string) {
+    this.set("transaction", Value.fromString(value));
+  }
+}
+
+export class Position extends Entity {
+  constructor(id: string) {
+    super();
+    this.set("id", Value.fromString(id));
+  }
+
+  save(): void {
+    let id = this.get("id");
+    assert(id !== null, "Cannot save Position entity without an ID");
+    assert(
+      id.kind == ValueKind.STRING,
+      "Cannot save Position entity with non-string ID. " +
+        'Considering using .toHex() to convert the "id" to a string.'
+    );
+    store.set("Position", id.toString(), this);
+  }
+
+  static load(id: string): Position | null {
+    return store.get("Position", id) as Position | null;
+  }
+
+  get id(): string {
+    let value = this.get("id");
+    return value.toString();
+  }
+
+  set id(value: string) {
+    this.set("id", Value.fromString(value));
+  }
+
+  get account(): string {
+    let value = this.get("account");
+    return value.toString();
+  }
+
+  set account(value: string) {
+    this.set("account", Value.fromString(value));
+  }
+
+  get seriesId(): BigInt {
+    let value = this.get("seriesId");
+    return value.toBigInt();
+  }
+
+  set seriesId(value: BigInt) {
+    this.set("seriesId", Value.fromBigInt(value));
+  }
+
+  get token(): string {
+    let value = this.get("token");
+    return value.toString();
+  }
+
+  set token(value: string) {
+    this.set("token", Value.fromString(value));
+  }
+
+  get costBasis(): BigDecimal | null {
+    let value = this.get("costBasis");
+    if (value === null || value.kind == ValueKind.NULL) {
+      return null;
+    } else {
+      return value.toBigDecimal();
+    }
+  }
+
+  set costBasis(value: BigDecimal | null) {
+    if (value === null) {
+      this.unset("costBasis");
+    } else {
+      this.set("costBasis", Value.fromBigDecimal(value as BigDecimal));
+    }
+  }
+
+  get block(): BigInt {
+    let value = this.get("block");
+    return value.toBigInt();
+  }
+
+  set block(value: BigInt) {
+    this.set("block", Value.fromBigInt(value));
+  }
+
+  get modified(): BigInt {
+    let value = this.get("modified");
+    return value.toBigInt();
+  }
+
+  set modified(value: BigInt) {
+    this.set("modified", Value.fromBigInt(value));
   }
 
   get transaction(): string {

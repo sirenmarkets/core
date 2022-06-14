@@ -194,6 +194,9 @@ type Account @entity {
   "The user's address"
   address: Bytes!
 
+  "This flag identifies, if the account is MinterAmm"
+  isAmm: Boolean!
+
   "ERC20 balances that this account holds"
   erc20Balances: [ERC20AccountBalance!]! @derivedFrom(field: "account")
 
@@ -530,7 +533,7 @@ type BTokenBought implements AmmTokenEvent @entity {
   block: BigInt!
   timestamp: BigInt!
   poolValueSnapshot: PoolValueSnapshot!
-  seriesId: BigInt!  
+  seriesId: BigInt!
   series: SeriesEntity!
   transaction: String!
 }
@@ -544,7 +547,7 @@ type BTokenSold implements AmmTokenEvent @entity {
   block: BigInt!
   timestamp: BigInt!
   poolValueSnapshot: PoolValueSnapshot!
-  seriesId: BigInt!  
+  seriesId: BigInt!
   series: SeriesEntity!
   transaction: String!
 }
@@ -558,8 +561,34 @@ type WTokenSold implements AmmTokenEvent @entity {
   block: BigInt!
   timestamp: BigInt!
   poolValueSnapshot: PoolValueSnapshot!
-  seriesId: BigInt!  
+  seriesId: BigInt!
   series: SeriesEntity!
+  transaction: String!
+}
+
+type Position @entity {
+  " Equals to: <account address>-<ERC1155 contract address>-<seriesId>"
+  id: ID!
+
+  " Account of this posstion"
+  account: Account!
+
+  " Id of series, where the positions belongs"
+  seriesId: BigInt!
+
+  " ERC1155Token ID "
+  token: ERC1155Token!
+
+  " Average cost of bTokens position "
+  costBasis: BigDecimal
+
+  " Block number in which the balance was last modified "
+  block: BigInt!
+
+  " Last modified timestamp in seconds "
+  modified: BigInt!
+
+  " Hash of the last transaction that modified the balance "
   transaction: String!
 }
 

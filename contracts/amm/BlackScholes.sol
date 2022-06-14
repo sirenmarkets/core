@@ -312,6 +312,48 @@ contract BlackScholes is IBlackScholes {
         return (call.preciseDecimalToDecimal(), put.preciseDecimalToDecimal());
     }
 
+    /**
+     * @dev Returns call and put prices for options with given parameters.
+     * @param timeToExpirySec Number of seconds to the expiry of the option
+     * @param volatilityDecimal Implied volatility over the period til expiry as a percentage( we calculate our volatilty and it is returned with 8
+     *                          decimals so we need to update it to be the correct format for blackscholes
+     * @param spotDecimal The current price of the base asset
+     * @param strikeDecimal The strike price of the option
+     * @param rateDecimal The percentage risk free rate + carry cost
+     */
+    function optionPricesInUnderlying(
+        uint256 timeToExpirySec,
+        uint256 volatilityDecimal,
+        uint256 spotDecimal,
+        uint256 strikeDecimal,
+        int256 rateDecimal
+    ) external view override returns (uint256 call, uint256 put) {
+        uint256 tAnnualised = annualise(timeToExpirySec);
+        uint256 spotPrecise = spotDecimal.decimalToPreciseDecimal();
+        uint256 strikePrecise = strikeDecimal.decimalToPreciseDecimal();
+        int256 ratePrecise = rateDecimal.decimalToPreciseDecimal();
+        (int256 d1, int256 d2) = d1d2(
+            tAnnualised,
+            volatilityDecimal.decimalToPreciseDecimal(),
+            spotPrecise,
+            strikePrecise,
+            ratePrecise
+        );
+
+        (call, put) = _optionPrices(
+            tAnnualised,
+            spotPrecise,
+            strikePrecise,
+            ratePrecise,
+            d1,
+            d2
+        );
+        call = call.divideDecimalRoundPrecise(spotPrecise);
+        put = put.divideDecimalRoundPrecise(spotPrecise);
+
+        return (call.preciseDecimalToDecimal(), put.preciseDecimalToDecimal());
+    }
+
     /*.000246212471428571
      * Greeks
      */

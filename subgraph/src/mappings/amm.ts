@@ -8,7 +8,9 @@ import {
   MinterAmm as AmmContract,
 } from "../../generated/templates/Amm/MinterAmm"
 import {AmmDataProvider } from "../../generated/templates/AmmDataProvider/AmmDataProvider"
-
+import { 
+  SeriesController as SeriesControllerContract
+ } from "../../generated/SeriesController/SeriesController"
 import { SimpleToken as SimpleTokenContract } from "../../generated/templates/Amm/SimpleToken"
 import {
   Amm,
@@ -18,11 +20,19 @@ import {
   LpTokenBurned,
   BTokenBought,
   BTokenSold,
-  WTokenSold
+  WTokenSold,
+  Position
 } from "../../generated/schema"
 import { findOrCreateToken } from "./simpleToken"
 import { getId } from "./helpers/transaction"
-import { ethereum, BigInt, dataSource } from "@graphprotocol/graph-ts"
+import { ZERO, ONE, TWO, getDecimalScale } from "./helpers/number"
+import {
+  getOrCreateERC1155AccountBalance,
+  findOrCreateERC1155Token,
+  seriesIdToBTokenId  
+ } from "./erc1155Controller"
+ import { getOrCreateAccount } from "./account"
+import { ethereum, BigInt, dataSource, BigDecimal, log, Address } from "@graphprotocol/graph-ts"
 
 export function handleAMMInitialized(event: AMMInitialized): void {
   // create AMM
@@ -109,6 +119,67 @@ export function handleBTokensBought(event: BTokensBought): void {
   bTokenBought.transaction = event.transaction.hash.toHex()
 
   bTokenBought.save()
+
+  let controller = Address.fromString(getSeriesControllerAddress())
+  let erc1155Addr = SeriesControllerContract.bind(
+    controller).erc1155Controller()
+  let erc1155 = findOrCreateERC1155Token(
+    controller, 
+    seriesIdToBTokenId(
+      event.params.seriesId 
+    )
+  )
+  let id = 
+    event.params.buyer.toHexString() + '-' +
+    erc1155Addr.toHexString() + '-' +  
+    event.params.seriesId.toString()
+  
+  let pos = Position.load(id)
+  let scale = new BigDecimal(getDecimalScale(controller,event.params.seriesId ))
+  if(pos === null) {
+    pos = new Position(id)
+    pos.costBasis = new BigDecimal(event.params.collateralPaid)
+    pos.costBasis = pos.costBasis.div(
+      new BigDecimal(event.params.bTokensBought)
+    )
+  } else {
+    // we need to get amount of b-tokens
+    let accountBuyer = getOrCreateAccount(event.params.buyer)
+    let balance = getOrCreateERC1155AccountBalance(
+      accountBuyer,
+      erc1155
+    )
+    accountBuyer.save()
+    // This happens after the token has been transfered
+    // That is why we need to substract the btokens amount to get previous token amount
+    let previousBalance = new BigDecimal(balance.amount.minus(event.params.bTokensBought))
+    let newBTokens = new BigDecimal(event.params.bTokensBought)
+    let paidForNew = new BigDecimal(event.params.collateralPaid)
+
+    //We need to unscale the costBasis and then scale it back
+    pos.costBasis =  pos.costBasis.div(scale)
+
+    pos.costBasis = 
+      pos.costBasis.times(previousBalance).plus(
+        paidForNew
+      ).div(
+        previousBalance.plus(newBTokens)// == balance.amount
+      )
+
+    balance.save()  
+  }
+  // We need to scale the costBasis based on underlying and collateral decimals
+  pos.costBasis = pos.costBasis.times(scale)
+  
+  pos.account = event.params.buyer.toHexString()
+  pos.seriesId = event.params.seriesId
+  pos.token = erc1155Addr.toHexString()
+  pos.block = event.block.number
+  pos.modified = event.block.timestamp
+  pos.transaction = event.transaction.hash.toHex()
+  pos.save()
+  erc1155.save() 
+  
 }
 
 export function handleBTokensSold(event: BTokensSold): void {
@@ -127,7 +198,7 @@ export function handleBTokensSold(event: BTokensSold): void {
   bTokenSold.series = getSeriesControllerAddress() + "-" + event.params.seriesId.toString()
   bTokenSold.transaction = event.transaction.hash.toHex()
 
-  bTokenSold.save()
+  bTokenSold.save() 
 }
 
 export function handleWTokensSold(event: WTokensSold): void {
@@ -178,7 +249,7 @@ function takePoolValueSnapshot(event: ethereum.Event): PoolValueSnapshot {
   return poolValueSnapshot as PoolValueSnapshot
 }
 
-function getSeriesControllerAddress(): String {
+function getSeriesControllerAddress(): string {
   let context = dataSource.context()
   return context.getString('seriesController')
 }

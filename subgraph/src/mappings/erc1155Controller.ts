@@ -17,10 +17,11 @@ import {
   ERC1155TokenMint,
   ERC1155TokenTransfer,
   SeriesEntity,
+  Position
 } from "../../generated/schema"
 import { getId, getERC1155TransferId } from "./helpers/transaction"
-import { ZERO, ONE, TWO } from "./helpers/number"
-import { BigInt, Address, ethereum } from "@graphprotocol/graph-ts"
+import { ZERO, ONE, TWO, getDecimalScale} from "./helpers/number"
+import { BigInt, Address, ethereum, BigDecimal } from "@graphprotocol/graph-ts"
 import { getOrCreateAccount } from "./account"
 const GENESIS_ADDRESS = "0x0000000000000000000000000000000000000000"
 
@@ -191,10 +192,10 @@ function handleTransfer(
     token.totalTransferred = token.totalTransferred.plus(amount)
     token.save()
   }
-
+  let sourceAccount = getOrCreateAccount(from)
+  let destinationAccount = getOrCreateAccount(to)
   // Updates balances of accounts
-  if (isTransfer || isBurn) {
-    let sourceAccount = getOrCreateAccount(from)
+  if (isBurn || isTransfer) {
 
     let accountBalance = decreaseERC1155AccountBalance(
       sourceAccount,
@@ -205,15 +206,13 @@ function handleTransfer(
     accountBalance.modified = event.block.timestamp
     accountBalance.transaction = event.transaction.hash
 
-    sourceAccount.save()
     accountBalance.save()
 
     // To provide information about evolution of account balances
     saveERC1155AccountBalanceSnapshot(accountBalance, eventId, event)
   }
 
-  if (isTransfer || isMint) {
-    let destinationAccount = getOrCreateAccount(to)
+  if (isMint || isTransfer) {
 
     let accountBalance = increaseERC1155AccountBalance(
       destinationAccount,
@@ -224,15 +223,81 @@ function handleTransfer(
     accountBalance.modified = event.block.timestamp
     accountBalance.transaction = event.transaction.hash
 
-    destinationAccount.save()
+    
     accountBalance.save()
 
     // To provide information about evolution of account balances
     saveERC1155AccountBalanceSnapshot(accountBalance, eventId, event)
   }
+  if(isTransfer &&
+    !sourceAccount.isAmm &&
+    !destinationAccount.isAmm &&
+    !isWToken(id)
+    ){
+    let seriesId = tokenIdToSeriesId(id)
+    let posId = '-' +
+    event.address.toHexString() + '-' +  
+    seriesId.toString()
+
+    let fromPosId = from.toHexString() + posId
+    let toPosId = to.toHexString() + posId
+    let toAccount = getOrCreateAccount(to)
+    
+
+    // From Position should have been already created because:
+    // 1. b tokens are only minted to Amm, which are omitted in if statement
+    // 2. As a user, before you can send the tokens, you need to buy from Amm
+    // but this creates BTokensBought event, which creates a position
+    let fromPos = Position.load(fromPosId)
+
+    let toPos = Position.load(toPosId)
+    let scale = new BigDecimal(getDecimalScale(seriesControllerAddress,seriesId ))
+    if(toPos === null) {
+      // the cost basics do not change, we just update it for receiver
+      toPos = new Position(toPosId)
+      toPos.account = toAccount.id
+      toPos.seriesId = seriesId
+      toPos.token = event.address.toHexString()
+
+      // toAccount, didn't have any tokens, so the costBasis have to
+      // be the same
+      // We need to unscale it, so later the program scales it back by default
+      toPos.costBasis = fromPos.costBasis.div(scale) 
+    } else {
+      // the balances should already exists
+      // We will not change them ,therefore we will not save them
+      // we get updated balances, after transfered events have been settleted 
+      let toBalance = getOrCreateERC1155AccountBalance(toAccount, token)
+      
+      let toUnsacled = toPos.costBasis.div(scale)
+      let fromUnsacled = fromPos.costBasis.div(scale)
+
+      let toPrevCollateral = toUnsacled.times(
+        new BigDecimal(toBalance.amount.minus(amount))
+      )
+      toPos.costBasis = toPrevCollateral.plus(
+        fromUnsacled.times(
+          new BigDecimal(amount)
+        )
+      ).div(
+        // ToBalance includes also the transfered amount
+        new BigDecimal(toBalance.amount)
+      )
+
+      // We do not update From costbasis
+    }
+    // We need to rescale the costBasis based on underlying and collateral decimals
+    toPos.costBasis = toPos.costBasis.times(scale)
+    toPos.block = event.block.number
+    toPos.modified = event.block.timestamp
+    toPos.transaction = event.transaction.hash.toHex()
+    toPos.save()
+  }
+  destinationAccount.save()
+  sourceAccount.save()
 }
 
-function getOrCreateERC1155AccountBalance(
+export function getOrCreateERC1155AccountBalance(
   account: Account,
   token: ERC1155Token,
 ): ERC1155AccountBalance {
