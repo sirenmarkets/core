@@ -9,6 +9,12 @@ import "../amm/IMinterAmm.sol";
 
 contract PriceOracleKeeper is KeeperCompatibleInterface {
     IAddressesProvider public immutable addressesProvider;
+    event FailedSettlementPrice(
+        address underlyingToken,
+        address priceToken,
+        uint256 settlementTimestamp
+    );
+    event FailedToClaim(address amm, bool isPut);
 
     constructor(IAddressesProvider _addressesProvider) {
         addressesProvider = _addressesProvider;
@@ -29,10 +35,35 @@ contract PriceOracleKeeper is KeeperCompatibleInterface {
         return (callAmm, putAmm);
     }
 
+    function isClaimRequiredAmm(address amm)
+        public
+        view
+        returns (bool claimRequired)
+    {
+        ISeriesController seriesController = ISeriesController(
+            addressesProvider.getSeriesController()
+        );
+        claimRequired = false;
+        if (amm != address(0)) {
+            uint64[] memory allSeriesCall = IMinterAmm(amm).getAllSeries();
+            for (uint256 i = 0; i < allSeriesCall.length; i++) {
+                uint64 seriesId = uint64(allSeriesCall[i]);
+                if (
+                    seriesController.state(seriesId) ==
+                    ISeriesController.SeriesState.EXPIRED
+                ) {
+                    claimRequired = true;
+                    break; // exit early
+                }
+            }
+        }
+    }
+
     function checkUpkeep(
         bytes calldata /* checkData */
     )
         external
+        view
         override
         returns (
             bool upkeepNeeded,
@@ -40,9 +71,6 @@ contract PriceOracleKeeper is KeeperCompatibleInterface {
         )
     {
         IPriceOracle oracle = IPriceOracle(addressesProvider.getPriceOracle());
-        ISeriesController seriesController = ISeriesController(
-            addressesProvider.getSeriesController()
-        );
         uint256 settlementTimestamp = oracle.get8amWeeklyOrDailyAligned(
             block.timestamp
         );
@@ -64,35 +92,11 @@ contract PriceOracleKeeper is KeeperCompatibleInterface {
                 feed.underlyingToken,
                 feed.priceToken
             );
-            // callAmm expired check
-            if (callAmm != address(0)) {
-                uint64[] memory allSeriesCall = IMinterAmm(callAmm)
-                    .getAllSeries();
-                for (uint256 i = 0; i < allSeriesCall.length; i++) {
-                    uint64 seriesId = uint64(allSeriesCall[i]);
-                    if (
-                        seriesController.state(seriesId) ==
-                        ISeriesController.SeriesState.EXPIRED
-                    ) {
-                        upkeepNeeded = true;
-                        break; // exit early
-                    }
-                }
+            if (isClaimRequiredAmm(callAmm)) {
+                upkeepNeeded = true;
             }
-            // putAmm expired check
-            if (putAmm != address(0)) {
-                uint64[] memory allSeriesPut = IMinterAmm(putAmm)
-                    .getAllSeries();
-                for (uint256 i = 0; i < allSeriesPut.length; i++) {
-                    uint64 seriesId = uint64(allSeriesPut[i]);
-                    if (
-                        seriesController.state(seriesId) ==
-                        ISeriesController.SeriesState.EXPIRED
-                    ) {
-                        upkeepNeeded = true;
-                        break; // exit early
-                    }
-                }
+            if (isClaimRequiredAmm(putAmm)) {
+                upkeepNeeded = true;
             }
         }
     }
@@ -100,6 +104,7 @@ contract PriceOracleKeeper is KeeperCompatibleInterface {
     function performUpkeep(
         bytes calldata /* performData */
     ) external override {
+        bool completedWork = false;
         IPriceOracle oracle = IPriceOracle(addressesProvider.getPriceOracle());
         uint256 settlementTimestamp = oracle.get8amWeeklyOrDailyAligned(
             block.timestamp
@@ -113,11 +118,21 @@ contract PriceOracleKeeper is KeeperCompatibleInterface {
                 feed.underlyingToken,
                 feed.priceToken
             );
-            if (callAmm != address(0)) {
-                try IMinterAmm(callAmm).claimAllExpiredTokens() {} catch {}
+            // We call claim, only if something can be claimed otherwise claim will be successful without
+            // doing anything and we set completedWork = true
+            if (isClaimRequiredAmm(callAmm)) {
+                try IMinterAmm(callAmm).claimAllExpiredTokens() {
+                    completedWork = true;
+                } catch {
+                    emit FailedToClaim(callAmm, false);
+                }
             }
-            if (putAmm != address(0)) {
-                try IMinterAmm(putAmm).claimAllExpiredTokens() {} catch {}
+            if (isClaimRequiredAmm(putAmm)) {
+                try IMinterAmm(putAmm).claimAllExpiredTokens() {
+                    completedWork = true;
+                } catch {
+                    emit FailedToClaim(putAmm, true);
+                }
             }
             (bool isSet, ) = oracle.getSettlementPrice(
                 feed.underlyingToken,
@@ -131,8 +146,17 @@ contract PriceOracleKeeper is KeeperCompatibleInterface {
                         feed.underlyingToken,
                         feed.priceToken
                     )
-                {} catch {}
+                {
+                    completedWork = true;
+                } catch {
+                    emit FailedSettlementPrice(
+                        feed.underlyingToken,
+                        feed.priceToken,
+                        settlementTimestamp
+                    );
+                }
             }
         }
+        require(completedWork, "!work");
     }
 }

@@ -1,6 +1,6 @@
 import { setupAllTestContracts, assertBNEq } from "../util"
 
-import { time } from "@openzeppelin/test-helpers"
+import { time, expectRevert } from "@openzeppelin/test-helpers"
 import { artifacts, contract, ethers } from "hardhat"
 const { provider } = ethers
 import { VolatilityOracleKeeperContract } from "../../typechain"
@@ -49,53 +49,36 @@ contract("Volatility Oracle Keeper", (accounts) => {
     )
   })
 
-  it("checkUp and performUpkeep test", async () => {
+  it("performUpkeep test", async () => {
     let nextPeriod1 = (await getNextPeriod()) + PERIOD
     await time.increaseTo(nextPeriod1)
     await deployedMockPriceOracle.setLatestAnswer(10000)
-    let checkUpkeep = await deployedVolatilityKeeper.contract.methods
-      .checkUpkeep("0x00")
-      .call()
-
-    assertBNEq(
-      checkUpkeep.upkeepNeeded,
-      false,
-      "There should be nothing to upkeep",
-    )
+    await expectRevert(deployedVolatilityKeeper.performUpkeep("0x00"), "!work")
 
     await deployedVolatilityOracle.addTokenPair(
       underlyingToken.address,
       priceToken.address,
       10000,
     )
-    checkUpkeep = await deployedVolatilityKeeper.contract.methods
-      .checkUpkeep("0x00")
-      .call()
-    assertBNEq(checkUpkeep.upkeepNeeded, true, "It should be albe to do upkeep")
+    // We simulate the transaction, but it should work
+    await deployedVolatilityKeeper.contract.methods.performUpkeep("0x00").call()
+    // Somebody executes it
     await deployedVolatilityOracle.commit(
       underlyingToken.address,
       priceToken.address,
     )
-    checkUpkeep = await deployedVolatilityKeeper.contract.methods
-      .checkUpkeep("0x00")
-      .call()
-    assertBNEq(checkUpkeep.upkeepNeeded, false, "Everything should be set")
+    // It is set by somebody else, so we have to fail
+    await expectRevert(deployedVolatilityKeeper.performUpkeep("0x00"), "!work")
 
     // We shall test performUpkeep now
     let nextPeriod2 = (await getNextPeriod()) + PERIOD
     await time.increaseTo(nextPeriod2)
     await deployedMockPriceOracle.setLatestAnswer(1000)
 
-    checkUpkeep = await deployedVolatilityKeeper.contract.methods
-      .checkUpkeep("0x00")
-      .call()
-    assertBNEq(checkUpkeep.upkeepNeeded, true, "It should be albe to do upkeep")
-
+    // It should work now
     await deployedVolatilityKeeper.performUpkeep("0x00")
 
-    checkUpkeep = await deployedVolatilityKeeper.contract.methods
-      .checkUpkeep("0x00")
-      .call()
-    assertBNEq(checkUpkeep.upkeepNeeded, false, "Everything should be set")
+    // For second time, it has to fail
+    await expectRevert(deployedVolatilityKeeper.performUpkeep("0x00"), "!work")
   })
 })
