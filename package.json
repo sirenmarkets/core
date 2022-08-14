@@ -42,7 +42,7 @@
     "@nomiclabs/hardhat-web3": "^2.0.0",
     "@openzeppelin/contracts": "^4.1.0",
     "@openzeppelin/contracts-ethereum-package": "^3.0.0",
-    "@openzeppelin/contracts-upgradeable": "^4.0.0",
+    "@openzeppelin/contracts-upgradeable": "^4.7.2",
     "@openzeppelin/hardhat-upgrades": "^1.13.0",
     "@openzeppelin/test-helpers": "^0.5.11",
     "@rollup/plugin-babel": "^5.2.1",
