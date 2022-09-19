@@ -1192,7 +1192,7 @@ contract SeriesController is
     /// Expirations must be aligned 8 AM weekly or daily
     function updateAllowedExpirations(uint256[] calldata timestamps)
         public
-        onlyOwner
+        onlySeriesDeployer
     {
         // Save off the expiration list length as the next expiration ID to be added
         uint256 nextExpirationID = allowedExpirationsList.length;
